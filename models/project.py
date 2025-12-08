@@ -59,15 +59,16 @@ class RfpProject(models.Model):
                 "description": project.description,
                 "domain": project.domain_context,
                 "language": project.document_language,
-                "previous_inputs": []
+                "previous_inputs": [],
+                "rejected_topics": []
             }
             
             for form_input in project.form_input_ids:
                 if form_input.is_irrelevant:
-                    context_data["previous_inputs"].append({
+                    context_data["rejected_topics"].append({
                         "key": form_input.field_key,
                         "question": form_input.label,
-                        "answer": f"[MARKED IRRELEVANT BY USER]: {form_input.irrelevant_reason or 'No reason provided'}"
+                        "reason": form_input.irrelevant_reason or 'No reason provided'
                     })
                 elif form_input.user_value:
                     context_data["previous_inputs"].append({
