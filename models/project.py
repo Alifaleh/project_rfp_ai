@@ -112,6 +112,15 @@ class RfpProject(models.Model):
             existing_keys = project.form_input_ids.mapped('field_key')
             if not response_data:
                 return
+
+            # CRITICAL FIX: Check for Status (Rate Limit / Error)
+            # If status is not 'success' (or implicit success), do NOT process fields and do NOT finalize.
+            analysis_meta = response_data.get('analysis_meta', {})
+            status = analysis_meta.get('status')
+            if status in ['rate_limit', 'error']:
+                # Do nothing, just return. The context blob is already updated with this status,
+                # so the UI will show the warning. We must NOT advance stage.
+                return True
                 
             # Check for Auto-Finalization
             is_complete = response_data.get('is_gathering_complete', False)

@@ -77,212 +77,6 @@
         </t>
     </template>
 
-    <template id="portal_rfp_interface" name="AI Interviewer Interface">
-        <t t-call="portal.portal_layout">
-            <div class="container mt-4 rfp-portal-wrapper">
-                <div class="row">
-                    <div class="col-md-8 offset-md-2">
-                        <div class="card shadow-sm">
-                            <div class="card-header bg-white">
-                                <h3 t-field="rfp_project.name"/>
-                                <span class="text-muted">AI Analyst is gathering requirements...</span>
-                            </div>
-                            <div
-                                class="card-body">
-
-                                <!-- Progress Bar -->
-                                <t t-set="raw_score" t-value="rfp_project.get_context_data().get('analysis_meta', {}).get('completeness_score', 0)"/>
-                                <t t-set="completeness" t-value="raw_score if raw_score > 1 else raw_score * 100"/>
-                                <div class="progress mb-4" style="height: 25px;">
-                                    <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar" t-att-style="'width: ' + str(int(completeness)) + '%'" t-att-aria-valuenow="int(completeness)" aria-valuemin="0" aria-valuemax="100">
-                                        <t t-esc="int(completeness)"/>% Analysis Complete
-                                    </div>
-                                </div>
-
-                                <!-- Chat / History / Purpose could go here -->
-                                <t t-set="ai_status_top" t-value="rfp_project.get_context_data().get('analysis_meta', {}).get('status')"/>
-                                <div t-if="ai_status_top == 'rate_limit'" class="alert alert-warning mb-3">
-                                    <i class="fa fa-clock-o"/>
-                                    <b>System Busy:</b>
-                                    Please wait 30s before clicking Retry.
-                                </div>
-
-                                <div class="alert alert-info" t-if="unanswered_ids">
-                                    <i class="fa fa-info-circle"/>
-                                    The AI has analyzed your project and needs the following details to proceed.
-                                </div>
-
-                                <form t-attf-action="/rfp/next_step/#{rfp_project.id}" method="post">
-                                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
-
-                                    <t
-                                    t-set="unanswered_ids" t-value="rfp_project.form_input_ids.filtered(lambda i: not i.user_value)"/>
-
-                                    <!-- CASE 1: There are questions to answer -->
-                                    <t
-                                        t-if="unanswered_ids">
-                                        <!-- Loop through Inputs -->
-                                        <t t-foreach="unanswered_ids" t-as="input_field">
-                                            <div class="mb-4 p-3 border rounded bg-light rfp-input-group position-relative" t-att-id="'input_group_' + input_field.field_key" t-att-data-field-key="input_field.field_key" t-att-data-depends-on="input_field.depends_on or '{}'">
-
-                                                <div class="d-flex justify-content-between align-items-start mb-2">
-                                                    <label class="form-label fw-bold mb-0 text-dark flex-grow-1 me-3 text-wrap" style="word-break: break-word;">
-                                                        <t t-esc="input_field.label"/>
-                                                    </label>
-                                                    <button type="button" class="btn btn-sm btn-link text-decoration-none text-muted p-0 btn-irrelevant-toggle" t-att-data-target="'irrelevant_' + input_field.field_key" style="min-width: 120px; text-align: right;">
-                                                        <i class="fa fa-ban"/>
-                                                        Skip Question
-                                                    </button>
-                                                </div>
-
-                                                <p class="text-muted small" t-if="input_field.data_type"><t t-esc="input_field.description_tooltip or ''"/></p>
-
-                                                <!-- Dynamic Rendering Switch -->
-                                                <t t-if="input_field.component_type == 'text_input'">
-                                                    <input type="text" t-att-name="input_field.field_key" class="form-control"/>
-                                                </t>
-
-                                                <t t-elif="input_field.component_type == 'number_input'">
-                                                    <input type="number" t-att-name="input_field.field_key" class="form-control"/>
-                                                </t>
-
-                                                <t t-elif="input_field.component_type == 'textarea'">
-                                                    <textarea t-att-name="input_field.field_key" class="form-control" rows="3"></textarea>
-                                                </t>
-
-                                                <t t-elif="input_field.component_type == 'select'">
-                                                    <select t-att-name="input_field.field_key" class="form-select">
-                                                        <option value="">Select...</option>
-                                                        <t t-if="input_field.options">
-                                                            <t t-foreach="input_field.get_options_parsed()" t-as="opt">
-                                                                <option t-att-value="opt"><t t-esc="opt"/></option>
-                                                            </t>
-                                                        </t>
-                                                    </select>
-                                                </t>
-
-                                                <t t-elif="input_field.component_type == 'multiselect'">
-                                                    <div class="mb-2">
-                                                        <small class="text-muted">Select all that apply:</small>
-                                                        <t t-if="input_field.options">
-                                                            <t t-foreach="input_field.get_options_parsed()" t-as="opt">
-                                                                <div class="form-check">
-                                                                    <input class="form-check-input" type="checkbox" t-att-name="input_field.field_key" t-att-value="opt"/>
-                                                                    <label class="form-check-label"><t t-esc="opt"/></label>
-                                                                </div>
-                                                            </t>
-                                                        </t>
-                                                    </div>
-                                                </t>
-
-                                                <t t-elif="input_field.component_type == 'radio'">
-                                                    <div class="mb-2">
-                                                        <t t-if="input_field.options">
-                                                            <t t-foreach="input_field.get_options_parsed()" t-as="opt">
-                                                                <div class="form-check">
-                                                                    <input class="form-check-input" type="radio" t-att-name="input_field.field_key" t-att-value="opt" t-att-id="input_field.field_key + '_' + str(opt_index)"/>
-                                                                    <label class="form-check-label" t-att-for="input_field.field_key + '_' + str(opt_index)">
-                                                                        <t t-esc="opt"/>
-                                                                    </label>
-                                                                </div>
-                                                            </t>
-                                                        </t>
-                                                    </div>
-                                                </t>
-
-                                                <t t-elif="input_field.component_type == 'boolean'">
-                                                    <div class="form-check">
-                                                        <input type="checkbox" t-att-name="input_field.field_key" class="form-check-input" value="yes"/>
-                                                        <label class="form-check-label">Yes</label>
-                                                    </div>
-                                                </t>
-
-                                                <!-- Phase 12: Suggested Answers (Text/Textarea Only) -->
-                                                <t t-if="input_field.suggested_answers and input_field.component_type in ['text_input', 'textarea']">
-                                                    <div class="mt-2 mb-2">
-                                                        <small class="text-muted d-block">AI Suggestions (Click to fill):</small>
-                                                        <div class="d-flex flex-wrap gap-1">
-                                                            <t t-foreach="input_field.get_suggested_answers_parsed()" t-as="suggestion">
-                                                                <span class="badge rounded-pill bg-info text-dark cursor-pointer btn-suggestion" style="cursor: pointer;" t-att-data-value="suggestion" t-att-data-target="input_field.field_key">
-                                                                    <t t-esc="suggestion"/>
-                                                                </span>
-                                                            </t>
-                                                        </div>
-                                                    </div>
-                                                </t>
-
-                                                <!-- Phase 12: Irrelevant Reason Field (Hidden by default) -->
-                                                <div t-att-id="'irrelevant_' + input_field.field_key" class="mt-3 p-2 bg-warning bg-opacity-10 border border-warning rounded d-none irrelevant-box">
-                                                    <label class="form-label text-warning-emphasis small">Why is this irrelevant?</label>
-                                                    <input
-                                                    type="text" t-att-name="'irrelevant_reason_' + input_field.field_key" class="form-control form-control-sm" placeholder="e.g. We don't need this feature..."/>
-                                                    <!-- Hidden flag to tell backend it's irrelevant -->
-                                                    <input type="hidden" t-att-name="'is_irrelevant_' + input_field.field_key" value="false" class="irrelevant-flag"/>
-                                                </div>
-
-                                            </div>
-                                        </t>
-
-                                        <div class="d-grid gap-2 mb-3">
-                                            <button type="submit" class="btn btn-primary btn-lg">Submit Answers &amp; Continue Analysis</button>
-                                        </div>
-                                    </t>
-
-                                    <!-- Rate Limit / Error Handling (Global) -->
-                                    <t t-set="ai_status" t-value="rfp_project.get_context_data().get('analysis_meta', {}).get('status')"/>
-
-                                    <div t-if="ai_status == 'rate_limit'" class="alert alert-warning text-center">
-                                        <h4><i class="fa fa-clock-o"/>
-                                            System Busy (Rate Limit)</h4>
-                                        <p>The AI service is experiencing high traffic. Please wait 30 seconds before retrying.</p>
-                                        <div class="progress mb-2" style="height: 5px;">
-                                            <div class="progress-bar progress-bar-striped progress-bar-animated bg-warning" role="progressbar" style="width: 100%"></div>
-                                        </div>
-                                        <small class="text-muted">This is normal for the free tier.</small>
-                                        <div class="d-grid gap-2 mt-2">
-                                            <button type="submit" class="btn btn-warning">Retry Now</button>
-                                        </div>
-                                    </div>
-
-                                    <div t-if="ai_status == 'error'" class="alert alert-danger text-center">
-                                        <h4><i class="fa fa-exclamation-triangle"/>
-                                            Analysis Interrupted</h4>
-                                        <p>Reference:
-                                            <t t-esc="rfp_project.get_context_data().get('research_notes', 'Unknown Error')"/></p>
-                                        <button type="submit" class="btn btn-warning mt-2">Retry Analysis</button>
-                                    </div>
-
-                                    <div t-if="not rfp_project.form_input_ids and rfp_project.current_stage == 'generating'" class="alert alert-success text-center">
-                                        <h4><i class="fa fa-check-circle"/>
-                                            Gap Analysis Complete!</h4>
-                                        <p>The AI has gathered all necessary requirements.</p>
-                                        <p>You can now generate the final specificaton document.</p>
-                                        <div class="d-grid gap-2 mt-3">
-                                            <a t-attf-href="/rfp/generate_proposal/#{rfp_project.id}" class="btn btn-success btn-lg">Generate Proposal Document</a>
-                                        </div>
-                                    </div>
-
-                                    <div t-elif="rfp_project.current_stage == 'generating'" class="alert alert-success mt-4">
-                                        <h4><i class="fa fa-check-circle"/>
-                                            Analysis Completed</h4>
-                                        <p>All questions answered. You can proceed.</p>
-                                        <div class="d-grid gap-2 mt-3">
-                                            <a t-attf-href="/rfp/generate_proposal/#{rfp_project.id}" class="btn btn-success btn-lg">Generate Proposal Document</a>
-                                        </div>
-                                    </div>
-
-                                    <div class="d-grid gap-2 mb-3" t-if="rfp_project.form_input_ids and rfp_project.current_stage != 'generating' and ai_status != 'rate_limit'">
-                                        <button type="submit" class="btn btn-primary btn-lg">Submit Answers &amp; Continue Analysis</button>
-                                    </div>
-                                </form>
-
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </t>
-    </template>
 
     <template id="portal_rfp_document" name="Generated RFP Document">
         <t t-call="portal.portal_layout">
@@ -448,7 +242,18 @@
 
     <template id="portal_rfp_interface" name="AI Interviewer Interface">
         <t t-call="portal.portal_layout">
-            <div class="container mt-4 rfp-portal-wrapper">
+            <div
+                class="container mt-4 rfp-portal-wrapper">
+                <!-- Loading Overlay -->
+                <div id="rfp_loading_overlay" class="d-none position-fixed top-0 start-0 w-100 h-100 bg-white bg-opacity-75 d-flex justify-content-center align-items-center" style="z-index: 1050; backdrop-filter: blur(2px);">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <h4 class="mt-3 text-primary">AI Analyst is thinking...</h4>
+                    </div>
+                </div>
+
                 <div class="row">
                     <div class="col-md-8 offset-md-2">
                         <div class="card shadow-sm">
@@ -480,7 +285,10 @@
                                     </div>
                                     <div class="d-flex justify-content-between align-items-center">
                                         <small class="text-muted">This is normal for the free tier.</small>
-                                        <a t-attf-href="/rfp/interface/#{rfp_project.id}" class="btn btn-sm btn-warning">Retry Now</a>
+                                        <form t-attf-action="/rfp/next_step/#{rfp_project.id}" method="post">
+                                            <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                                            <button type="submit" class="btn btn-sm btn-warning">Retry Now</button>
+                                        </form>
                                     </div>
                                 </div>
 
