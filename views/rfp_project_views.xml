@@ -1,0 +1,78 @@
+<odoo>
+    <record id="view_rfp_project_form" model="ir.ui.view">
+        <field name="name">rfp.project.form</field>
+        <field name="model">rfp.project</field>
+        <field name="arch" type="xml">
+            <form string="RFP Project">
+                <header>
+                    <button name="action_analyze_gap" string="Run Gap Analysis (AI)" type="object" class="oe_highlight"/>
+                    <field name="current_stage" widget="statusbar" options="{'clickable': '1'}"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Project Name"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="domain_context"/>
+                            <field name="document_language"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Description">
+                            <field name="description" placeholder="Describe your project idea..."/>
+                        </page>
+                        <page string="Gathered Inputs">
+                            <field name="form_input_ids">
+                                <list editable="bottom">
+                                    <field name="field_key"/>
+                                    <field name="label"/>
+                                    <field name="user_value"/>
+                                    <field name="data_type"/>
+                                    <field name="round_number"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Generated Sections">
+                            <field name="document_section_ids">
+                                <list>
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="section_title"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="AI Context" name="ai_context">
+                            <field name="ai_context_blob" readonly="0"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_rfp_project_tree" model="ir.ui.view">
+        <field name="name">rfp.project.list</field>
+        <field name="model">rfp.project</field>
+        <field name="arch" type="xml">
+            <list string="RFP Projects">
+                <field name="name"/>
+                <field name="domain_context"/>
+                <field name="current_stage" widget="badge" decoration-info="current_stage == 'gathering'" decoration-warning="current_stage == 'generating'" decoration-success="current_stage == 'completed'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_rfp_project" model="ir.actions.act_window">
+        <field name="name">Projects</field>
+        <field name="res_model">rfp.project</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create a new AI-Driven RFP Project
+            </p>
+        </field>
+    </record>
+</odoo>

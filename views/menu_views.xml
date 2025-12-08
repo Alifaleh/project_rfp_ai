@@ -1,0 +1,10 @@
+<odoo>
+    <menuitem id="menu_rfp_root" name="RFP Generator" web_icon="project,static/description/icon.png" sequence="10"/>
+
+    <menuitem id="menu_rfp_projects" name="Projects" parent="menu_rfp_root" action="action_rfp_project" sequence="10"/>
+
+    <menuitem id="menu_rfp_configuration" name="Configuration" parent="menu_rfp_root" sequence="100"/>
+    <menuitem id="menu_rfp_form_input" name="Form Inputs" parent="menu_rfp_configuration" action="action_rfp_form_input" sequence="20"/>
+    <menuitem id="menu_rfp_document_section" name="Document Sections" parent="menu_rfp_configuration" action="action_rfp_document_section" sequence="30"/>
+    <menuitem id="menu_rfp_prompt" name="AI Prompts" parent="menu_rfp_configuration" action="action_rfp_prompt" sequence="40"/>
+</odoo>

@@ -1,17 +1,41 @@
 # -*- coding: utf-8 -*-
 {
-    'name': "Scaffold",
-    'summary': """ Short (1 phrase/line) """,
-    'description': """ Long description """,
-    'author': "AliFaleh",
-    'website': "https://github.com/alifaleh",
-    'category': 'GeoLocation Services',
-    'version': '0.0',
-    'depends': ['base'],
+    'name': "AI-Driven RFP Generator",
+    'summary': """Automated Project Specification & RFP Creation via AI""",
+    'description': """
+        AI-Driven RFP Generator
+        =======================
+        A system to reverse-engineer project requirements and generate professional RFP documents.
+        
+        Features:
+        - Dynamic Gap Analysis (Interviewer Agent)
+        - Project-Agnostic Context Gathering
+        - Automatic Document Generation (Writer Agent)
+    """,
+    'author': "Antigravity",
+    'website': "https://www.odoo.com",
+    'category': 'Services/Project',
+    'version': '18.0.1.0.0',
+    'depends': ['base', 'web', 'project', 'portal', 'website'],
     'data': [
-        # 'security/ir.model.access.csv',
-        'views/views.xml',
-        'views/templates.xml',
+        'security/ir.model.access.csv',
+        'security/rfp_security.xml',
+        'views/rfp_project_views.xml',
+        'views/rfp_form_input_views.xml',
+        'views/rfp_document_section_views.xml',
+        'views/rfp_prompt_views.xml',
+        'views/res_config_settings_views.xml',
+        'data/rfp_prompt_data.xml',
+        'views/menu_views.xml',
+        'views/portal_templates.xml',
+        'views/report_rfp.xml',
     ],
-    'license': 'Other proprietary',
+    'assets': {
+        'web.assets_frontend': [
+            'project_rfp_ai/static/src/js/rfp_portal.js',
+        ],
+    },
+    'license': 'LGPL-3',
+    'installable': True,
+    'application': True,
 }

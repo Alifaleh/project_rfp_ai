@@ -1,0 +1,24 @@
+<odoo>
+    <record id="view_rfp_form_input_tree" model="ir.ui.view">
+        <field name="name">rfp.form.input.list</field>
+        <field name="model">rfp.form.input</field>
+        <field name="arch" type="xml">
+            <list string="Form Inputs">
+                <field name="project_id"/>
+                <field name="field_key"/>
+                <field name="label"/>
+                <field name="user_value"/>
+                <field name="data_type"/>
+                <field name="round_number"/>
+                <field name="is_irrelevant"/>
+                <field name="irrelevant_reason"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_rfp_form_input" model="ir.actions.act_window">
+        <field name="name">Form Inputs</field>
+        <field name="res_model">rfp.form.input</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</odoo>

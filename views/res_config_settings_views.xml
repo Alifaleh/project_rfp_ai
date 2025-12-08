@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.inherit.rfp</field>
+        <field name="model">res.config.settings</field>
+        <field name="priority" eval="90"/>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="inside">
+                <app data-string="RFP AI" string="RFP Generator" name="project_rfp_ai">
+                    <block title="AI Configuration">
+                        <setting id="rfp_gemini_config" help="Configure Google Gemini connection details.">
+                            <field name="rfp_gemini_api_key" password="True"/>
+                            <field name="rfp_gemini_model"/>
+                            <div class="mt8 text-muted">
+                                Default model:
+                                <b>gemini-3-pro-preview</b>
+                            </div>
+                        </setting>
+                    </block>
+                </app>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="action_rfp_config_settings" model="ir.actions.act_window">
+        <field name="name">Settings</field>
+        <field name="res_model">res.config.settings</field>
+        <field name="view_mode">form</field>
+        <field name="target">inline</field>
+        <field name="context">{'module' : 'project_rfp_ai'}</field>
+    </record>
+
+    <menuitem id="menu_rfp_settings" name="Settings" parent="menu_rfp_configuration" action="action_rfp_config_settings" groups="base.group_system" sequence="0"/>
+</odoo>

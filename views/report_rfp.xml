@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- Report Action -->
+        <record id="action_report_rfp_document" model="ir.actions.report">
+            <field name="name">RFP Document</field>
+            <field name="model">rfp.project</field>
+            <field name="report_type">qweb-pdf</field>
+            <field name="report_name">project_rfp_ai.report_rfp_document</field>
+            <field name="report_file">project_rfp_ai.report_rfp_document</field>
+            <field name="print_report_name">'RFP - %s' % object.name</field>
+            <field name="binding_model_id" ref="model_rfp_project"/>
+            <field name="binding_type">report</field>
+        </record>
+
+        <!-- Report Template -->
+        <template id="report_rfp_document">
+            <t t-call="web.html_container">
+                <t t-foreach="docs" t-as="doc">
+                    <t t-call="web.external_layout">
+                        <div
+                            class="page">
+                            <!-- Cover Page -->
+                            <div class="text-center mt-5 mb-5">
+                                <h1 class="display-3" t-field="doc.name"/>
+                                <h3 class="text-muted">Request for Proposal</h3>
+                                <p class="mt-4"><span t-field="doc.create_date" t-options='{"widget": "date"}'/></p>
+                            </div>
+
+                            <div
+                            class="page-break" style="page-break-after: always;"/>
+
+                            <!-- Table of Contents -->
+                            <h2>Table of Contents</h2>
+                            <ul>
+                                <t t-foreach="doc.document_section_ids.sorted(lambda s: s.sequence)" t-as="section">
+                                    <li><t t-esc="section.section_title"/></li>
+                                </t>
+                            </ul>
+
+                            <div
+                            class="page-break" style="page-break-after: always;"/>
+
+                            <!-- Sections -->
+                            <t t-foreach="doc.document_section_ids.sorted(lambda s: s.sequence)" t-as="section">
+                                <div class="mb-4">
+                                    <h2
+                                    t-field="section.section_title" class="mb-3"/>
+                                    <!-- Simple Rendering: Treats Markdown as text for now. 
+                                                                                                                 In a real app, we'd use a markdown-to-html converter. -->
+                                    <div class="ms-1">
+                                        <p style="white-space: pre-wrap;" t-field="section.content_markdown"/>
+                                    </div>
+                                    <hr/>
+                                </div>
+                                <div class="page-break" style="page-break-inside: avoid;"/>
+                            </t>
+                        </div>
+                    </t>
+                </t>
+            </t>
+        </template>
+    </data>
+</odoo>
