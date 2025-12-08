@@ -168,6 +168,7 @@ class RfpProject(models.Model):
         """
         from odoo.addons.project_rfp_ai.utils import ai_connector
         import json
+        import time
 
         for project in self:
             # 1. Context Building (Gathered Requirements)
@@ -268,6 +269,7 @@ class RfpProject(models.Model):
                 )
                 
                 content = ai_connector.generate_text_response(writer_prompt, context_str, self.env)
+                time.sleep(20) # Rate limit safeguard
                 
                 self.env['rfp.document.section'].create({
                     'project_id': project.id,
@@ -293,6 +295,7 @@ class RfpProject(models.Model):
                     )
                     
                     sub_content = ai_connector.generate_text_response(writer_prompt_sub, context_str, self.env)
+                    time.sleep(20) # Rate limit safeguard
                     
                     self.env['rfp.document.section'].create({
                         'project_id': project.id,
