@@ -28,7 +28,8 @@ project_rfp_ai/
 │   ├── form_input.py               # [DATA] Dynamic Questions Data Model
 │   ├── document_section.py         # [DATA] Generated Artifacts (Markdown Content)
 │   ├── prompt.py                   # [CONFIG] Database-backed System Prompts
-│   └── ai_schemas.py               # [LOGIC] JSON Schemas for AI Structured Output
+│   ├── ai_schemas.py               # [LOGIC] JSON Schemas for AI Structured Output
+│   └── ai_log.py                   # [CORE] AI Request Logging & Monitoring
 ├── views/
 │   ├── menu_views.xml              # Backend Menu Items
 │   ├── rfp_project_views.xml       # Backend Form/List Views (Project Management)
@@ -97,6 +98,13 @@ Functions as the resilience layer.
 *   **`generate_json_response`**:
     *   **Retry Logic**: Wraps the call in a `while` loop (default 2 retries) to handle transient network issues or malformed JSON.
     *   **JSON Repair**: Attempts `json.loads`. If it fails, logs error and retries. *Guidance: Future versions should implement fuzzy JSON repair.*
+
+### 3.3 The Observer: `models/ai_log.py`
+New in v1.1.0, this model provides full visibility into the AI "Thought Process".
+*   **Centralized Logging**: All requests from Gap Analysis and Document Writer flow through `execute_request`.
+*   **Full Audibility**: Stores the exact `system_prompt`, `user_context`, and `response_raw`.
+*   **Performance Metrics**: Tracks execution duration to monitor latency.
+*   **Status Tracking**: Distinct states for `Success`, `Error`, and `Rate Limit` to help debug production issues.
 
 ---
 
@@ -189,3 +197,15 @@ The module stores the last raw response in `rfp.project` -> `ai_context_blob`.
     *   [alifaleh.netlify.app](https://alifaleh.netlify.app)
     *   [alifaleh.me@gmail.com](mailto:alifaleh.me@gmail.com)
     *   [github.com/alifaleh](https://github.com/alifaleh)
+
+## 9. Changelog
+
+### v1.1.0 - Usability & Reliability
+*   **[NEW] AI Log Module**: Introduced `rfp.ai.log` to track every prompt and response for debugging and auditing.
+*   **[FIX] Irrelevant Questions**:
+    *   Fixed backend logic to correctly identify `is_irrelevant` flags passed from the portal.
+    *   Updated system prompt to strictly obey the `rejected_topics` blacklist.
+    *   Frontend now automatically removes `required` attributes when a question is skipped.
+    *   Frontend now correctly hides skipped questions from the "Needs Answer" list.
+*   **[FIX] Empty Selection Lists**: Fixed a bug where `multiselect` fields appeared empty because the AI placed options in `suggested_answers` instead of `options`. The system now correctly falls back to using suggestions if options are missing.
+
