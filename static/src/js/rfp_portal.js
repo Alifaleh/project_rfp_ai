@@ -63,11 +63,24 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
             shouldShow = $box.hasClass('d-none');
         }
 
+
+
+        const $inputs = $inputGroup.find('input:not([type="hidden"]), select, textarea').not('.irrelevant-box input');
+
         if (shouldShow) {
             // Show it (Mark as Irrelevant)
             $box.removeClass('d-none');
             $flag.val('true');
             
+            // Remove required attribute from inputs to allow submission
+            $inputs.each(function() {
+                const $el = $(this);
+                if ($el.prop('required')) {
+                    $el.data('was-required', true);
+                    $el.prop('required', false);
+                }
+            });
+
             // Focus the reason input for better UX
             $box.find('input[type="text"]').focus();
             
@@ -75,6 +88,15 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
             // Hide it (Cancel)
             $box.addClass('d-none');
             $flag.val('false');
+
+            // Restore required attribute
+            $inputs.each(function() {
+                const $el = $(this);
+                if ($el.data('was-required')) {
+                    $el.prop('required', true);
+                    $el.removeData('was-required');
+                }
+            });
         }
     },
 

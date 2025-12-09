@@ -83,13 +83,13 @@ class RfpCustomerPortal(CustomerPortal):
         
         for key, value in post.items():
             # Check for special 'irrelevant' flags
-            if key.endswith('__is_irrelevant'):
-                base_key = key.replace('__is_irrelevant', '')
+            if key.startswith('is_irrelevant_'):
+                base_key = key.replace('is_irrelevant_', '')
                 if base_key in input_map and value == 'true':
                     input_map[base_key].sudo().write({'is_irrelevant': True})
                     
-            elif key.endswith('__irrelevant_reason'):
-                base_key = key.replace('__irrelevant_reason', '')
+            elif key.startswith('irrelevant_reason_'):
+                base_key = key.replace('irrelevant_reason_', '')
                 if base_key in input_map:
                     input_map[base_key].sudo().write({'irrelevant_reason': value})
                     

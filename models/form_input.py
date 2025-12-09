@@ -56,9 +56,18 @@ class RfpFormInput(models.Model):
             return []
 
     def get_options_parsed(self):
-        if not self.options:
-            return []
-        try:
-            return json.loads(self.options)
-        except Exception:
-            return []
+        options_data = []
+        if self.options:
+            try:
+                options_data = json.loads(self.options)
+            except Exception:
+                pass
+        
+        # If options are empty, try fallback to suggested_answers (common AI behavior)
+        if not options_data and self.suggested_answers:
+            try:
+                options_data = json.loads(self.suggested_answers)
+            except Exception:
+                pass
+                
+        return options_data

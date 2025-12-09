@@ -159,7 +159,7 @@
             <t t-elif="input_field.component_type == 'select'">
                 <select t-att-name="input_field.field_key" class="form-select">
                     <option value="">Select...</option>
-                    <t t-if="input_field.options">
+                    <t t-if="input_field.get_options_parsed()">
                         <t t-foreach="input_field.get_options_parsed()" t-as="opt">
                             <option t-att-value="opt"><t t-esc="opt"/></option>
                         </t>
@@ -170,7 +170,7 @@
             <t t-elif="input_field.component_type == 'multiselect'">
                 <div class="mb-2">
                     <small class="text-muted">Select all that apply:</small>
-                    <t t-if="input_field.options">
+                    <t t-if="input_field.get_options_parsed()">
                         <t t-foreach="input_field.get_options_parsed()" t-as="opt">
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" t-att-name="input_field.field_key" t-att-value="opt"/>
@@ -183,7 +183,7 @@
 
             <t t-elif="input_field.component_type == 'radio'">
                 <div class="rfp-radio-group">
-                    <t t-if="input_field.options">
+                    <t t-if="input_field.get_options_parsed()">
                         <t t-foreach="input_field.get_options_parsed()" t-as="opt" t-as-index="opt_index">
                             <div class="form-check">
                                 <input class="form-check-input rfp-dynamic-input" type="radio" t-att-name="input_field.field_key" t-att-id="input_field.field_key + '_' + str(opt_index)" t-att-value="opt" t-att-required="input_field.depends_on == '{}' or ''"/>
@@ -304,7 +304,7 @@
                                 </div>
 
                                 <!-- Info Box (Hidden on Rate Limit) -->
-                                <t t-set="unanswered_ids" t-value="rfp_project.form_input_ids.filtered(lambda i: not i.user_value)"/>
+                                <t t-set="unanswered_ids" t-value="rfp_project.form_input_ids.filtered(lambda i: not i.user_value and not i.is_irrelevant)"/>
                                 <div class="alert alert-info" t-if="unanswered_ids and ai_status != 'rate_limit'">
                                     <i class="fa fa-info-circle"/>
                                     The AI has analyzed your project and needs the following details to proceed.
