@@ -99,6 +99,8 @@ class RfpProject(models.Model):
                 response_data = {}
 
             # Update Metdata (Explicit Write as Text)
+            # Inject Debug Context
+            response_data['last_input_context'] = context_data
             project.ai_context_blob = json.dumps(response_data, indent=4)
             
             # 4. Generate Questions
@@ -244,6 +246,7 @@ class RfpProject(models.Model):
                 current_blob = {}
             
             current_blob['toc_structure'] = toc_data
+            current_blob['debug_architect_context'] = context_data
             project.ai_context_blob = json.dumps(current_blob, indent=4)
             
             
