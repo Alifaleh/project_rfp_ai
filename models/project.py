@@ -316,7 +316,6 @@ class RfpProject(models.Model):
         """
         import json
         import time
-        from odoo.addons.project_rfp_ai.utils import ai_connector
 
         for project in self:
             project.current_stage = 'writing' # Move immediately or after? User said "writing" stage.
@@ -403,4 +402,89 @@ class RfpProject(models.Model):
             return json.loads(self.ai_context_blob)
         except Exception:
             return {}
+
+    def action_update_structure(self, sections_data):
+        """
+        Updates the document structure (Rename, Resequence, Add, Delete) based on portal input.
+        Args:
+            sections_data (list): List of dicts [{'id': int|str, 'section_title': str, 'sequence': int}]
+        """
+        self.ensure_one()
+        current_ids = self.document_section_ids.ids
+        incoming_ids = []
+
+        for data in sections_data:
+            section_id = data.get('id')
+            title = data.get('section_title')
+            sequence = int(data.get('sequence', 10))
+
+            if isinstance(section_id, int) and section_id in current_ids:
+                # Update existing
+                section = self.env['rfp.document.section'].browse(section_id)
+                section.write({
+                    'section_title': title,
+                    'sequence': sequence
+                })
+                incoming_ids.append(section_id)
+            elif isinstance(section_id, str) and section_id.startswith('new_'):
+                # Create new
+                new_section = self.env['rfp.document.section'].create({
+                    'project_id': self.id,
+                    'section_title': title,
+                    'sequence': sequence,
+                    'content_markdown': ''
+                })
+                incoming_ids.append(new_section.id)
+        
+        # Delete missing sections
+        to_delete = list(set(current_ids) - set(incoming_ids))
+        if to_delete:
+            self.env['rfp.document.section'].browse(to_delete).unlink()
+            
+        return True
+
+    def action_update_content_markdown(self, sections_content):
+        """
+        Updates the content of sections from portal review.
+        Args:
+            sections_content (dict): {str(section_id): str(markdown_content)}
+        """
+        self.ensure_one()
+        for section_id_str, content in sections_content.items():
+            if section_id_str.isdigit():
+                section = self.env['rfp.document.section'].browse(int(section_id_str))
+                if section.exists() and section.project_id == self:
+                    section.content_markdown = content
+        return True
+
+    def get_generation_status(self):
+        """
+        Returns aggregate status of content generation jobs.
+        """
+        self.ensure_one()
+        total = len(self.document_section_ids)
+        if total == 0:
+            return {'status': 'completed', 'progress': 100}
+        
+        completed_count = 0
+        failed_count = 0
+        
+        for section in self.document_section_ids:
+            if section.job_id: # Check linked Job
+                if section.job_id.state == 'done':
+                    completed_count += 1
+                elif section.job_id.state == 'failed':
+                    failed_count += 1
+            elif section.content_markdown:
+                completed_count += 1
+                
+        progress = (completed_count / total) * 100 if total > 0 else 0
+        
+        status = 'generating'
+        if completed_count == total:
+            status = 'completed'
+        elif failed_count > 0 and (completed_count + failed_count == total):
+            status = 'completed_with_errors'
+            
+        return {'status': status, 'progress': int(progress), 'completed': completed_count, 'total': total}
 

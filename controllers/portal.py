@@ -1,6 +1,8 @@
 from odoo import http, _
 from odoo.http import request
 from odoo.addons.portal.controllers.portal import CustomerPortal
+import json
+import base64
 
 class RfpCustomerPortal(CustomerPortal):
 
@@ -13,32 +15,26 @@ class RfpCustomerPortal(CustomerPortal):
     @http.route(['/my', '/my/home'], type='http', auth="user", website=True)
     def home(self, **kw):
         values = self._prepare_portal_layout_values()
-        # Use sudo() but strictly filter by the current user to ensure data isolation
         Project = request.env['rfp.project'].sudo()
         domain = [('user_id', '=', request.env.user.id)]
         projects = Project.search(domain)
-        
         values.update({
             'projects': projects,
             'page_name': 'home',
         })
         return request.render("project_rfp_ai.portal_my_rfps", values)
 
-    # Replaced by home/my but keeping the route just in case links exist, but it can just redirect to home
     @http.route(['/my/rfp', '/my/rfp/page/<int:page>'], type='http', auth="user", website=True)
-    def portal_my_rfps(self, page=1, date_begin=None, date_end=None, sortby=None, **kw):
+    def portal_my_rfps(self, page=1, **kw):
         return request.redirect('/my')
 
     @http.route(['/my/rfp/start'], type='http', auth="user", website=True)
     def portal_rfp_start(self):
-        # This will be the wizard entry point
         return request.render("project_rfp_ai.portal_rfp_wizard_start")
 
     @http.route(['/rfp/init'], type='http', auth="user", website=True, methods=['POST'], csrf=True)
     def portal_rfp_init(self, **post):
-        # Secure Creation
         if post.get('name') and post.get('description'):
-            # Create as sudo but perform strictly for the current user
             Project = request.env['rfp.project'].sudo()
             new_project = Project.create({
                 'name': post.get('name'),
@@ -46,22 +42,26 @@ class RfpCustomerPortal(CustomerPortal):
                 'document_language': post.get('document_language', 'en'),
                 'user_id': request.env.user.id
             })
-            
-            # Auto-trigger analysis
             new_project.action_analyze_gap()
-            
-            # Redirect to the interview interface
             return request.redirect(f"/rfp/interface/{new_project.id}")
         return request.redirect('/my/rfp/start')
 
     @http.route(['/rfp/interface/<int:project_id>'], type='http', auth="user", website=True)
     def portal_rfp_interface(self, project_id, **kw):
         Project = request.env['rfp.project'].sudo().browse(project_id)
-        
-        # Security Check: Ensure project exists and belongs to user
         if not Project.exists() or Project.user_id != request.env.user:
             return request.redirect('/my')
             
+        # Redirect based on stage
+        if Project.current_stage == 'structuring':
+             return request.redirect(f"/rfp/structure/{Project.id}")
+        elif Project.current_stage == 'writing':
+             # Logic to check if done? 
+             # For now, redirect to status page
+             return request.redirect(f"/rfp/generating/{Project.id}")
+        elif Project.current_stage == 'completed':
+             return request.redirect(f"/rfp/document/{Project.id}")
+
         values = self._prepare_portal_layout_values()
         values.update({
             'rfp_project': Project,
@@ -72,61 +72,134 @@ class RfpCustomerPortal(CustomerPortal):
     @http.route(['/rfp/next_step/<int:project_id>'], type='http', auth="user", website=True, methods=['POST'], csrf=True)
     def portal_rfp_next_step(self, project_id, **post):
         Project = request.env['rfp.project'].sudo().browse(project_id)
-        
         if not Project.exists() or Project.user_id != request.env.user:
             return request.redirect('/my')
 
-        # 1. Save Answers
-        # Iterate over post keys. If key matches a field_key in inputs, update it.
-        # We need to map field_key to input record.
         input_map = {inp.field_key: inp for inp in Project.form_input_ids}
-        
         for key, value in post.items():
-            # Check for special 'irrelevant' flags
             if key.startswith('is_irrelevant_'):
                 base_key = key.replace('is_irrelevant_', '')
                 if base_key in input_map and value == 'true':
                     input_map[base_key].sudo().write({'is_irrelevant': True})
-                    
             elif key.startswith('irrelevant_reason_'):
                 base_key = key.replace('irrelevant_reason_', '')
                 if base_key in input_map:
                     input_map[base_key].sudo().write({'irrelevant_reason': value})
-                    
             elif key in input_map:
-                # Only update user_value if NOT marked irrelevant (or update anyway, but flags take precedence)
-                # Handle "Specify" logic
                 specify_key = f"{key}_specify"
                 final_value = value
-                
                 if specify_key in post and post.get(specify_key):
-                     # Append the custom specification
-                     # e.g. "Other: My custom CRM"
                      final_value = f"{value}: {post.get(specify_key)}"
-
                 input_map[key].sudo().write({'user_value': final_value})
         
-        # 2. Run Analysis (The AI Cycle)
         Project.action_analyze_gap()
         
-        # 3. Check for Redirect (Auto-Finalization)
-        if Project.current_stage in ['generating', 'completed']:
-             return request.redirect(f"/rfp/document/{Project.id}")
-        
-        # 4. Reload Interface
+        # If complete, move to Structure Phase
+        if Project.current_stage == 'structuring':
+             # Generate initial structure
+             Project.action_generate_structure()
+             return request.redirect(f"/rfp/structure/{Project.id}")
+             
         return request.redirect(f"/rfp/interface/{Project.id}")
 
-    @http.route(['/rfp/finish/<int:project_id>'], type='http', auth="user", website=True, methods=['POST'], csrf=True)
-    def portal_rfp_finish(self, project_id, **post):
+    # --- PHASE 2: STRUCTURE REVIEW ---
+    @http.route(['/rfp/structure/<int:project_id>'], type='http', auth="user", website=True)
+    def portal_rfp_structure(self, project_id, **kw):
         Project = request.env['rfp.project'].sudo().browse(project_id)
         if not Project.exists() or Project.user_id != request.env.user:
             return request.redirect('/my')
-
-        # Trigger Document Generation
-        Project.action_generate_document()
         
-        return request.redirect(f"/rfp/document/{Project.id}")
+        if Project.current_stage != 'structuring':
+             return request.redirect(f"/rfp/interface/{Project.id}")
 
+        values = self._prepare_portal_layout_values()
+        values.update({
+            'rfp_project': Project,
+            'page_name': 'rfp_structure',
+        })
+        return request.render("project_rfp_ai.portal_rfp_structure_review", values)
+
+    @http.route(['/rfp/structure/save_and_generate/<int:project_id>'], type='json', auth="user", website=True)
+    def portal_rfp_save_structure(self, project_id, sections_data=None, generate=True):
+        """
+        AJAX Route to save structure and optionally trigger generation.
+        sections_data: List of dicts
+        generate: bool
+        """
+        Project = request.env['rfp.project'].sudo().browse(project_id)
+        if not Project.exists() or Project.user_id != request.env.user:
+            return {'error': 'Access Denied'}
+        
+        if sections_data:
+             Project.action_update_structure(sections_data)
+        
+        if generate:
+            # Trigger Generation
+            Project.action_generate_content()
+            return {'status': 'success', 'redirect': f'/rfp/generating/{Project.id}'}
+        
+        return {'status': 'success'}
+
+    # --- PHASE 3: GENERATION STATUS ---
+    @http.route(['/rfp/generating/<int:project_id>'], type='http', auth="user", website=True)
+    def portal_rfp_generating(self, project_id, **kw):
+        Project = request.env['rfp.project'].sudo().browse(project_id)
+        if not Project.exists() or Project.user_id != request.env.user:
+            return request.redirect('/my')
+            
+        values = self._prepare_portal_layout_values()
+        values.update({
+            'rfp_project': Project,
+            'page_name': 'rfp_generating',
+        })
+        return request.render("project_rfp_ai.portal_rfp_generating", values)
+        
+    @http.route(['/rfp/status/<int:project_id>'], type='json', auth="user", website=True)
+    def portal_rfp_status(self, project_id):
+        Project = request.env['rfp.project'].sudo().browse(project_id)
+        if not Project.exists() or Project.user_id != request.env.user:
+            return {'error': 'Access Denied'}
+            
+        # Return progress
+        status_data = Project.get_generation_status()
+        return status_data
+
+    # --- PHASE 4: CONTENT REVIEW ---
+    @http.route(['/rfp/review/<int:project_id>'], type='http', auth="user", website=True)
+    def portal_rfp_content_review(self, project_id, **kw):
+        """
+        This is the "Show all sections with ability to make changes" page.
+        """
+        Project = request.env['rfp.project'].sudo().browse(project_id)
+        if not Project.exists() or Project.user_id != request.env.user:
+            return request.redirect('/my')
+            
+        # Ensure we are in writing stage (or completed, but editable?)
+        # Let's assume writing stage until verified.
+        
+        values = self._prepare_portal_layout_values()
+        values.update({
+            'rfp_project': Project,
+            'page_name': 'rfp_content_review',
+        })
+        return request.render("project_rfp_ai.portal_rfp_content_review", values)
+        
+    @http.route(['/rfp/content/save/<int:project_id>'], type='json', auth="user", website=True)
+    def portal_rfp_save_content(self, project_id, sections_content=None, finish=False):
+        Project = request.env['rfp.project'].sudo().browse(project_id)
+        if not Project.exists() or Project.user_id != request.env.user:
+             return {'error': 'Access Denied'}
+             
+        if sections_content:
+            Project.action_update_content_markdown(sections_content)
+            
+        if finish:
+            Project.action_mark_completed()
+            return {'status': 'success', 'redirect': f'/rfp/document/{Project.id}'}
+            
+        return {'status': 'success'}
+
+    # --- PHASE 5: COMPLETED DOCUMENT ---
     @http.route(['/rfp/document/<int:project_id>'], type='http', auth="user", website=True)
     def portal_rfp_document(self, project_id, **kw):
         Project = request.env['rfp.project'].sudo().browse(project_id)
@@ -140,25 +213,40 @@ class RfpCustomerPortal(CustomerPortal):
         })
         return request.render("project_rfp_ai.portal_rfp_document", values)
 
-    @http.route(['/rfp/report/download/<int:project_id>'], type='http', auth="user", website=True)
-    def portal_rfp_report_download(self, project_id, **kw):
-        """
-        Custom route to download the PDF report using SUPERUSER.
-        """
+    @http.route(['/rfp/download/word/<int:project_id>'], type='http', auth="user", website=True)
+    def portal_rfp_download_word(self, project_id, **kw):
         Project = request.env['rfp.project'].sudo().browse(project_id)
         if not Project.exists() or Project.user_id != request.env.user:
             return request.redirect('/my')
 
-        # Generate PDF using SUPERUSER to bypass all ACLs
-        # We must use with_user(SUPERUSER_ID) because .sudo() sometimes isn't enough for Reports if they check context.
-        from odoo import SUPERUSER_ID
-        report_action = request.env.ref('project_rfp_ai.action_report_rfp_document').with_user(SUPERUSER_ID)
-        pdf_content, _ = report_action._render_qweb_pdf(report_action.id, [project_id])
+        # Generate HTML content wrapper for Word
+        html_content = f"""
+        <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+        <head><meta charset='utf-8'><title>{Project.name}</title></head>
+        <body>
+        <h1>{Project.name}</h1>
+        <p>{Project.description}</p>
+        <hr/>
+        """
         
-        pdfhttpheaders = [
-            ('Content-Type', 'application/pdf'),
-            ('Content-Length', len(pdf_content)),
-            ('Content-Disposition', f'attachment; filename="RFP - {Project.name}.pdf"'),
+        # Simple Markdown parsing (Very basic: ** -> <b>, # -> h1, etc.)
+        # Or just dump raw text if no library. 
+        # Actually, let's just dump the text but wrap in <pre> or basic formatting? 
+        # Ideally we'd use a markdown lib but might not be available.
+        # Let's try to do minimal formatting.
+        
+        for section in Project.document_section_ids.sorted('sequence'):
+            html_content += f"<h2>{section.section_title}</h2>"
+            # Convert newlines to <br/>
+            # Use 'odoo.tools.html_escape' ?
+            # Let's just assume valid text.
+            formatted_text = section.content_markdown.replace("\n", "<br/>")
+            html_content += f"<div>{formatted_text}</div><hr/>"
+            
+        html_content += "</body></html>"
+        
+        headers = [
+            ('Content-Type', 'application/msword'),
+            ('Content-Disposition', f'attachment; filename="RFP - {Project.name}.doc"')
         ]
-        return request.make_response(pdf_content, headers=pdfhttpheaders)
-
+        return request.make_response(html_content, headers=headers)
