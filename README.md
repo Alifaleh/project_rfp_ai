@@ -181,3 +181,11 @@ The module stores the last raw response in `rfp.project` -> `ai_context_blob`.
 *   **Authentication**: Currently relies on basic Portal User access. Needs stricter token-based access for anonymous guest flows.
 *   **PDF Report**: The endpoint `/rfp/report/download/` uses standard Odoo `ir.actions.report`. QWeb-to-PDF layout needs styling love.
 *   **Image Generation**: The Writer prompt explicitly forbids images. Future work: Insert placeholder tags `[GENERATE_IMAGE: diagram of x]` and run a 3rd Phase with DALL-E/Imagen.
+
+
+## 8. Maintainers
+
+*   **Ali Faleh**
+    *   [alifaleh.netlify.app](https://alifaleh.netlify.app)
+    *   [alifaleh.me@gmail.com](mailto:alifaleh.me@gmail.com)
+    *   [github.com/alifaleh](https://github.com/alifaleh)
