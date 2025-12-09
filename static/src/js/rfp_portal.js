@@ -150,10 +150,28 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
 
                 // Comparison
                 // Loose comparison to handle number vs string
+                const $inputs = $group.find('input:not([type="hidden"]), select, textarea').not('.irrelevant-box input');
+                
                 if (currentValue == depValue) {
                     $group.removeClass('d-none');
+                    // Restore required if hidden
+                    $inputs.each(function() {
+                        const $el = $(this);
+                        if ($el.data('dep-was-required')) {
+                            $el.prop('required', true);
+                            $el.removeData('dep-was-required');
+                        }
+                    });
                 } else {
                     $group.addClass('d-none');
+                     // Remove required so form can be submitted
+                    $inputs.each(function() {
+                        const $el = $(this);
+                        if ($el.prop('required')) {
+                            $el.data('dep-was-required', true);
+                            $el.prop('required', false);
+                        }
+                    });
                 }
             }
         });

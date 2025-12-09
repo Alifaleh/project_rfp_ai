@@ -164,11 +164,14 @@ class RfpProject(models.Model):
             new_fields = response_data.get('form_fields', [])
             current_round_number = len(project.form_input_ids) // 5 + 1 # Simple way to increment round number, assuming 5 questions per round
             
+            # Track new keys in this batch to prevent duplicates
+            batch_keys = set()
             new_inputs = []
             for field in new_fields:
                 # API sometimes returns field_name, sometimes field_key. Normalize.
                 key = field.get('field_key') or field.get('field_name')
-                if key and key not in existing_keys:
+                if key and key not in existing_keys and key not in batch_keys:
+                    batch_keys.add(key)
                     vals = {
                         'project_id': project.id,
                         'field_key': key,
