@@ -16,7 +16,7 @@
     'website': "https://www.odoo.com",
     'category': 'Services/Project',
     'version': '18.0.1.0.0',
-    'depends': ['base', 'web', 'project', 'portal', 'website'],
+    'depends': ['base', 'web', 'project', 'portal', 'website', 'queue_job'],
     'data': [
         'security/ir.model.access.csv',
         'security/rfp_security.xml',
@@ -27,6 +27,7 @@
         'views/rfp_ai_log_views.xml',
         'views/res_config_settings_views.xml',
         'data/rfp_prompt_data.xml',
+        'data/queue_data.xml',
         'views/portal_templates.xml',
         'views/report_rfp.xml',
         'views/menu_views.xml',

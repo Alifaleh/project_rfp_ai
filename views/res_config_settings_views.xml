@@ -12,6 +12,7 @@
                         <setting id="rfp_gemini_config" help="Configure Google Gemini connection details.">
                             <field name="rfp_gemini_api_key" password="True"/>
                             <field name="rfp_gemini_model"/>
+                            <field name="rfp_generation_concurrency"/>
                             <div class="mt8 text-muted">
                                 Default model:
                                 <b>gemini-3-pro-preview</b>

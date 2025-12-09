@@ -30,7 +30,8 @@ class RfpProject(models.Model):
     
     current_stage = fields.Selection([
         ('gathering', 'Information Gathering'),
-        ('generating', 'Document Generation'),
+        ('structuring', 'Section Generation'),
+        ('writing', 'Content Generation'),
         ('completed', 'Completed')
     ], string="Stage", default='gathering', tracking=True, group_expand='_expand_stages')
 
@@ -170,13 +171,13 @@ class RfpProject(models.Model):
             # Check for Auto-Finalization
             is_complete = response_data.get('is_gathering_complete', False)
             if is_complete:
-                project.current_stage = 'generating'
+                project.current_stage = 'structuring'
                 # If finished, we don't necessarily need to trigger doc gen immediately if users want to review "done" state first.
                 return True
             
             # Old logic fallback
             if response_data.get('should_finalize'):
-                project.current_stage = 'generating'
+                project.current_stage = 'structuring'
                 return True
 
             # Process new questions
@@ -212,24 +213,20 @@ class RfpProject(models.Model):
             else:
                 # If AI returned questions but they were all filtered out as duplicates (or AI returned empty list)
                 # We should assume the gathering phase is effectively complete to prevent infinite loops.
-                project.current_stage = 'generating'
+                project.current_stage = 'structuring'
                 
             return True
 
-    def action_generate_document(self):
+    def action_generate_structure(self):
         """
-        The Writer Engine (Dynamic Architect + Section Writer):
-        1. Compile full context.
-        2. Phase 1: Call 'writer_toc_architect' to design the Table of Contents.
-        3. Phase 2: Iterate through the TOC and call 'writer_section_content' for each.
-        4. Save to document sections.
+        Phase 1: The Architect (Generate TOC)
+        Moves stage to 'structuring'.
         """
         from odoo.addons.project_rfp_ai.utils import ai_connector
         import json
-        import time
-
+        
         for project in self:
-            # 1. Context Building (Gathered Requirements)
+            # 1. Context Building
             context_data = {
                 "project_name": project.name,
                 "description": project.description,
@@ -237,7 +234,6 @@ class RfpProject(models.Model):
                 "language": project.document_language,
                 "q_and_a": []
             }
-            # Enhanced Q&A formatting to be more readable for the Writer
             for inp in project.form_input_ids:
                 if inp.user_value:
                     context_data["q_and_a"].append(f"- **{inp.label}**: {inp.user_value}")
@@ -254,13 +250,8 @@ class RfpProject(models.Model):
             if not toc_prompt_template:
                 raise ValueError("System Prompt 'writer_toc_architect' not found.")
             
-            # Use the new Schema
             from odoo.addons.project_rfp_ai.models.ai_schemas import get_toc_structure_schema
 
-            # Prepare Architect Context
-            # We format the prompt first, OR let the connector handle it. 
-            # Given current architecture, we format context_str here.
-            # But wait, ai_connector expects a single string prompt.
             architect_prompt = toc_prompt_template.format(
                  project_name=project.name,
                  domain=project.domain_context,
@@ -268,7 +259,6 @@ class RfpProject(models.Model):
                  context_str=context_str
             )
             
-            # Call AI for TOC (Architect)
             try:
                 toc_json_str = self.env['rfp.ai.log'].execute_request(
                     system_prompt=architect_prompt,
@@ -278,19 +268,14 @@ class RfpProject(models.Model):
                     schema=get_toc_structure_schema()
                 )
             except Exception as e:
-                # Fallback for Architect failure
                 toc_json_str = json.dumps({"table_of_contents": [{"title": "Error Generating Structure", "subsections": []}]})
             
             try:
                 toc_data = json.loads(toc_json_str)
             except json.JSONDecodeError:
-                # Fallback if AI fails completely (Should not happen with Retry logic)
                 toc_data = {"table_of_contents": [{"title": "Executive Summary", "subsections": []}]}
 
-
-            # Save TOC meta to context blob (to answer user's question about empty blob)
-            # FORCE COPY to ensure Odoo detects the change
-            # Text Field Update Logic
+            # Save TOC meta
             current_blob_str = project.ai_context_blob or "{}"
             try:
                 current_blob = json.loads(current_blob_str)
@@ -301,27 +286,74 @@ class RfpProject(models.Model):
             current_blob['debug_architect_context'] = context_data
             project.ai_context_blob = json.dumps(current_blob, indent=4)
             
-            
-            # --- PHASE 2: THE WRITER (Generate Content) ---
-            
-            section_writer_template = self.env['rfp.prompt'].search([('code', '=', 'writer_section_content')], limit=1).template_text
-            
-            # Flatten the TOC for sequential writing
-            # Logic: We will create sections. If there are subsections, we will generate them as separate records 
-            # OR combined? User said "sections and subsections". 
-            # To match Odoo's flat 'rfp.document.section' structure, we will treat them as sequence items.
-            
-            # Serialize the Global Structure to pass to the writer
-            toc_context_str = json.dumps(toc_data.get('table_of_contents', []), indent=2)
-            
+            # Create Empty Sections (Structure Only)
             sequence = 10
-            
             for section in toc_data.get('table_of_contents', []):
-                # 1. Main Section
-                section_title = section.get('title')
-                section_intent = section.get('description_intent', 'Write comprehensive content.')
+                self.env['rfp.document.section'].create({
+                    'project_id': project.id,
+                    'section_title': section.get('title'),
+                    'content_markdown': '', # Empty for now
+                    'sequence': sequence
+                })
+                sequence += 10
                 
-                # Generate Main Section Content
+                for sub in section.get('subsections', []):
+                    self.env['rfp.document.section'].create({
+                        'project_id': project.id,
+                        'section_title': sub.get('title'),
+                        'content_markdown': '', 
+                        'sequence': sequence
+                    })
+                    sequence += 10
+
+            project.current_stage = 'structuring'
+            return True
+
+    def action_generate_content(self):
+        """
+        Phase 2: The Writer (Generate Content for Sections)
+        Moves stage to 'writing'.
+        """
+        import json
+        import time
+        from odoo.addons.project_rfp_ai.utils import ai_connector
+
+        for project in self:
+            project.current_stage = 'writing' # Move immediately or after? User said "writing" stage.
+            
+            # Re-construct context (or retrieve from blob?)
+            # Valid to rebuild context to ensure freshness
+             # 1. Context Building
+            context_data = {
+                "project_name": project.name,
+                "description": project.description,
+                "domain": project.domain_context,
+                "language": project.document_language,
+                "q_and_a": []
+            }
+            for inp in project.form_input_ids:
+                if inp.user_value:
+                    context_data["q_and_a"].append(f"- **{inp.label}**: {inp.user_value}")
+                elif inp.is_irrelevant:
+                     context_data["q_and_a"].append(f"- {inp.label}: [IRRELEVANT - {inp.irrelevant_reason}]")
+            
+            context_str = "\n".join(context_data["q_and_a"])
+
+            # Retrieve TOC Structure for context
+            current_blob = project.get_context_data()
+            toc_data = current_blob.get('toc_structure', {})
+            toc_context_str = json.dumps(toc_data.get('table_of_contents', []), indent=2)
+
+            section_writer_template = self.env['rfp.prompt'].search([('code', '=', 'writer_section_content')], limit=1).template_text
+
+            # Iterate through existing sections
+            for section_record in project.document_section_ids:
+                if section_record.content_markdown:
+                    continue # Skip if already written (allows resume)
+
+                section_title = section_record.section_title
+                section_intent = "Write comprehensive details matching the project context."
+                
                 writer_prompt = section_writer_template.format(
                     project_name=project.name,
                     domain=project.domain_context,
@@ -331,64 +363,35 @@ class RfpProject(models.Model):
                     section_intent=section_intent,
                     context_str=context_str
                 )
-                
-                # Call Writer (Main Section)
-                try:
-                    content = self.env['rfp.ai.log'].execute_request(
-                        system_prompt=writer_prompt,
-                        # We construct the user message here as the single user_context argument
-                        user_context=f"Project Context:\n{context_str}\n\nPlease write the {section_title} section now. Intent: {section_intent}",
-                        env=self.env,
-                        mode='text'
-                    )
-                except Exception:
-                    content = "Error generating content."
-                time.sleep(20) # Rate limit safeguard
-                
-                self.env['rfp.document.section'].create({
-                    'project_id': project.id,
-                    'section_title': section_title,
-                    'content_markdown': content,
-                    'sequence': sequence
-                })
-                sequence += 10
-                
-                # 2. Subsections (if any)
-                for sub in section.get('subsections', []):
-                    sub_title = sub.get('title') # e.g. "1.1 Overview"
-                    sub_intent = sub.get('description_intent', 'Write specific details.')
-                    
-                    writer_prompt_sub = section_writer_template.format(
-                        project_name=project.name,
-                        domain=project.domain_context,
-                        language=project.document_language,
-                        toc_context=toc_context_str,
-                        section_title=sub_title,
-                        section_intent=sub_intent,
-                        context_str=context_str
-                    )
-                    
-                    try:
-                        sub_content = self.env['rfp.ai.log'].execute_request(
-                            system_prompt=writer_prompt_sub,
-                            user_context=f"Project Context:\n{context_str}\n\nPlease write the {sub_title} section now. Intent: {sub_intent}",
-                            env=self.env,
-                            mode='text'
-                        )
-                    except Exception:
-                        sub_content = "Error generating subsection content."
-                    time.sleep(20) # Rate limit safeguard
-                    
-                    self.env['rfp.document.section'].create({
-                        'project_id': project.id,
-                        'section_title': sub_title, # Indentation is visual, backend is flat
-                        'content_markdown': sub_content,
-                        'sequence': sequence
-                    })
-                    sequence += 10
 
-            project.current_stage = 'generating'
+                user_context = f"Project Context:\n{context_str}\n\nPlease write the {section_title} section now."
+                
+                # Dispatch to Queue
+                # We use the specific channel 'root.rfp_generation' to control concurrency
+                job = section_record.with_delay(channel='root.rfp_generation').generate_content_job(
+                    system_prompt=writer_prompt,
+                    user_context=user_context
+                )
+                
+                # Check if job is a Job object (from queue_job python lib) and get the recordset
+                # The .with_delay() returns a Job object, which has a db_record() method to get the Odoo record
+                if job and hasattr(job, 'db_record'):
+                    section_record.job_id = job.db_record()
+                
+                section_record.generation_status = 'queued'
+                
+            project.current_stage = 'writing'
             return True
+
+    def action_mark_completed(self):
+        for project in self:
+            project.current_stage = 'completed'
+
+    # Deprecated / Legacy Support
+    def action_generate_document(self):
+        self.action_generate_structure()
+        self.action_generate_content()
+        self.action_mark_completed()
 
     def get_context_data(self):
         """Helper to parse the context blob (Text) back into a Dict for views."""

@@ -19,7 +19,7 @@ A quick map for AI Agents exploring the codebase.
 
 ```text
 project_rfp_ai/
-├── __manifest__.py                 # Odoo Module Definition (Deps: website, portal, mail)
+├── __manifest__.py                 # Odoo Module Definition (Deps: queue_job, website, portal, mail)
 ├── odoo.conf                       # Local dev config
 ├── upgrade_module.sh               # Helper script to update logic without restarting service manually
 ├── models/
@@ -51,6 +51,8 @@ project_rfp_ai/
 │   └── ai_connector.py             # [LIB] Google GenAI Wrapper (Retry, Error Handling)
 └── data/
     └── rfp_prompt_data.xml         # [DATA] Default System Prompts (Interviewer, Architect, Writer)
+├── queue/                          # [LIB] OCA Queue Job Module
+│   └── queue_job/
 ```
 
 ---
@@ -88,6 +90,11 @@ This method runs once, triggered by the user after analysis.
     *   For each section, calls `writer_section_content` prompt.
     *   **Context Injection**: The prompt receives the **entire TOC** + **Current Section Title**.
     *   Task: "Write the content for *this specific section* knowing it fits into *that global structure*."
+    *   Task: "Write the content for *this specific section* knowing it fits into *that global structure*."
+    *   **Asynchronous Execution**:
+        *   Uses `queue_job` (OCA) to offload content generation.
+        *   Each section generation is dispatched as a separate job via `with_delay()`.
+        *   Project maintains links to these jobs for status tracking ("Pending", "Queued", "Generating", "Success", "Failed").
     *   Output: Markdown text, saved to `rfp.document.section`.
 
 ### 3.2 The Nervous System: `utils/ai_connector.py`
@@ -128,6 +135,29 @@ The intelligence is defined here. We use **XML Data Files** to load these into t
     *   *Persona*: Technical Writer.
     *   *Input*: Complete TOC (Context) + Specific Section Title (Focus).
     *   *Output*: Markdown Content.
+
+---
+
+## 5. Configuration & Queue Job
+
+### 5.1 Odoo Configuration (`odoo.conf`)
+To enable the background job runner, your `odoo.conf` must include:
+
+```ini
+[options]
+server_wide_modules = web,queue_job
+# workers > 0 ensures multiprocessing, but queue_job works in threaded mode too.
+# If using workers > 0, set an environment variable GEVENT_SUPPORT=True for debugging.
+
+[queue_job]
+channels = root:1,root.rfp_generation:1
+```
+
+*   `root.rfp_generation:1`: Dedicates 1 concurrent worker specifically for AI content generation to avoid API rate limits.
+
+### 5.2 Module Settings
+Go to **Settings > Technical > RFP AI**:
+*   **Concurrent AI Requests**: Adjust the concurrency level for the content generation queue (e.g., increase to 2 or 4 if your API tier supports it).
 
 ---
 
