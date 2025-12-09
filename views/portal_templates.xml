@@ -118,7 +118,7 @@
 
     <template id="portal_rfp_input_field" name="RFP Input Field Component">
         <div
-            class="mb-4 p-3 border rounded bg-light rfp-input-group position-relative" t-att-id="'input_group_' + input_field.field_key" t-att-data-field-key="input_field.field_key" t-att-data-depends-on="input_field.depends_on or '{}'">
+            class="mb-4 p-3 border rounded bg-light rfp-input-group position-relative" t-att-id="'input_group_' + input_field.field_key" t-att-data-field-key="input_field.field_key" t-att-data-depends-on="input_field.depends_on or '{}'" t-att-data-specify-triggers="input_field.specify_triggers or '[]'">
 
             <!-- Header: Label + Options Menu -->
             <div class="d-flex justify-content-between align-items-start mb-2">
