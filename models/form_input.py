@@ -29,6 +29,7 @@ class RfpFormInput(models.Model):
     depends_on = fields.Text(string="Dependency JSON", help="Visibility logic {field_key, value}")
     is_irrelevant = fields.Boolean(string="Marked Irrelevant", default=False)
     irrelevant_reason = fields.Char(string="Reason for Irrelevance")
+    specify_triggers = fields.Text(string="Specify Triggers JSON")
 
     def get_suggested_answers_parsed(self):
         if not self.suggested_answers:
@@ -45,6 +46,14 @@ class RfpFormInput(models.Model):
             return json.loads(self.depends_on)
         except Exception:
             return {}
+
+    def get_specify_triggers_parsed(self):
+        if not self.specify_triggers:
+            return []
+        try:
+            return json.loads(self.specify_triggers)
+        except Exception:
+            return []
 
     def get_options_parsed(self):
         if not self.options:

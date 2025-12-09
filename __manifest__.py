@@ -24,11 +24,12 @@
         'views/rfp_form_input_views.xml',
         'views/rfp_document_section_views.xml',
         'views/rfp_prompt_views.xml',
+        'views/rfp_ai_log_views.xml',
         'views/res_config_settings_views.xml',
         'data/rfp_prompt_data.xml',
-        'views/menu_views.xml',
         'views/portal_templates.xml',
         'views/report_rfp.xml',
+        'views/menu_views.xml',
     ],
     'assets': {
         'web.assets_frontend': [

@@ -58,6 +58,11 @@ def get_interviewer_schema():
                             },
                              required=["field_key", "value"] 
                         ),
+                        "specify_triggers": types.Schema(
+                            type=types.Type.ARRAY,
+                            items=types.Schema(type=types.Type.STRING),
+                            description="List of options (from 'options' or 'suggested_answers') that require specific user text input (e.g. 'Other')."
+                        ),
                     }
                 )
             )

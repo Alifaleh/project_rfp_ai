@@ -43,30 +43,6 @@ Return ONLY the JSON object.
             </field>
         </record>
 
-        <!-- Writer Prompt (Generic) -->
-        <record id="prompt_writer_generic" model="rfp.prompt">
-            <field name="name">Writer - Generic Section</field>
-            <field name="code">writer_section_template</field>
-            <field name="description">Template for generating a specific document section.</field>
-            <field name="template_text">
-                <![CDATA[
-**Role:** You are an expert Technical Writer and Solution Architect.
-**Task:** Write the "{section_name}" section for a Request for Proposal (RFP).
-**Specific Goal:** {instruction}
-**Context:** The project details and gathered requirements are provided below.
-
-**Instructions:**
-1.  Write strictly in professional Markdown.
-2.  Be detailed, specific, and authoritative.
-3.  If this is a "Diagrams" section, include a Mermaid.js diagram code block.
-4.  Do not include conversational filler ("Here is the section..."). Start directly with the content.
-
-**Project Context:**
-{context_str}
-]]>
-            </field>
-        </record>
-
         <!-- Writer Prompt: Phase 1 (TOC Architect) -->
         <record id="prompt_writer_toc_architect" model="rfp.prompt">
             <field name="name">Writer Phase 1: TOC Architect</field>

@@ -16,6 +16,7 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         this._super.apply(this, arguments);
         console.log("RFP Portal Interactions Loaded");
         this._checkDependencies(); // Initial check
+        this._checkSpecifyTriggers();
     },
 
     // --- Event Handlers ---
@@ -132,6 +133,51 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
                 } else {
                     $group.addClass('d-none');
                 }
+            }
+        });
+
+        this._checkSpecifyTriggers();
+    },
+
+    /**
+     * Checks if any inputs (Radio) trigger a "Specify" text field.
+     */
+    _checkSpecifyTriggers: function () {
+        const self = this;
+        this.$el.find('.rfp-input-group[data-specify-triggers]').each(function () {
+            const $group = $(this);
+            const fieldKey = $group.data('field-key');
+            let triggers = $group.data('specify-triggers');
+            
+            // Safety parsing if it's a string (though Odoo usually parses data- attributes if valid JSON, otherwise string)
+            if (typeof triggers === 'string') {
+                try {
+                    triggers = JSON.parse(triggers);
+                } catch (e) {
+                    triggers = [];
+                }
+            }
+            
+            if (!triggers || !triggers.length) return;
+
+            // Find current value
+            let currentValue = "";
+            const $radio = self.$el.find(`input[name="${fieldKey}"]:checked`);
+            if ($radio.length) {
+                currentValue = $radio.val();
+            }
+
+            // Find Specify Input
+            const $specifyInput = self.$el.find(`input[name="${fieldKey}_specify"]`);
+            
+            // Check match
+            if (triggers.includes(currentValue)) {
+                $specifyInput.removeClass('d-none');
+                $specifyInput.prop('required', true); // Require if shown
+            } else {
+                $specifyInput.addClass('d-none');
+                $specifyInput.prop('required', false);
+                $specifyInput.val(''); // Clear value when hidden
             }
         });
     }

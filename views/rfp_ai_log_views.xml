@@ -1,0 +1,61 @@
+<odoo>
+    <!-- LIST VIEW -->
+    <record id="view_rfp_ai_log_tree" model="ir.ui.view">
+        <field name="name">rfp.ai.log.list</field>
+        <field name="model">rfp.ai.log</field>
+        <field name="arch" type="xml">
+            <list string="AI Request Logs" decoration-danger="state == 'error'" decoration-warning="state == 'rate_limit'" decoration-success="state == 'success'">
+                <field name="create_date"/>
+                <field name="duration" widget="float_time"/>
+                <field name="state" widget="badge" decoration-danger="state == 'error'" decoration-warning="state == 'rate_limit'" decoration-success="state == 'success'"/>
+                <field name="prompt_used" optional="hide"/>
+                <field name="input_context" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- FORM VIEW -->
+    <record id="view_rfp_ai_log_form" model="ir.ui.view">
+        <field name="name">rfp.ai.log.form</field>
+        <field name="model">rfp.ai.log</field>
+        <field name="arch" type="xml">
+            <form string="AI Log" create="0" edit="0">
+                <header>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="create_date"/>
+                            <field name="duration"/>
+                        </group>
+                        <group>
+                            <field name="error_message" invisible="state != 'error'"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Prompt">
+                            <field name="prompt_used" widget="ace" options="{'mode': 'text'}"/>
+                        </page>
+                        <page string="Input Context">
+                            <field name="input_context" widget="ace" options="{'mode': 'json'}"/>
+                        </page>
+                        <page string="Response (Raw)">
+                            <field name="response_raw" widget="ace" options="{'mode': 'json'}"/>
+                        </page>
+                        <page string="Full Request Body" groups="base.group_no_one">
+                            <field name="request_body"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- ACTION -->
+    <record id="action_rfp_ai_log" model="ir.actions.act_window">
+        <field name="name">AI Request Logs</field>
+        <field name="res_model">rfp.ai.log</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</odoo>

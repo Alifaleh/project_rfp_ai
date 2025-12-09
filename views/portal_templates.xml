@@ -182,11 +182,11 @@
             </t>
 
             <t t-elif="input_field.component_type == 'radio'">
-                <div class="mb-2">
+                <div class="rfp-radio-group">
                     <t t-if="input_field.options">
-                        <t t-foreach="input_field.get_options_parsed()" t-as="opt">
+                        <t t-foreach="input_field.get_options_parsed()" t-as="opt" t-as-index="opt_index">
                             <div class="form-check">
-                                <input class="form-check-input" type="radio" t-att-name="input_field.field_key" t-att-value="opt" t-att-id="input_field.field_key + '_' + str(opt_index)"/>
+                                <input class="form-check-input rfp-dynamic-input" type="radio" t-att-name="input_field.field_key" t-att-id="input_field.field_key + '_' + str(opt_index)" t-att-value="opt" t-att-required="input_field.depends_on == '{}' or ''"/>
                                 <label class="form-check-label" t-att-for="input_field.field_key + '_' + str(opt_index)">
                                     <t t-esc="opt"/>
                                 </label>
@@ -194,6 +194,8 @@
                         </t>
                     </t>
                 </div>
+                <!-- Specify Input (Hidden by default) -->
+                <input type="text" t-att-name="input_field.field_key + '_specify'" class="form-control mt-2 rfp-specify-input d-none" placeholder="Please specify..."/>
             </t>
 
             <t t-elif="input_field.component_type == 'boolean'">

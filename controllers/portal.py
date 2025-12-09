@@ -95,9 +95,16 @@ class RfpCustomerPortal(CustomerPortal):
                     
             elif key in input_map:
                 # Only update user_value if NOT marked irrelevant (or update anyway, but flags take precedence)
-                # Actually, strictly, if it's irrelevant, user_value might be empty. 
-                # But let's save the value just in case, but usually form logic clears it.
-                input_map[key].sudo().write({'user_value': value})
+                # Handle "Specify" logic
+                specify_key = f"{key}_specify"
+                final_value = value
+                
+                if specify_key in post and post.get(specify_key):
+                     # Append the custom specification
+                     # e.g. "Other: My custom CRM"
+                     final_value = f"{value}: {post.get(specify_key)}"
+
+                input_map[key].sudo().write({'user_value': final_value})
         
         # 2. Run Analysis (The AI Cycle)
         Project.action_analyze_gap()

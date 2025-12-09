@@ -31,5 +31,4 @@
         <field name="context">{'module' : 'project_rfp_ai'}</field>
     </record>
 
-    <menuitem id="menu_rfp_settings" name="Settings" parent="menu_rfp_configuration" action="action_rfp_config_settings" groups="base.group_system" sequence="0"/>
 </odoo>

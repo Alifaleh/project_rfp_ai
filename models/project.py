@@ -79,17 +79,41 @@ class RfpProject(models.Model):
             
             context_str = json.dumps(context_data, indent=2)
             
-            # 2. Call AI
+            # 2. Call AI with Logging
             prompt_template = self.env['rfp.prompt'].search([('code', '=', 'interviewer_main')], limit=1).template_text
             if not prompt_template:
-                # Use a safeguard or raise
-                raise ValueError("System Prompt 'interviewer_main' not found in database.")
+                raise ValueError("System Prompt 'interviewer_main' not found.")
+            
+            from odoo.addons.project_rfp_ai.models.ai_schemas import get_interviewer_schema
 
-            response_json_str = ai_connector.generate_json_response(
-                prompt_template, 
-                context_str,
-                self.env
-            )
+            # We use the new Logging Model wrapper
+            try:
+                response_json_str = self.env['rfp.ai.log'].execute_request(
+                    system_prompt=prompt_template,
+                    user_context=context_str,
+                    env=self.env,
+                    mode='json',
+                    schema=get_interviewer_schema()
+                )
+            except Exception as e:
+                # If rate limit or other error raised by log model, we handle it here or let it propagate.
+                # The Log model raises RateLimitError again so we can catch it.
+                # However, our old logic handled Rate Limit by returning a custom JSON.
+                # We need to adapt.
+                # If execute_request raises RateLimitError, we should catch it and return the "Rate Limit" JSON structure
+                # so the frontend can show the warning.
+                if "Rate Limit" in str(e):
+                     response_json_str = json.dumps({
+                        "analysis_meta": {"status": "rate_limit", "completeness_score": 0},
+                        "research_notes": "High Traffic (Rate Limit). Please wait 30 seconds and retry.",
+                        "form_fields": []
+                    })
+                else: 
+                     response_json_str = json.dumps({
+                        "analysis_meta": {"status": "error", "completeness_score": 0},
+                        "research_notes": f"Error: {str(e)}",
+                        "form_fields": []
+                    })
             
             # 3. Parse JSON
             try:
@@ -156,7 +180,8 @@ class RfpProject(models.Model):
                         'round_number': current_round_number,
                         # Phase 12 Parsing
                         'suggested_answers': json.dumps(field.get('suggested_answers', [])),
-                        'depends_on': json.dumps(field.get('depends_on', {}))
+                        'depends_on': json.dumps(field.get('depends_on', {})),
+                        'specify_triggers': json.dumps(field.get('specify_triggers', [])),
                     }
                     new_inputs.append(vals)
             
@@ -221,13 +246,18 @@ class RfpProject(models.Model):
                  context_str=context_str
             )
             
-            # Call AI for TOC
-            toc_json_str = ai_connector.generate_json_response(
-                architect_prompt, 
-                context_str, # Provide raw context too just in case
-                self.env,
-                schema=get_toc_structure_schema()
-            )
+            # Call AI for TOC (Architect)
+            try:
+                toc_json_str = self.env['rfp.ai.log'].execute_request(
+                    system_prompt=architect_prompt,
+                    user_context=context_str,
+                    env=self.env,
+                    mode='json',
+                    schema=get_toc_structure_schema()
+                )
+            except Exception as e:
+                # Fallback for Architect failure
+                toc_json_str = json.dumps({"table_of_contents": [{"title": "Error Generating Structure", "subsections": []}]})
             
             try:
                 toc_data = json.loads(toc_json_str)
@@ -280,7 +310,17 @@ class RfpProject(models.Model):
                     context_str=context_str
                 )
                 
-                content = ai_connector.generate_text_response(writer_prompt, context_str, self.env)
+                # Call Writer (Main Section)
+                try:
+                    content = self.env['rfp.ai.log'].execute_request(
+                        system_prompt=writer_prompt,
+                        # We construct the user message here as the single user_context argument
+                        user_context=f"Project Context:\n{context_str}\n\nPlease write the {section_title} section now. Intent: {section_intent}",
+                        env=self.env,
+                        mode='text'
+                    )
+                except Exception:
+                    content = "Error generating content."
                 time.sleep(20) # Rate limit safeguard
                 
                 self.env['rfp.document.section'].create({
@@ -306,7 +346,15 @@ class RfpProject(models.Model):
                         context_str=context_str
                     )
                     
-                    sub_content = ai_connector.generate_text_response(writer_prompt_sub, context_str, self.env)
+                    try:
+                        sub_content = self.env['rfp.ai.log'].execute_request(
+                            system_prompt=writer_prompt_sub,
+                            user_context=f"Project Context:\n{context_str}\n\nPlease write the {sub_title} section now. Intent: {sub_intent}",
+                            env=self.env,
+                            mode='text'
+                        )
+                    except Exception:
+                        sub_content = "Error generating subsection content."
                     time.sleep(20) # Rate limit safeguard
                     
                     self.env['rfp.document.section'].create({
