@@ -100,7 +100,7 @@ Functions as the resilience layer.
     *   **JSON Repair**: Attempts `json.loads`. If it fails, logs error and retries. *Guidance: Future versions should implement fuzzy JSON repair.*
 
 ### 3.3 The Observer: `models/ai_log.py`
-New in v1.1.0, this model provides full visibility into the AI "Thought Process".
+This model provides full visibility into the AI "Thought Process".
 *   **Centralized Logging**: All requests from Gap Analysis and Document Writer flow through `execute_request`.
 *   **Full Audibility**: Stores the exact `system_prompt`, `user_context`, and `response_raw`.
 *   **Performance Metrics**: Tracks execution duration to monitor latency.
@@ -197,15 +197,3 @@ The module stores the last raw response in `rfp.project` -> `ai_context_blob`.
     *   [alifaleh.netlify.app](https://alifaleh.netlify.app)
     *   [alifaleh.me@gmail.com](mailto:alifaleh.me@gmail.com)
     *   [github.com/alifaleh](https://github.com/alifaleh)
-
-## 9. Changelog
-
-### v1.1.0 - Usability & Reliability
-*   **[NEW] AI Log Module**: Introduced `rfp.ai.log` to track every prompt and response for debugging and auditing.
-*   **[FIX] Irrelevant Questions**:
-    *   Fixed backend logic to correctly identify `is_irrelevant` flags passed from the portal.
-    *   Updated system prompt to strictly obey the `rejected_topics` blacklist.
-    *   Frontend now automatically removes `required` attributes when a question is skipped.
-    *   Frontend now correctly hides skipped questions from the "Needs Answer" list.
-*   **[FIX] Empty Selection Lists**: Fixed a bug where `multiselect` fields appeared empty because the AI placed options in `suggested_answers` instead of `options`. The system now correctly falls back to using suggestions if options are missing.
-

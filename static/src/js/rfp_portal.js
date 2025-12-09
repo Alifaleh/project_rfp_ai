@@ -102,6 +102,7 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
 
     _onInputChange: function () {
         this._checkDependencies();
+        this._checkSpecifyTriggers();
     },
 
     // --- Logic ---
@@ -200,18 +201,21 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
             
             if (!triggers || !triggers.length) return;
 
-            // Find current value
-            let currentValue = "";
-            const $radio = self.$el.find(`input[name="${fieldKey}"]:checked`);
-            if ($radio.length) {
-                currentValue = $radio.val();
-            }
+            // Find current values (Handle Array for Checkboxes)
+            let selectedValues = [];
+            const $inputs = self.$el.find(`input[name="${fieldKey}"]:checked`);
+            
+            $inputs.each(function() {
+                selectedValues.push($(this).val());
+            });
 
             // Find Specify Input
             const $specifyInput = self.$el.find(`input[name="${fieldKey}_specify"]`);
             
-            // Check match
-            if (triggers.includes(currentValue)) {
+            // Check match: If ANY selected value is in the triggers list
+            const isMatch = selectedValues.some(val => triggers.includes(val));
+
+            if (isMatch) {
                 $specifyInput.removeClass('d-none');
                 $specifyInput.prop('required', true); // Require if shown
             } else {

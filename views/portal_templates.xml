@@ -179,6 +179,8 @@
                         </t>
                     </t>
                 </div>
+                <!-- Specify Input (Hidden by default) -->
+                <input type="text" t-att-name="input_field.field_key + '_specify'" class="form-control mt-2 rfp-specify-input d-none" placeholder="Please specify..."/>
             </t>
 
             <t t-elif="input_field.component_type == 'radio'">

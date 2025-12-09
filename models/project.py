@@ -125,6 +125,18 @@ class RfpProject(models.Model):
             # Update Metdata (Explicit Write as Text)
             # Inject Debug Context
             response_data['last_input_context'] = context_data
+
+            # FIX: Ensure monotonization of completeness_score (Don't let it drop)
+            current_context = project.get_context_data()
+            old_score = current_context.get('analysis_meta', {}).get('completeness_score', 0)
+            new_score = response_data.get('analysis_meta', {}).get('completeness_score', 0)
+            
+            # If new score is lower, keep the old one to avoid confusion
+            if new_score < old_score:
+                if 'analysis_meta' not in response_data:
+                    response_data['analysis_meta'] = {}
+                response_data['analysis_meta']['completeness_score'] = old_score
+
             project.ai_context_blob = json.dumps(response_data, indent=4)
             
             # 4. Generate Questions
