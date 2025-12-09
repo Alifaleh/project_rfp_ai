@@ -116,6 +116,13 @@ class RfpProject(models.Model):
                     })
             
             # 3. Parse JSON
+            if not response_json_str:
+                response_json_str = json.dumps({
+                    "analysis_meta": {"status": "error", "completeness_score": 0},
+                    "research_notes": "The AI service is temporarily unavailable (503). Please try again in a few moments.",
+                    "form_fields": []
+                })
+
             try:
                 response_data = json.loads(response_json_str)
             except json.JSONDecodeError:
