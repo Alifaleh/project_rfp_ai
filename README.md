@@ -10,7 +10,8 @@ This Odoo module implements an **Agentic AI System** designed to automate the Re
 *   **Active Listening**: The AI adaptation changes its questions based on user answers.
 *   **Irrelevance Detection**: The system learns from what users *skip*, updating its internal context.
 *   **Architectural Awareness**: It separates "Structure Design" (TOC) from "Content Writing" to ensure logical flow.
-*   **Resilience**: Built-in handling for AI Rate Limits (429) and Malformed JSON (Retry Logic).
+*   **Resilience**: Built-in handling for AI Rate Limits (429) and Malformed JSON, plus automatic retry for queue jobs.
+*   **Flexible Workflow**: Features a robust "Revert to Edit" capability, allowing users to unlock completed documents for further refinement, and a custom finalization safety layer.
 
 ---
 
@@ -94,8 +95,9 @@ This method runs once, triggered by the user after analysis.
     *   **Asynchronous Execution**:
         *   Uses `queue_job` (OCA) to offload content generation.
         *   Each section generation is dispatched as a separate job via `with_delay()`.
+        *   **Retry Mechanism**: Configured with a Fibonacci-like backoff (60s, 180s) to handle transient AI failures automatically.
         *   Project maintains links to these jobs for status tracking ("Pending", "Queued", "Generating", "Success", "Failed").
-    *   Output: Markdown text, saved to `rfp.document.section`.
+    *   Output: Semantic HTML5 content, saved to `rfp.document.section`.
 
 ### 3.2 The Nervous System: `utils/ai_connector.py`
 Functions as the resilience layer.
@@ -180,6 +182,13 @@ Since AI processing can take 5-15 seconds:
 *   **HTML**: Hidden `div#rfp_loading_overlay` in `portal_templates.xml`.
 *   **JS triggers**: `_onSubmit` event listener on the form removes `.d-none` class.
 *   **Effect**: Immediate visual feedback ("Thinking...") prevents user from clicking twice.
+
+### 5.4 Document Lifecycle
+*   **Finalization**: Uses a Bootstrap Modal for a safe "Are you sure?" confirmation before preventing further edits.
+*   **Reversion**: Includes a "Edit" button on completed documents that triggers a controller (`/rfp/revert_to_edit`) to unlock the project and return it to the 'writing' stage.
+*   **Reporting**:
+    *   **PDF**: Uses an optimized browser-native print view (`window.print()`) with CSS that hides the portal UI (headers, sidebars, buttons), ensuring only the clean document card is printed.
+    *   **Word**: Downloads a clean `.doc` file containing only the title and sections (stripping external descriptions).
 
 ---
 
