@@ -25,6 +25,9 @@
                                 <field name="name"/>
                                 <field name="code"/>
                             </group>
+                            <group>
+                                <field name="ai_model_id"/>
+                            </group>
                         </group>
                         <group>
                             <field name="description"/>

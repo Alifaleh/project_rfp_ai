@@ -13,16 +13,16 @@ except ImportError:
 _logger = logging.getLogger(__name__)
 
 # DEFAULT CONSTANTS (Fallback)
-DEFAULT_GEMINI_MODEL = "gemini-3-pro-preview"
+DEFAULT_GEMINI_MODEL = "gemini-1.5-flash"
 DEFAULT_GEMINI_KEY = ""
 
 class RateLimitError(Exception):
     pass
 
-def _call_gemini_api(system_instructions, user_content, env, response_mime_type="text/plain", response_schema=None):
+def _call_gemini_api(system_instructions, user_content, env, response_mime_type="text/plain", response_schema=None, model_name=None):
     """
     Helper to call Google Gemini API using the SDK.
-    Uses credentials from System Parameters.
+    Uses credentials from System Parameters, but Model from arguments.
     """
     if not genai:
         _logger.error("google-genai library not installed! Run pip install google-genai")
@@ -30,7 +30,10 @@ def _call_gemini_api(system_instructions, user_content, env, response_mime_type=
 
     # Fetch Config
     api_key = env['ir.config_parameter'].sudo().get_param('project_rfp_ai.gemini_api_key', DEFAULT_GEMINI_KEY)
-    model_name = env['ir.config_parameter'].sudo().get_param('project_rfp_ai.gemini_model', DEFAULT_GEMINI_MODEL)
+    
+    # Apply default if not provided
+    if not model_name:
+        model_name = env['ir.config_parameter'].sudo().get_param('project_rfp_ai.gemini_model', DEFAULT_GEMINI_MODEL)
     
     if not api_key:
         _logger.error("Gemini API Key is not configured in Settings!")
@@ -96,6 +99,9 @@ def generate_json_response(system_prompt_ignored, user_context_str, env=None, is
         
     system_prompt = prompt_record.template_text
     
+    # Determine Model
+    model_name = prompt_record.ai_model_id.technical_name if prompt_record.ai_model_id else None
+    
     from ..models.ai_schemas import get_interviewer_schema
     
     # Call Gemini
@@ -107,7 +113,8 @@ def generate_json_response(system_prompt_ignored, user_context_str, env=None, is
             user_context_str, 
             env, 
             response_mime_type="application/json",
-            response_schema=get_interviewer_schema()
+            response_schema=get_interviewer_schema(),
+            model_name=model_name
         )
     except RateLimitError:
         return json.dumps({
@@ -160,12 +167,16 @@ def generate_text_response(section_name, context_str, env=None):
         return f"Error: Writer prompt 'writer_section_template' not found."
         
     final_system_instruction = prompt_record.template_text.replace("{section_name}", section_name)
+    
+    # Determine Model
+    model_name = prompt_record.ai_model_id.technical_name if prompt_record.ai_model_id else None
+
     user_message = f"Project Context:\n{context_str}\n\nPlease write the {section_name} section now."
     
     _logger.info(f"Calling Gemini for Writer ({section_name})...")
     
     try:
-        response_text = _call_gemini_api(final_system_instruction, user_message, env, response_mime_type="text/plain")
+        response_text = _call_gemini_api(final_system_instruction, user_message, env, response_mime_type="text/plain", model_name=model_name)
     except RateLimitError:
         return "**Error: Rate Limit Exceeded. Please retry generation in ~30 seconds.**"
     

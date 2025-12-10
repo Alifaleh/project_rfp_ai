@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- AI Model Tag Views -->
+        <record id="view_rfp_ai_model_tag_form" model="ir.ui.view">
+            <field name="name">rfp.ai.model.tag.form</field>
+            <field name="model">rfp.ai.model.tag</field>
+            <field name="arch" type="xml">
+                <form>
+                    <sheet>
+                        <group>
+                            <field name="name"/>
+                            <field name="color" widget="color_picker"/>
+                        </group>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <!-- AI Model Views -->
+        <record id="view_rfp_ai_model_tree" model="ir.ui.view">
+            <field name="name">rfp.ai.model.tree</field>
+            <field name="model">rfp.ai.model</field>
+            <field name="arch" type="xml">
+                <list string="AI Models">
+                    <field name="name"/>
+                    <field name="technical_name"/>
+                    <field name="provider"/>
+                    <field name="tag_ids" widget="many2many_tags" options="{'color_field': 'color'}"/>
+                </list>
+            </field>
+        </record>
+
+        <record id="view_rfp_ai_model_form" model="ir.ui.view">
+            <field name="name">rfp.ai.model.form</field>
+            <field name="model">rfp.ai.model</field>
+            <field name="arch" type="xml">
+                <form string="AI Model">
+                    <sheet>
+                        <group>
+                            <group>
+                                <field name="name"/>
+                                <field name="technical_name"/>
+                            </group>
+                            <group>
+                                <field name="provider"/>
+                                <field name="tag_ids" widget="many2many_tags" options="{'color_field': 'color'}"/>
+                            </group>
+                        </group>
+                        <group>
+                            <field name="description"/>
+                        </group>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <record id="action_rfp_ai_model" model="ir.actions.act_window">
+            <field name="name">AI Models</field>
+            <field name="res_model">rfp.ai.model</field>
+            <field name="view_mode">list,form</field>
+        </record>
+    </data>
+</odoo>

@@ -9,14 +9,11 @@
             <xpath expr="//form" position="inside">
                 <app data-string="RFP AI" string="RFP Generator" name="project_rfp_ai">
                     <block title="AI Configuration">
-                        <setting id="rfp_gemini_config" help="Configure Google Gemini connection details.">
+                        <setting id="rfp_gemini_apikey" help="Configure Google Gemini connection details.">
                             <field name="rfp_gemini_api_key" password="True"/>
-                            <field name="rfp_gemini_model"/>
+                        </setting>
+                        <setting id="rfp_gemini_concurrency" help="Number of sections to generate in parallel (Queue Job workers).">
                             <field name="rfp_generation_concurrency"/>
-                            <div class="mt8 text-muted">
-                                Default model:
-                                <b>gemini-3-pro-preview</b>
-                            </div>
                         </setting>
                     </block>
                 </app>

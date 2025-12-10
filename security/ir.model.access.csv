@@ -10,3 +10,7 @@ access_rfp_form_input_portal,rfp.form.input,model_rfp_form_input,base.group_port
 access_rfp_document_section_portal,rfp.document.section,model_rfp_document_section,base.group_portal,1,0,0,0
 access_rfp_section_diagram_portal,rfp.section.diagram,model_rfp_section_diagram,base.group_portal,1,0,0,0
 access_rfp_ai_log,rfp.ai.log,model_rfp_ai_log,base.group_user,1,1,1,0
+access_rfp_ai_model,rfp.ai.model,model_rfp_ai_model,base.group_user,1,0,0,0
+access_rfp_ai_model_system,rfp.ai.model,model_rfp_ai_model,base.group_system,1,1,1,1
+access_rfp_ai_model_tag,rfp.ai.model.tag,model_rfp_ai_model_tag,base.group_user,1,0,0,0
+access_rfp_ai_model_tag_system,rfp.ai.model.tag,model_rfp_ai_model_tag,base.group_system,1,1,1,1

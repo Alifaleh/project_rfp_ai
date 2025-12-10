@@ -5,6 +5,7 @@
         <record id="prompt_interviewer_main" model="rfp.prompt">
             <field name="name">Interviewer - Main Logic</field>
             <field name="code">interviewer_main</field>
+            <field name="ai_model_id" ref="model_gemini_flash_latest"/>
             <field name="description">The core system prompt for the dynamic interviewer agent.</field>
             <field name="template_text">
                 <![CDATA[
@@ -48,6 +49,7 @@ Return ONLY the JSON object.
         <record id="prompt_writer_toc_architect" model="rfp.prompt">
             <field name="name">Writer Phase 1: TOC Architect</field>
             <field name="code">writer_toc_architect</field>
+            <field name="ai_model_id" ref="model_gemini_flash_latest"/>
             <field name="template_text">
                 <![CDATA[
 # System Prompt: Phase 2 (The Architect)
@@ -84,6 +86,7 @@ Return ONLY the JSON object.
         <record id="prompt_writer_section_content" model="rfp.prompt">
             <field name="name">Writer Phase 2: Section Writer</field>
             <field name="code">writer_section_content</field>
+            <field name="ai_model_id" ref="model_gemini_flash_latest"/>
             <field name="template_text">
                 <![CDATA[
 # System Prompt: Phase 3 (The Writer)
