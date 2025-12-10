@@ -59,7 +59,7 @@ def _call_gemini_api(system_instructions, user_content, env, response_mime_type=
             response_mime_type=response_mime_type,
             response_schema=response_schema,
             temperature=0.4,
-            max_output_tokens=8192,
+            max_output_tokens=65536,
         )
 
         # Non-streaming call for simplicity in Odoo backend (we wait anyway)

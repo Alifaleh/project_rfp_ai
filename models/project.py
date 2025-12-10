@@ -292,7 +292,7 @@ class RfpProject(models.Model):
                 self.env['rfp.document.section'].create({
                     'project_id': project.id,
                     'section_title': section.get('title'),
-                    'content_markdown': '', # Empty for now
+                    'content_html': '', # Empty for now
                     'sequence': sequence
                 })
                 sequence += 10
@@ -301,7 +301,7 @@ class RfpProject(models.Model):
                     self.env['rfp.document.section'].create({
                         'project_id': project.id,
                         'section_title': sub.get('title'),
-                        'content_markdown': '', 
+                        'content_html': '', 
                         'sequence': sequence
                     })
                     sequence += 10
@@ -347,7 +347,7 @@ class RfpProject(models.Model):
 
             # Iterate through existing sections
             for section_record in project.document_section_ids:
-                if section_record.content_markdown:
+                if section_record.content_html:
                     continue # Skip if already written (allows resume)
 
                 section_title = section_record.section_title
@@ -432,7 +432,7 @@ class RfpProject(models.Model):
                     'project_id': self.id,
                     'section_title': title,
                     'sequence': sequence,
-                    'content_markdown': ''
+                    'content_html': ''
                 })
                 incoming_ids.append(new_section.id)
         
@@ -443,18 +443,18 @@ class RfpProject(models.Model):
             
         return True
 
-    def action_update_content_markdown(self, sections_content):
+    def action_update_content_html(self, sections_content):
         """
         Updates the content of sections from portal review.
         Args:
-            sections_content (dict): {str(section_id): str(markdown_content)}
+            sections_content (dict): {str(section_id): str(html_content)}
         """
         self.ensure_one()
         for section_id_str, content in sections_content.items():
             if section_id_str.isdigit():
                 section = self.env['rfp.document.section'].browse(int(section_id_str))
                 if section.exists() and section.project_id == self:
-                    section.content_markdown = content
+                    section.content_html = content
         return True
 
     def get_generation_status(self):
@@ -475,7 +475,7 @@ class RfpProject(models.Model):
                     completed_count += 1
                 elif section.job_id.state == 'failed':
                     failed_count += 1
-            elif section.content_markdown:
+            elif section.content_html:
                 completed_count += 1
                 
         progress = (completed_count / total) * 100 if total > 0 else 0

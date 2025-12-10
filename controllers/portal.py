@@ -191,7 +191,7 @@ class RfpCustomerPortal(CustomerPortal):
              return {'error': 'Access Denied'}
              
         if sections_content:
-            Project.action_update_content_markdown(sections_content)
+            Project.action_update_content_html(sections_content)
             
         if finish:
             Project.action_mark_completed()
@@ -237,10 +237,8 @@ class RfpCustomerPortal(CustomerPortal):
         
         for section in Project.document_section_ids.sorted('sequence'):
             html_content += f"<h2>{section.section_title}</h2>"
-            # Convert newlines to <br/>
-            # Use 'odoo.tools.html_escape' ?
-            # Let's just assume valid text.
-            formatted_text = section.content_markdown.replace("\n", "<br/>")
+            # Content is now HTML
+            formatted_text = section.content_html
             html_content += f"<div>{formatted_text}</div><hr/>"
             
         html_content += "</body></html>"

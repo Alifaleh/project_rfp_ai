@@ -26,7 +26,8 @@
 2.  Review `rejected_topics` first. Ensure none of your planned questions touch these topics.
 3.  Review `previous_inputs` to ensure you do not repeat answered questions.
 4.  Identify FUNCTIONAL GAPS (e.g., Missing workflows, unknown integrations, specific business logic).
-4.  Generate `form_fields` to close these gaps.
+5.  Identify MISSING CONSTRAINTS: You **MUST** ensure you recall the **Project Timeline, Deadline, and Key Milestones**. If the user has not provided them, you MUST ask.
+6.  Generate `form_fields` to close these gaps.
 5.  **Completion Logic**:
     *   **Bias for Action:** Your goal is to finish. Do NOT aim for 100% perfection. Aim for "Good Enough to Start".
     *   If the user answers "Irrelevant" or "No details needed", **DROP IT**. Do not find a different way to ask.
@@ -64,13 +65,17 @@ Return ONLY the JSON object.
 
 **Instructions:**
 1.  Analyze the user's requirements.
-2.  Design a comprehensive Table of Contents (TOC).
-3.  Ensure the structure is logical (Executive Summary -> Scope -> Tech -> Timeline).
-4.  Include specific subsections relevant to the domain (e.g., "Safety Compliance" for construction, "API Specs" for software).
-5.  **Strict JSON Output**: You must return a Valid JSON matching the provided schema.
+2.  Design a **HIGHLY COMPREHENSIVE** Table of Contents (TOC).
+3.  **GRANULARITY RULE:** Do NOT group everything into generic headers like "Technical Requirements". Break it down! (e.g., instead of one section "Tech", have "Cloud Architecture", "Security Standards", "Data Privacy", "API Integrations").
+4.  **QUANTITY RULE:** Generate **AS MANY SECTIONS AS NEEDED** to fully cover the scope. Aim for **8-12 Main Sections** minimum for a robust RFP.
+5.  **MANDATORY**: You MUST include a final section titled "**Project Schedule & Deadlines**".
+6.  **strict JSON Output**: You must return a Valid JSON matching the provided schema.
 
 **Constraints:**
 - Do NOT generate content. Only titles and intent.
+- **Description Intent**: Keep this **VERY BRIEF** (max 10-15 words). Focus tokens on generating MORE SECTIONS, not longer descriptions.
+- **Section Count**: Aim for comprehensive coverage (up to ~70 sections if needed), but ensure key sections are not empty placeholders.
+- **Exhaustive**: Be exhaustive in the *list of topics*, but concise in the *metadata*.
 ]]>
             </field>
         </record>
@@ -98,15 +103,16 @@ Return ONLY the JSON object.
 {context_str}
 
 **Instructions:**
-1.  Write the content for ONLY the section "{section_title}".
-2.  Use the `Global Structure` to understand where this section fits in the whole document.
+1.  **STRICT SCOPE Rule**: Write content **ONLY** for the specific section "{section_title}".
+    *   **IF** "{section_title}" has subsections in the `Global Structure` (e.g. it is "1. Introduction" and has "1.1" children): Write **ONLY** a high-level introductory paragraph summarizing what this section covers. **DO NOT** write the content of the subsections.
+    *   **IF** "{section_title}" is a leaf node (no subsections): Write the detailed content.
+2.  Use the `Global Structure` to verify if your section has children.
 3.  Use the `User Requirements` as the source of truth.
-4.  **Format**: Use clean Markdown (bullet points, bold text, headers).
-5.  **NO Images/Diagrams**: Do NOT generate Mermaid diagrams or placeholder images at this stage. Text only.
-6.  **Style**: Professional, clear, and legally sound.
-
-**Output:**
-Return ONLY the Markdown content for this section. Do not wrap in JSON.
+4.  **Format**: Use semantic HTML5. Use `<h3>`, `<p>`, `<ul>`/`<li>`, `<strong>`, etc. Do NOT use `<h1>` or `<h2>` (reserved for titles). Do NOT use Markdown. Do NOT use `<html>`/`<body>` tags.
+5.  **Diagrams**: If a diagram would clarify this section (e.g. Workflow, Architecture, User Flow), include it in the `diagrams` list with a title and description. Do NOT generate the image yourself.
+6.  **Style**: Professional, clear, and legally sound. Be detailed and informative. Do not be overly brief. Provide comprehensive explanations suitable for a formal Request for Proposal.
+7.  **No Redundancy**: Do NOT include the section title as a header at the beginning. Start directly with the paragraph or list.
+8.  **Output**: You must return a Valid JSON matching the schema.
 ]]>
             </field>
         </record>

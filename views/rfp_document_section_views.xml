@@ -1,19 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <record id="view_rfp_document_section_tree" model="ir.ui.view">
-        <field name="name">rfp.document.section.list</field>
-        <field name="model">rfp.document.section</field>
-        <field name="arch" type="xml">
-            <list string="Document Sections">
-                <field name="project_id"/>
-                <field name="sequence" widget="handle"/>
-                <field name="section_title"/>
-            </list>
-        </field>
-    </record>
+    <data>
+        <!-- Tree View -->
+        <record id="view_rfp_document_section_tree" model="ir.ui.view">
+            <field name="name">rfp.document.section.tree</field>
+            <field name="model">rfp.document.section</field>
+            <field name="arch" type="xml">
+                <list string="RFP Sections">
+                    <field name="sequence" widget="handle"/>
+                    <field name="project_id"/>
+                    <field name="section_title"/>
+                    <field name="generation_status"/>
+                </list>
+            </field>
+        </record>
 
-    <record id="action_rfp_document_section" model="ir.actions.act_window">
-        <field name="name">Document Sections</field>
-        <field name="res_model">rfp.document.section</field>
-        <field name="view_mode">list,form</field>
-    </record>
+        <!-- Form View -->
+        <record id="view_rfp_document_section_form" model="ir.ui.view">
+            <field name="name">rfp.document.section.form</field>
+            <field name="model">rfp.document.section</field>
+            <field name="arch" type="xml">
+                <form string="RFP Section">
+                    <header>
+                        <field name="generation_status" widget="statusbar"/>
+                    </header>
+                    <sheet>
+                        <group>
+                            <group>
+                                <field name="project_id"/>
+                                <field name="section_title"/>
+                            </group>
+                            <group>
+                                <field name="sequence"/>
+                            </group>
+                        </group>
+                        <notebook>
+                            <page string="Content">
+                                <field name="content_html" widget="html" options="{'style-inline': true}"/>
+                            </page>
+                            <page string="Diagrams">
+                                <field name="diagram_ids">
+                                    <list editable="bottom">
+                                        <field name="title"/>
+                                        <field name="description"/>
+                                    </list>
+                                </field>
+                            </page>
+                        </notebook>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <!-- Action -->
+        <record id="action_rfp_document_section" model="ir.actions.act_window">
+            <field name="name">RFP Sections</field>
+            <field name="res_model">rfp.document.section</field>
+            <field name="view_mode">list,form</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    Create a new RFP Section
+                </p>
+            </field>
+        </record>
+    </data>
 </odoo>

@@ -96,10 +96,8 @@
 
                                 <t t-foreach="rfp_project.document_section_ids.sorted(lambda s: s.sequence)" t-as="section">
                                     <div class="mb-5">
-                                        <!-- Section Content (Markdown rendering needed ideally, using simple output for MVP) -->
-                                        <!-- In production we would use specific markdown renderer widget -->
-                                            <div class="rfp-section-content"> <t t-out="section.content_markdown"/>
-                                        </div>
+                                        <!-- Render HTML Content -->
+                                        <div class="rfp-section-content" t-field="section.content_html"/>
                                     </div>
                                     <hr t-if="not section_last"/>
                                 </t>
@@ -452,6 +450,10 @@
     <!-- PHASE 4: CONTENT REVIEW -->
     <template id="portal_rfp_content_review" name="RFP Content Review">
         <t t-call="portal.portal_layout">
+            <!-- Load Quill.js -->
+            <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet"/>
+            <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+
             <div class="container mt-4 mb-5 rfp-portal-wrapper">
                 <div class="d-flex justify-content-between align-items-center mb-4 sticky-top bg-white p-3 shadow-sm rounded">
                     <h3>Review &amp; Edit Content</h3>
@@ -474,7 +476,12 @@
                                 <h5 class="mb-0" t-field="section.section_title"/>
                             </div>
                             <div class="card-body p-0">
-                                <textarea class="form-control border-0 p-3 section-markdown" rows="10" style="resize: vertical; font-family: monospace;"><t t-esc="section.content_markdown"/></textarea>
+                                <!-- Quill Editor Container -->
+                                <div class="rfp-quill-editor bg-white" style="min-height: 300px; font-size: 16px;" t-att-id="'editor_' + str(section.id)">
+                                    <t t-out="section.content_html"/>
+                                </div>
+                                <!-- Hidden input to store value for JS pickup if needed, though we read from Quill directly -->
+                                <input type="hidden" class="section-html-input" t-att-data-section-id="section.id"/>
                             </div>
                         </div>
                     </t>
@@ -511,9 +518,7 @@
 
                                 <t t-foreach="rfp_project.document_section_ids.sorted(lambda s: s.sequence)" t-as="section">
                                     <div class="mb-5">
-                                        <div class="rfp-section-content">
-                                            <t t-out="section.content_markdown"/>
-                                        </div>
+                                        <div class="rfp-section-content" t-field="section.content_html"/>
                                     </div>
                                     <hr t-if="not section_last"/>
                                 </t>

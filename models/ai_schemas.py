@@ -107,3 +107,34 @@ def get_toc_structure_schema():
         },
         required=["document_title", "table_of_contents"]
     )
+
+def get_section_content_schema():
+    """
+    Schema for the Section Writer.
+    Returns markdown content + list of diagrams.
+    """
+    if not types:
+        return None
+        
+    return types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            "content_html": types.Schema(
+                type=types.Type.STRING, 
+                description="The full content of the section in semantic HTML5 format (h3, p, ul, li). Do NOT use h1 or h2. Do NOT use markdown. Do NOT use <html>/<body> tags."
+            ),
+            "diagrams": types.Schema(
+                type=types.Type.ARRAY,
+                items=types.Schema(
+                    type=types.Type.OBJECT,
+                    properties={
+                        "title": types.Schema(type=types.Type.STRING, description="Title of the diagram"),
+                        "description": types.Schema(type=types.Type.STRING, description="Detailed description of what the diagram should visualize")
+                    },
+                    required=["title", "description"]
+                ),
+                description="List of suggested diagrams for this section."
+            )
+        },
+        required=["content_html"]
+    )

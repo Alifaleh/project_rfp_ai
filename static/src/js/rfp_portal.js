@@ -38,14 +38,14 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
                 id: Math.floor(Math.random() * 1000000000)
             })
         });
-        
+
         if (!response.ok) {
-             throw new Error("HTTP error " + response.status);
+            throw new Error("HTTP error " + response.status);
         }
-        
+
         const data = await response.json();
         if (data.error) {
-             throw new Error(data.error.data ? data.error.data.message : data.error.message);
+            throw new Error(data.error.data ? data.error.data.message : data.error.message);
         }
         return data.result;
     },
@@ -53,7 +53,7 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
     start: function () {
         this._super.apply(this, arguments);
         console.log("RFP Portal Interactions: Widget Started for selector", this.selector);
-        
+
         // 3. Drag and Drop (Native Events)
         // We bind native events to a container (e.g. tbody)
         const list = this.el.querySelector('#rfp_section_list');
@@ -64,7 +64,7 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
             list.addEventListener('dragleave', this._onDragLeave.bind(this), false);
             list.addEventListener('dragend', this._onDragEnd.bind(this), false);
         }
-        
+
         // Initial checks for Gap Analysis
         if (this.$('.rfp-input-group').length) {
             this._checkDependencies();
@@ -75,6 +75,9 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         if (this.$('#rfp_generation_progress').length) {
             this._startGenerationPolling();
         }
+
+        // Initialize Quill Editors
+        this._initQuillEditors();
     },
 
     // --- PHASE 2: STRUCTURE EDITOR ---
@@ -84,7 +87,7 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         const $tbody = this.$('#rfp_section_list');
         const count = $tbody.find('tr').length;
         const newSeq = (count + 1) * 10;
-        
+
         // Create internal ID for UI tracking (starts with new_)
         const tempId = `new_${Date.now()}`;
 
@@ -114,60 +117,60 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
 
     // Drag and Drop Handlers
     _onDragStart: function (ev) {
-         // Check target
-         const target = ev.target.closest('tr');
-         if (!target) return;
-         
-         this.draggedRow = target;
-         ev.dataTransfer.effectAllowed = 'move';
-         // Simple visual feedback
-         target.classList.add('opacity-50');
+        // Check target
+        const target = ev.target.closest('tr');
+        if (!target) return;
+
+        this.draggedRow = target;
+        ev.dataTransfer.effectAllowed = 'move';
+        // Simple visual feedback
+        target.classList.add('opacity-50');
     },
 
     _onDragOver: function (ev) {
         ev.preventDefault();
         ev.dataTransfer.dropEffect = 'move';
-        
+
         const targetRow = ev.target.closest('tr');
         if (targetRow && targetRow !== this.draggedRow) {
-             // Visual feedback: line
-             // Determine if top or bottom
-             // We'll just underline the row for now to show "it will go near here"
-             // Or better: Use a simple border-bottom on targetRow
-             this._clearDragVisuals();
-             
-             if (this._isBefore(this.draggedRow, targetRow)) {
-                  // Dragging UP (Target is above Dragged) -> Place BEFORE Target
-                  targetRow.style.borderTop = "2px solid #0dcaf0"; 
-             } else {
-                  // Dragging DOWN (Target is below Dragged) -> Place AFTER Target
-                  targetRow.style.borderBottom = "2px solid #0dcaf0"; 
-             }
-             targetRow.classList.add('rfp-drop-target');
+            // Visual feedback: line
+            // Determine if top or bottom
+            // We'll just underline the row for now to show "it will go near here"
+            // Or better: Use a simple border-bottom on targetRow
+            this._clearDragVisuals();
+
+            if (this._isBefore(this.draggedRow, targetRow)) {
+                // Dragging UP (Target is above Dragged) -> Place BEFORE Target
+                targetRow.style.borderTop = "2px solid #0dcaf0";
+            } else {
+                // Dragging DOWN (Target is below Dragged) -> Place AFTER Target
+                targetRow.style.borderBottom = "2px solid #0dcaf0";
+            }
+            targetRow.classList.add('rfp-drop-target');
         }
     },
-    
-    _onDragLeave: function(ev) {
+
+    _onDragLeave: function (ev) {
         // We only clear if leaving the row? 
         // Logic is tricky because of children. 
         // Simplest is to clear everything on Drop/End.
     },
-    
-    _onDragEnd: function(ev) {
-         this._clearDragVisuals();
-         if (this.draggedRow) {
+
+    _onDragEnd: function (ev) {
+        this._clearDragVisuals();
+        if (this.draggedRow) {
             this.draggedRow.classList.remove('opacity-50');
             this.draggedRow = null;
         }
     },
-    
-    _clearDragVisuals: function() {
+
+    _clearDragVisuals: function () {
         // Iterate all rows and remove styles
         const rows = this.el.querySelectorAll('.rfp-section-row');
         rows.forEach(r => {
-             r.style.borderTop = "";
-             r.style.borderBottom = "";
-             r.classList.remove('rfp-drop-target');
+            r.style.borderTop = "";
+            r.style.borderBottom = "";
+            r.classList.remove('rfp-drop-target');
         });
     },
 
@@ -175,21 +178,21 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         ev.preventDefault();
         ev.stopPropagation();
         this._clearDragVisuals();
-        
+
         const targetRow = ev.target.closest('tr');
         if (this.draggedRow && targetRow && this.draggedRow !== targetRow) {
             // Check position
             if (this._isBefore(this.draggedRow, targetRow)) {
-                 // Dragging UP -> Insert Before
-                 targetRow.parentNode.insertBefore(this.draggedRow, targetRow); 
+                // Dragging UP -> Insert Before
+                targetRow.parentNode.insertBefore(this.draggedRow, targetRow);
             } else {
-                 // Dragging DOWN -> Insert After
-                 targetRow.parentNode.insertBefore(this.draggedRow, targetRow.nextSibling); 
+                // Dragging DOWN -> Insert After
+                targetRow.parentNode.insertBefore(this.draggedRow, targetRow.nextSibling);
             }
         }
     },
-    
-    _isBefore: function(el1, el2) {
+
+    _isBefore: function (el1, el2) {
         if (el2.parentNode === el1.parentNode) {
             for (let cur = el1.previousSibling; cur; cur = cur.previousSibling) {
                 if (cur === el2) return true;
@@ -199,16 +202,16 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
     },
 
     // Unified Save Function logic
-    _saveStructure: async function(projectId, generate) {
-         // 1. Collect Data & Recalculate Sequence
+    _saveStructure: async function (projectId, generate) {
+        // 1. Collect Data & Recalculate Sequence
         const sections = [];
         let seqCounter = 10;
-        
+
         this.$('.rfp-section-row').each(function () {
             const $row = $(this);
             const id = $row.data('section-id'); // int or "new_..."
             const title = $row.find('.section-title').val() || "New Section";
-            
+
             // Overwrite stored sequence with new position-based sequence
             sections.push({
                 id: id,
@@ -222,42 +225,42 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
             alert("You must have at least one section.");
             return null;
         }
-        
+
         return await this._rpc({
-            route: `/rfp/structure/save_and_generate/${projectId}`, 
-            params: { 
+            route: `/rfp/structure/save_and_generate/${projectId}`,
+            params: {
                 sections_data: sections,
                 generate: generate
             }
         });
     },
 
-    _onSaveStructure: async function(ev) {
+    _onSaveStructure: async function (ev) {
         ev.preventDefault();
         const $btn = $(ev.currentTarget);
         const projectId = this.$('#rfp_structure_editor').data('project-id');
         const originalText = $btn.html();
-        
+
         $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i>');
-        
+
         try {
             const result = await this._saveStructure(projectId, false);
             if (result && result.status === 'success') {
-                 // Update IDs if necessary?
-                 // Ideally we'd replace the rows with returned clean IDs but reloading is simpler if we want to be pure.
-                 // For now, simple success feedback.
-                 $btn.addClass('btn-success').removeClass('btn-secondary');
-                 setTimeout(() => {
-                     $btn.removeClass('btn-success').addClass('btn-secondary').html(originalText).prop('disabled', false);
-                     // Reload to get real IDs? Not strictly needed for UX unless they delete immediately.
-                     // A reload is safer to sync IDs.
-                     window.location.reload();
-                 }, 1000);
+                // Update IDs if necessary?
+                // Ideally we'd replace the rows with returned clean IDs but reloading is simpler if we want to be pure.
+                // For now, simple success feedback.
+                $btn.addClass('btn-success').removeClass('btn-secondary');
+                setTimeout(() => {
+                    $btn.removeClass('btn-success').addClass('btn-secondary').html(originalText).prop('disabled', false);
+                    // Reload to get real IDs? Not strictly needed for UX unless they delete immediately.
+                    // A reload is safer to sync IDs.
+                    window.location.reload();
+                }, 1000);
             } else {
-                 alert("Error saving.");
-                 $btn.prop('disabled', false).html(originalText);
+                alert("Error saving.");
+                $btn.prop('disabled', false).html(originalText);
             }
-        } catch(e) {
+        } catch (e) {
             console.error(e);
             $btn.prop('disabled', false).html(originalText);
         }
@@ -267,14 +270,14 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         ev.preventDefault();
         const $btn = $(ev.currentTarget);
         const projectId = this.$('#rfp_structure_editor').data('project-id');
-        
+
         // Disable Button
         $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i>');
 
         // RPC Call
         try {
             const result = await this._saveStructure(projectId, true);
-            
+
             if (result && result.status === 'success') {
                 window.location.href = result.redirect;
             } else {
@@ -301,11 +304,11 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
                     route: `/rfp/status/${projectId}`,
                     params: {}
                 });
-                
+
                 // Update UI
                 const pct = result.progress;
                 $progressBar.css('width', pct + '%').text(pct + '%');
-                
+
                 if (result.status === 'completed' || result.status === 'completed_with_errors') {
                     clearInterval(interval);
                     $progressBar.removeClass('progress-bar-animated').addClass('bg-success');
@@ -320,14 +323,43 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
     },
 
     // --- PHASE 4: CONTENT REVIEW ---
-    
+
+    _initQuillEditors: function () {
+        if (typeof Quill === 'undefined') return;
+
+        this.quillInstances = {};
+        const self = this;
+
+        this.$('.rfp-quill-editor').each(function () {
+            const $el = $(this);
+            const sectionId = $el.attr('id').replace('editor_', '');
+
+            // Basic Toolbar
+            const toolbarOptions = [
+                [{ 'header': [2, 3, false] }],
+                ['bold', 'italic', 'underline', 'strike'],
+                [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+                ['clean']
+            ];
+
+            const quill = new Quill(this, {
+                theme: 'snow',
+                modules: {
+                    toolbar: toolbarOptions
+                }
+            });
+
+            self.quillInstances[sectionId] = quill;
+        });
+    },
+
     _onSaveContent: function (ev) {
         this._saveContentAction(ev, false);
     },
 
     _onSubmitContent: function (ev) {
         if (confirm("Are you sure you want to finalize? This will lock the document.")) {
-             this._saveContentAction(ev, true);
+            this._saveContentAction(ev, true);
         }
     },
 
@@ -337,13 +369,22 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         const projectId = $btn.data('project-id');
         const originalText = $btn.html();
 
-        // 1. Collect Data
+        // 1. Collect Data From Quill
         const contentMap = {};
-        this.$('.section-block').each(function () {
-             const id = $(this).data('section-id');
-             const text = $(this).find('.section-markdown').val();
-             contentMap[id] = text;
-        });
+
+        if (this.quillInstances) {
+            for (const [sectionId, quill] of Object.entries(this.quillInstances)) {
+                // Get HTML
+                const html = quill.root.innerHTML;
+                contentMap[sectionId] = html;
+            }
+        } else {
+            // Fallback if Quill failed to load
+            this.$('.section-html-input').each(function () {
+                const id = $(this).data('section-id');
+                contentMap[id] = $(this).val(); // This is likely empty if Quill didn't init, logic fallback
+            });
+        }
 
         // 2. UI Feedback
         $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i>');
@@ -357,10 +398,10 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
                     finish: finish
                 }
             });
-            
+
             if (result.status === 'success') {
                 if (finish && result.redirect) {
-                     window.location.href = result.redirect;
+                    window.location.href = result.redirect;
                 } else {
                     // Flash success
                     $btn.addClass('btn-success').removeClass('btn-secondary');
@@ -383,7 +424,7 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
 
     _onSubmit: function (ev) {
         if (this.$('#rfp_loading_overlay').length) {
-             $('#rfp_loading_overlay').removeClass('d-none');
+            $('#rfp_loading_overlay').removeClass('d-none');
         }
     },
 
@@ -419,7 +460,7 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         if (shouldShow) {
             $box.removeClass('d-none');
             $flag.val('true');
-            $inputs.each(function() {
+            $inputs.each(function () {
                 const $el = $(this);
                 if ($el.prop('required')) {
                     $el.data('was-required', true);
@@ -430,7 +471,7 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         } else {
             $box.addClass('d-none');
             $flag.val('false');
-            $inputs.each(function() {
+            $inputs.each(function () {
                 const $el = $(this);
                 if ($el.data('was-required')) {
                     $el.prop('required', true);
@@ -463,21 +504,21 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
                     currentValue = self.$el.find(`[name="${depKey}"]:checked`).val();
                 } else if ($depInput.is(':checkbox')) {
                     if ($depInput.length > 1) {
-                         if (self.$el.find(`[name="${depKey}"][value="${depValue}"]:checked`).length > 0) {
-                             currentValue = depValue;
-                         }
+                        if (self.$el.find(`[name="${depKey}"][value="${depValue}"]:checked`).length > 0) {
+                            currentValue = depValue;
+                        }
                     } else {
-                        currentValue = $depInput.is(':checked') ? 'yes' : 'no'; 
+                        currentValue = $depInput.is(':checked') ? 'yes' : 'no';
                     }
                 } else {
                     currentValue = $depInput.val();
                 }
 
                 const $inputs = $group.find('input:not([type="hidden"]), select, textarea').not('.irrelevant-box input');
-                
+
                 if (currentValue == depValue) {
                     $group.removeClass('d-none');
-                    $inputs.each(function() {
+                    $inputs.each(function () {
                         const $el = $(this);
                         if ($el.data('dep-was-required')) {
                             $el.prop('required', true);
@@ -486,7 +527,7 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
                     });
                 } else {
                     $group.addClass('d-none');
-                    $inputs.each(function() {
+                    $inputs.each(function () {
                         const $el = $(this);
                         if ($el.prop('required')) {
                             $el.data('dep-was-required', true);
@@ -512,7 +553,7 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
 
             let selectedValues = [];
             const $inputs = self.$el.find(`input[name="${fieldKey}"]:checked`);
-            $inputs.each(function() { selectedValues.push($(this).val()); });
+            $inputs.each(function () { selectedValues.push($(this).val()); });
 
             const $specifyInput = self.$el.find(`input[name="${fieldKey}_specify"]`);
             const isMatch = selectedValues.some(val => triggers.includes(val));
