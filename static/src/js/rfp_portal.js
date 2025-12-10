@@ -21,6 +21,7 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         // Content Review Actions
         'click #btn_save_content': '_onSaveContent',
         'click #btn_submit_content': '_onSubmitContent',
+        'click #btn_confirm_finalize_action': '_onConfirmFinalizeAction',
     },
 
     // Custom RPC implementation to avoid module dependency issues in frontend
@@ -358,9 +359,44 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
     },
 
     _onSubmitContent: function (ev) {
-        if (confirm("Are you sure you want to finalize? This will lock the document.")) {
-            this._saveContentAction(ev, true);
+        ev.preventDefault();
+        // Show Bootstrap Modal
+        const modalEl = document.getElementById('modal_confirm_finalize');
+        if (modalEl) {
+            // We can use bootstrap global if available, or just jquery show if simple
+            // Odoo usually has bootstrap loaded.
+            if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                const modal = new bootstrap.Modal(modalEl);
+                modal.show();
+            } else {
+                // Fallback to jquery
+                $(modalEl).modal('show');
+            }
+        } else {
+            // Fallback if modal missing
+            if (confirm("Are you sure you want to finalize?")) {
+                this._saveContentAction(ev, true);
+            }
         }
+    },
+
+    _onConfirmFinalizeAction: function (ev) {
+        // Find the original submit button to pass as 'ev' target (for the helper function)
+        // Or just modify helper to not rely on event target for ID if possible, 
+        // but helper uses ev.currentTarget.
+        // We need to pass the #btn_submit_content element.
+
+        // Hide modal
+        $('#modal_confirm_finalize').modal('hide');
+
+        // Mock event with the real button as currentTarget
+        const $realBtn = this.$('#btn_submit_content');
+        const mockEv = {
+            preventDefault: () => { },
+            currentTarget: $realBtn.get(0)
+        };
+
+        this._saveContentAction(mockEv, true);
     },
 
     _saveContentAction: async function (ev, finish) {

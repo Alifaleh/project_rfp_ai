@@ -212,6 +212,20 @@ class RfpCustomerPortal(CustomerPortal):
             'page_name': 'rfp_document',
         })
         return request.render("project_rfp_ai.portal_rfp_document", values)
+    
+    @http.route(['/rfp/revert_to_edit/<int:project_id>'], type='http', auth="user", website=True)
+    def portal_rfp_revert_to_edit(self, project_id, **kw):
+        """
+        Reverts a completed project back to 'writing' stage and redirects to editor.
+        """
+        Project = request.env['rfp.project'].sudo().browse(project_id)
+        if not Project.exists() or Project.user_id != request.env.user:
+            return request.redirect('/my')
+            
+        if Project.current_stage == 'completed':
+            Project.sudo().write({'current_stage': 'writing'})
+            
+        return request.redirect(f"/rfp/review/{Project.id}")
 
     @http.route(['/rfp/download/word/<int:project_id>'], type='http', auth="user", website=True)
     def portal_rfp_download_word(self, project_id, **kw):
@@ -225,7 +239,7 @@ class RfpCustomerPortal(CustomerPortal):
         <head><meta charset='utf-8'><title>{Project.name}</title></head>
         <body>
         <h1>{Project.name}</h1>
-        <p>{Project.description}</p>
+
         <hr/>
         """
         
