@@ -60,7 +60,6 @@ Return ONLY the JSON object.
 **Context:**
 - Project Name: {project_name}
 - Domain: {domain}
-- Language: {language}
 
 **User Requirements (Source Material):**
 {context_str}
@@ -97,7 +96,6 @@ Return ONLY the JSON object.
 **Context:**
 - Project Name: {project_name}
 - Domain: {domain}
-- Language: {language}
 - **Global Structure (Context)**: {toc_context}
 - **Current Section**: {section_title}
 - **Intent**: {section_intent}

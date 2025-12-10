@@ -38,9 +38,9 @@ class RfpCustomerPortal(CustomerPortal):
             Project = request.env['rfp.project'].sudo()
             new_project = Project.create({
                 'name': post.get('name'),
-                'description': post.get('description'),
-                'document_language': post.get('document_language', 'en'),
-                'user_id': request.env.user.id
+                'domain': post.get('domain'),
+                'user_id': request.env.user.id,
+                'start_date': fields.Datetime.now()
             })
             new_project.action_analyze_gap()
             return request.redirect(f"/rfp/interface/{new_project.id}")

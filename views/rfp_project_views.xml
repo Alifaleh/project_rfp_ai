@@ -19,7 +19,7 @@
                     <group>
                         <group>
                             <field name="domain_context"/>
-                            <field name="document_language"/>
+                            <field name="domain_context"/>
                         </group>
                     </group>
                     <notebook>

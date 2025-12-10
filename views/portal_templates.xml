@@ -58,14 +58,8 @@
                         <input type="text" name="name" class="form-control" required="required"/>
                     </div>
                     <div class="mb-3">
-                        <label>Language</label>
-                        <select name="document_language" class="form-control" required="required">
-                            <option value="en" selected="selected">English</option>
-                            <option value="ar">Arabic</option>
-                            <option value="fr">French</option>
-                            <option value="es">Spanish</option>
-                            <option value="de">German</option>
-                        </select>
+                        <label class="form-label">Project Domain</label>
+                        <input type="text" name="domain" class="form-control" placeholder="e.g. Healthcare, E-Commerce, Logistics" required="required"/>
                     </div>
                     <div class="mb-3">
                         <label>Initial Description</label>

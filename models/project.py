@@ -16,14 +16,8 @@ class RfpProject(models.Model):
         ('other', 'Other')
     ], string="Domain Context", default='software', tracking=True)
 
-    document_language = fields.Selection([
-        ('en', 'English'),
-        ('ar', 'Arabic'),
-        ('fr', 'French'),
-        ('es', 'Spanish'),
-        ('de', 'German')
-    ], string="Document Language", default='en', required=True, tracking=True)
-
+    visibility_type = fields.Selection([('public', 'Public'), ('internal', 'Internal'), ('private', 'Private')], default='private')
+    
     user_id = fields.Many2one('res.users', string="Project Owner", default=lambda self: self.env.user, tracking=True)
     
     ai_context_blob = fields.Text(string="AI Context Blob", default="{}")
@@ -59,7 +53,6 @@ class RfpProject(models.Model):
                 "project_name": project.name,
                 "description": project.description,
                 "domain": project.domain_context,
-                "language": project.document_language,
                 "previous_inputs": [],
                 "rejected_topics": []
             }
@@ -231,7 +224,6 @@ class RfpProject(models.Model):
                 "project_name": project.name,
                 "description": project.description,
                 "domain": project.domain_context,
-                "language": project.document_language,
                 "q_and_a": []
             }
             for inp in project.form_input_ids:
@@ -255,7 +247,6 @@ class RfpProject(models.Model):
             architect_prompt = toc_prompt_template.format(
                  project_name=project.name,
                  domain=project.domain_context,
-                 language=project.document_language,
                  context_str=context_str
             )
             
