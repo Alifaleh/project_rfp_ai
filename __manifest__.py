@@ -28,6 +28,7 @@
         'views/res_config_settings_views.xml',
         'data/rfp_prompt_data.xml',
         'data/queue_data.xml',
+        'data/queue_job_data.xml',
         'views/portal_templates.xml',
         'views/report_rfp.xml',
         'views/menu_views.xml',

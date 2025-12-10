@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Define Job Function for Content Generation -->
+        <record id="job_function_rfp_document_section_generate_content" model="queue.job.function">
+            <field name="model_id" ref="project_rfp_ai.model_rfp_document_section"/>
+            <field name="method">generate_content_job</field>
+            <field name="channel_id" ref="queue_job.channel_root"/>
+            <field name="retry_pattern" eval="{1: 60, 2: 180}"/>
+        </record>
+    </data>
+</odoo>
