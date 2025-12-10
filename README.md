@@ -12,6 +12,7 @@ This Odoo module implements an **Agentic AI System** designed to automate the Re
 *   **Architectural Awareness**: It separates "Structure Design" (TOC) from "Content Writing" to ensure logical flow.
 *   **Resilience**: Built-in handling for AI Rate Limits (429) and Malformed JSON, plus automatic retry for queue jobs.
 *   **Flexible Workflow**: Features a robust "Revert to Edit" capability, allowing users to unlock completed documents for further refinement, and a custom finalization safety layer.
+*   **AI Model Management**: Granular control over the AI engine. You can define various Gemini models (e.g., Flash for speed, Pro for reasoning) and tag them. Each system prompt is configured to use a specific model to balance cost, speed, and intelligence.
 
 ---
 
@@ -26,11 +27,13 @@ project_rfp_ai/
 ├── models/
 │   ├── __init__.py
 │   ├── project.py                  # [CORE] Main Logic Engine (Analysis & Generation)
+│   ├── ai_model.py                 # [CONFIG] AI Model Definitions & Tagging
 │   ├── form_input.py               # [DATA] Dynamic Questions Data Model
 │   ├── document_section.py         # [DATA] Generated Artifacts (Markdown Content)
 │   ├── prompt.py                   # [CONFIG] Database-backed System Prompts
 │   ├── ai_schemas.py               # [LOGIC] JSON Schemas for AI Structured Output
 │   └── ai_log.py                   # [CORE] AI Request Logging & Monitoring
+│   ├── ai_model_views.xml          # Backend Views for AI Models
 ├── views/
 │   ├── menu_views.xml              # Backend Menu Items
 │   ├── rfp_project_views.xml       # Backend Form/List Views (Project Management)
@@ -115,6 +118,15 @@ This model provides full visibility into the AI "Thought Process".
 *   **Performance Metrics**: Tracks execution duration to monitor latency.
 *   **Status Tracking**: Distinct states for `Success`, `Error`, and `Rate Limit` to help debug production issues.
 
+
+### 3.4 AI Model Management: `models/ai_model.py`
+The system is model-agnostic.
+*   **Centralized Registry**: `rfp.ai.model` stores technical names (`gemini-2.0-flash`, `gemini-3-pro-preview`) and attributes.
+*   **Tagging System**: Models are tagged (e.g., "High Speed", "Deep Reasoning", "Production") to organize them emotionally and logically.
+*   **Dynamic Selection**: `rfp.prompt` records link to specific `rfp.ai.model` records.
+    *   *Interviewer* uses **Gemini Flash** (Low latency, high throughput).
+    *   *Architect/Writer* uses **Gemini Pro** (Deep reasoning, long context window).
+
 ---
 
 ## 4. Prompt Engineering (`data/rfp_prompt_data.xml`)
@@ -159,7 +171,16 @@ channels = root:1,root.rfp_generation:1
 
 ### 5.2 Module Settings
 Go to **Settings > Technical > RFP AI**:
+*   **Gemini API Key**: Configure your Google AI Studio key securely.
 *   **Concurrent AI Requests**: Adjust the concurrency level for the content generation queue (e.g., increase to 2 or 4 if your API tier supports it).
+
+### 5.3 Configuring AI Models
+Go to **RFP AI > Configuration > AI Models**:
+*   Define your models (e.g., update the Technical Name when Google releases a new version).
+*   Add tags to easily identify model capabilities.
+
+Go to **RFP AI > Configuration > AI Prompts**:
+*   Link each prompt to the most appropriate AI Model. This allows you to upgrade the "Writer" logic to a newer model without risking the stability of the "Interviewer" logic.
 
 ---
 
