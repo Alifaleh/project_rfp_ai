@@ -8,6 +8,8 @@
                 <field name="create_date"/>
                 <field name="duration" widget="float_time"/>
                 <field name="state" widget="badge" decoration-danger="state == 'error'" decoration-warning="state == 'rate_limit'" decoration-success="state == 'success'"/>
+                <field name="prompt_id" optional="show"/>
+                <field name="ai_model_id" optional="show"/>
                 <field name="prompt_used" optional="hide"/>
                 <field name="input_context" optional="hide"/>
             </list>
@@ -27,6 +29,8 @@
                     <group>
                         <group>
                             <field name="create_date"/>
+                            <field name="prompt_id"/>
+                            <field name="ai_model_id"/>
                             <field name="duration"/>
                         </group>
                         <group>

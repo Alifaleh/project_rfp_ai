@@ -2,7 +2,6 @@ from . import project
 from . import form_input
 from . import document_section
 from . import prompt
-from . import prompt
 from . import res_config_settings
 from . import ai_schemas
 from . import ai_log

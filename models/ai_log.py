@@ -36,6 +36,10 @@ class RfpAiLog(models.Model):
     
     error_message = fields.Text(string="Error Message", readonly=True)
 
+    # Links
+    prompt_id = fields.Many2one('rfp.prompt', string="Prompt Used", readonly=True)
+    ai_model_id = fields.Many2one('rfp.ai.model', string="AI Model", readonly=True)
+
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
@@ -44,7 +48,7 @@ class RfpAiLog(models.Model):
         return super().create(vals_list)
 
     @api.model
-    def execute_request(self, system_prompt, user_context, env=None, mode='json', schema=None, tools=None):
+    def execute_request(self, system_prompt, user_context, env=None, mode='json', schema=None, tools=None, prompt_record=None):
         """
         Centralized method to execute AI requests with full logging.
         Args:
@@ -65,12 +69,18 @@ class RfpAiLog(models.Model):
         print(f"DEBUG: execute_request called. Mode={mode}, Tools={tools}")
 
         # 1. Create Log Record (Sending)
-        log = self.create({
+        vals = {
             'prompt_used': system_prompt,
             'input_context': user_context,
             'state': 'sending',
             'request_date': fields.Datetime.now(),
-        })
+        }
+        if prompt_record:
+            vals['prompt_id'] = prompt_record.id
+            if prompt_record.ai_model_id:
+                vals['ai_model_id'] = prompt_record.ai_model_id.id
+                
+        log = self.create(vals)
         
         # Commit to ensure log exists even if crash occurs (Odoo atomic transaction might roll this back on crash, 
         # but useful for long running process visibility if running in checked env).

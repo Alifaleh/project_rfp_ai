@@ -1,12 +1,13 @@
 # AI-Driven RFP Generator (`project_rfp_ai`)
 
-**Version**: 1.1.0
+**Version**: 1.2.0
 **License**: LGPL-3
 
 ## 1. Executive Summary
 This Odoo module implements an **Agentic AI System** designed to automate the Requirement Engineering phase of software projects. It acts as an intelligent intermediary, interviewing stakeholders to gather functional requirements and then autonomously architecting and writing a professional Request for Proposal (RFP) document.
 
 **Key Capabilities:**
+*   **7-Stage Research-Driven Workflow**: Implementation of a sophisticated pipeline: Initialization -> Initial Research -> Information Gathering -> Refinement -> Structuring -> Writing -> Completion.
 *   **Project Initialization**: Starts the project by professionally refining the user's idea and intelligently determining the **Vendor Expertise Domain** (e.g., Software Development vs. Logistics).
 *   **Active Listening**: The AI adaptation changes its questions based on user answers.
 *   **Irrelevance Detection**: The system learns from what users *skip*, updating its internal context.
@@ -86,6 +87,9 @@ This method runs immediately upon project creation (Phase 0).
     *   Rewrites the description to be professional while **strictly preserving** all specific data (dates, numbers, constraints).
 4.  **State Update**:
     *   Updates `description` and `domain_id`.
+    *   **Phase 2**: Automatically triggers `action_research_initial`.
+    *   **Action**: Uses Google Search to find "Best Practices" for the specific domain.
+    *   **Output**: Saved to `initial_research` field.
     *   Advances stage to `gathering`.
 
 #### B. Gap Analysis Loop (`action_analyze_gap`)
@@ -101,8 +105,14 @@ This method runs every time the user submits answers.
     *   Calls `utils.ai_connector.generate_json_response()`.
 3.  **State Update**:
     *   Saves raw response to `ai_context_blob` (Text field) for transparency.
+    *   Updates context strings.
+    *   **Phase 3**: Information Gathering (Interviewer).
     *   Parses new questions (`form_fields`) and creates `rfp.form.input` records.
-    *   Checks `is_gathering_complete`. If True -> Moves stage to `generating`.
+    *   Checks `is_gathering_complete`. If True -> Triggers **Phase 4**.
+    *   **Phase 4**: Best Practices Refinement (`action_refine_practices`).
+    *   **Action**: Uses Google Search to refine the Initial Research based on the Gathered Answers.
+    *   **Output**: Saved to `refined_practices`.
+    *   Advances stage to `structuring`.
 
 #### B. Document Generation Loop (`action_generate_document`)
 This method runs once, triggered by the user after analysis.
@@ -137,8 +147,9 @@ Functions as the resilience layer.
 This model provides full visibility into the AI "Thought Process".
 *   **Centralized Logging**: All requests from Gap Analysis and Document Writer flow through `execute_request`.
 *   **Full Audibility**: Stores the exact `system_prompt`, `user_context`, and `response_raw`.
-*   **Performance Metrics**: Tracks execution duration to monitor latency.
-*   **Status Tracking**: Distinct states for `Success`, `Error`, and `Rate Limit` to help debug production issues.
+    *   **Traceability**: Links each request to the specific `rfp.prompt` record and `rfp.ai.model` used, allowing for A/B testing of prompt versions.
+    *   **Performance Metrics**: Tracks execution duration to monitor latency.
+    *   **Status Tracking**: Distinct states for `Success`, `Error`, and `Rate Limit` to help debug production issues.
 
 
 ### 3.4 AI Model Management: `models/ai_model.py`
@@ -172,9 +183,20 @@ The intelligence is defined here. We use **XML Data Files** to load these into t
     *   *Persona*: Senior Business Analyst.
     *   *Goal*: Identify gaps in requirements.
     *   *Constraint*: Must return valid JSON matching `get_interviewer_response_schema`.
+    *   *Constraint*: Must return valid JSON matching `get_interviewer_response_schema`.
     *   *Constraint*: Only ask 3-5 questions at a time.
 
-2.  **`writer_toc_architect`**
+3.  **`research_initial`** (Phase 2)
+    *   *Persona*: Research Specialist.
+    *   *Goal*: Broad domain research using Google Search.
+    *   *Task*: "Find best practices and standard sections for [Domain]".
+
+4.  **`research_refinement`** (Phase 4)
+    *   *Persona*: Senior Solutions Architect.
+    *   *Goal*: Specific research based on gathered answers.
+    *   *Task*: "Synthesize specific technical details and standards based on user input."
+
+5.  **`writer_toc_architect`** (Phase 5)
     *   *Persona*: RFP Strategist & Information Architect.
     *   *Goal*: Structure the document.
     *   *Input*: Raw User Q&A.

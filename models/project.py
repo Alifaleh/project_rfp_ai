@@ -52,12 +52,12 @@ class RfpProject(models.Model):
             available_domains_str = "\n".join([f"- {name}" for name in domain_names])
             
             # 2. Call AI
-            prompt_template = self.env['rfp.prompt'].search([('code', '=', 'project_initializer')], limit=1).template_text
-            if not prompt_template:
+            prompt_record = self.env['rfp.prompt'].search([('code', '=', 'project_initializer')], limit=1)
+            if not prompt_record:
                 raise ValueError("System Prompt 'project_initializer' not found.")
             
             # Prepare Prompt
-            system_prompt = prompt_template.format(
+            system_prompt = prompt_record.template_text.format(
                 project_name=project.name,
                 description=project.description,
                 available_domains_str=available_domains_str
@@ -70,7 +70,8 @@ class RfpProject(models.Model):
                     user_context=f"Project: {project.name}\nDescription: {project.description}",
                     env=self.env,
                     mode='json',
-                    schema=get_domain_identification_schema()
+                    schema=get_domain_identification_schema(),
+                    prompt_record=prompt_record
                 )
             except Exception as e:
                 # Log error and return (user sees error in chatter if tracking catches it, or UI error)
@@ -110,8 +111,8 @@ class RfpProject(models.Model):
             # Move Stage
             project.current_stage = 'research_initial'
             
-            # Automatically trigger Research Best Practices
-            project.action_research_initial()
+            # NOTE: Research is now triggered explicitly by the controller to ensure ordering.
+            # project.action_research_initial()
 
     def action_research_initial(self):
         """
@@ -125,20 +126,21 @@ class RfpProject(models.Model):
             except ImportError:
                 search_tool = None 
             
-            prompt_template = self.env['rfp.prompt'].search([('code', '=', 'research_initial')], limit=1).template_text
-            if not prompt_template:
+            prompt_record = self.env['rfp.prompt'].search([('code', '=', 'research_initial')], limit=1)
+            if not prompt_record:
                 # Create default on fly if missing (for safety, though we should load via XML)
                 # Or just raise error.
                 system_prompt = "You are a Research Assistant. Search for best practices and standard RFP sections for: {domain}. Output a concise summary."
             else:
-                 system_prompt = prompt_template.format(domain=project.domain_id.name, project_name=project.name)
+                 system_prompt = prompt_record.template_text.format(domain=project.domain_id.name, project_name=project.name)
 
             response_text = self.env['rfp.ai.log'].execute_request(
                 system_prompt=system_prompt,
                 user_context=f"Project Description: {project.description}",
                 env=self.env,
                 mode='text',
-                tools=search_tool
+                tools=search_tool,
+                prompt_record=prompt_record
             )
             
             print(f"DEBUG: Research output: {response_text[:100]}...")
@@ -164,11 +166,11 @@ class RfpProject(models.Model):
             except ImportError:
                 search_tool = None 
             
-            prompt_template = self.env['rfp.prompt'].search([('code', '=', 'research_refinement')], limit=1).template_text
-            if not prompt_template:
+            prompt_record = self.env['rfp.prompt'].search([('code', '=', 'research_refinement')], limit=1)
+            if not prompt_record:
                  system_prompt = "Refine the best practices based on user answers."
             else:
-                 system_prompt = prompt_template
+                 system_prompt = prompt_record.template_text
 
             final_context = f"Initial Research:\n{project.initial_research}\n\nUser Answers:\n{qa_context}"
 
@@ -177,7 +179,8 @@ class RfpProject(models.Model):
                 user_context=final_context,
                 env=self.env,
                 mode='text',
-                tools=search_tool
+                tools=search_tool,
+                prompt_record=prompt_record
             )
             
             project.refined_practices = response_text
@@ -250,7 +253,8 @@ class RfpProject(models.Model):
                     user_context=context_str,
                     env=self.env,
                     mode='json',
-                    schema=get_interviewer_schema()
+                    schema=get_interviewer_schema(),
+                    prompt_record=prompt_record
                 )
             except Exception as e:
                 # If rate limit or other error raised by log model, we handle it here or let it propagate.
@@ -436,13 +440,13 @@ class RfpProject(models.Model):
             project.document_section_ids.unlink()
 
             # --- PHASE 1: THE ARCHITECT (Generate TOC) ---
-            toc_prompt_template = self.env['rfp.prompt'].search([('code', '=', 'writer_toc_architect')], limit=1).template_text
-            if not toc_prompt_template:
+            prompt_record = self.env['rfp.prompt'].search([('code', '=', 'writer_toc_architect')], limit=1)
+            if not prompt_record:
                 raise ValueError("System Prompt 'writer_toc_architect' not found.")
             
             from odoo.addons.project_rfp_ai.models.ai_schemas import get_toc_structure_schema
 
-            architect_prompt = toc_prompt_template.format(
+            architect_prompt = prompt_record.template_text.format(
                  project_name=project.name,
                  domain=project.domain_id.name or 'General',
                  context_str=context_str
@@ -456,7 +460,8 @@ class RfpProject(models.Model):
                     user_context=context_str,
                     env=self.env,
                     mode='json',
-                    schema=get_toc_structure_schema()
+                    schema=get_toc_structure_schema(),
+                    prompt_record=prompt_record
                 )
             except Exception as e:
                 toc_json_str = json.dumps({"table_of_contents": [{"title": "Error Generating Structure", "subsections": []}]})

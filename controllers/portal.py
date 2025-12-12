@@ -64,11 +64,15 @@ class RfpCustomerPortal(CustomerPortal):
                 'description': final_description,
                 'user_id': request.env.user.id
             })
-            # Phase 0 & Phase 2: AI Initialization & Research
-            # This now chains: Init -> Description Refinement -> Research -> Stage='gathering'
+            # PHASE 0 & 2: Initialization & Research
+            # WE MUST CHAIN THESE EXPLICITLY TO AVOID RACE CONDITIONS
+            # 1. Initialize (Domain & Description)
             new_project.action_initialize_project()
+            
+            # 2. Research Best Practices (Must happen BEFORE gathering)
+            new_project.action_research_initial()
 
-            # Phase 1: Gap Analysis (Start Interview)
+            # 3. Information Gathering (Interviewer)
             new_project.action_analyze_gap()
             return request.redirect(f"/rfp/interface/{new_project.id}")
         return request.redirect('/my/rfp/start')
