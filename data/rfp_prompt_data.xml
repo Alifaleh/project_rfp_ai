@@ -146,7 +146,10 @@ Return ONLY the JSON object.
 3.  Use the `User Requirements` as the source of truth.
 4.  **Format**: Use semantic HTML5. Use `<h3>`, `<p>`, `<ul>`/`<li>`, `<strong>`, etc. Do NOT use `<h1>` or `<h2>` (reserved for titles). Do NOT use Markdown. Do NOT use `<html>`/`<body>` tags.
 5.  **Diagrams**: If a diagram would clarify this section (e.g. Workflow, Architecture, User Flow), include it in the `diagrams` list with a title and description. Do NOT generate the image yourself.
-6.  **Style**: Professional, clear, and legally sound. Be detailed and informative. Do not be overly brief. Provide comprehensive explanations suitable for a formal Request for Proposal.
+6.  **Style**: Use **simple, clear, and easy-to-understand English**. Avoid complex jargon or overly formal legal phrasing unless necessary.
+    *   **Comprehensive but Accessible**: Explain the idea fully so the reader understands it completely. Do not write filler content just to increase length; write exactly what is needed for clarity.
+    *   **Engaging**: Make the content professional but **not boring**. Use active voice where appropriate.
+    *   **Professional**: Maintain a professional tone but prioritize **clarity and simplicity** over complexity.
 7.  **No Redundancy**: Do NOT include the section title as a header at the beginning. Start directly with the paragraph or list.
 8.  **Output**: You must return a Valid JSON matching the schema.
 ]]>
