@@ -44,7 +44,7 @@ class RfpAiLog(models.Model):
         return super().create(vals_list)
 
     @api.model
-    def execute_request(self, system_prompt, user_context, env=None, mode='json', schema=None):
+    def execute_request(self, system_prompt, user_context, env=None, mode='json', schema=None, tools=None):
         """
         Centralized method to execute AI requests with full logging.
         Args:
@@ -53,6 +53,7 @@ class RfpAiLog(models.Model):
             env (Environment): Odoo environment.
             mode (str): 'json' or 'text'.
             schema (dict): Optional JSON schema for validation.
+            tools (list): Optional list of tools (e.g. Google Search).
         Returns:
             str: The AI response text (or JSON string).
         """
@@ -60,6 +61,8 @@ class RfpAiLog(models.Model):
 
         if not env:
             env = self.env
+        
+        print(f"DEBUG: execute_request called. Mode={mode}, Tools={tools}")
 
         # 1. Create Log Record (Sending)
         log = self.create({
@@ -103,7 +106,8 @@ class RfpAiLog(models.Model):
                 user_content=user_context,
                 env=env,
                 response_mime_type=response_mime_type,
-                response_schema=schema
+                response_schema=schema,
+                tools=tools
             )
             
             # Calculate duration

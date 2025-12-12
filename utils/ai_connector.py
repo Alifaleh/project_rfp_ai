@@ -19,7 +19,7 @@ DEFAULT_GEMINI_KEY = ""
 class RateLimitError(Exception):
     pass
 
-def _call_gemini_api(system_instructions, user_content, env, response_mime_type="text/plain", response_schema=None, model_name=None):
+def _call_gemini_api(system_instructions, user_content, env, response_mime_type="text/plain", response_schema=None, model_name=None, tools=None):
     """
     Helper to call Google Gemini API using the SDK.
     Uses credentials from System Parameters, but Model from arguments.
@@ -59,6 +59,7 @@ def _call_gemini_api(system_instructions, user_content, env, response_mime_type=
             system_instruction=[
                 types.Part.from_text(text=system_instructions)
             ],
+            tools=tools,
             response_mime_type=response_mime_type,
             response_schema=response_schema,
             temperature=0.4,

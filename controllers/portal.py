@@ -64,13 +64,9 @@ class RfpCustomerPortal(CustomerPortal):
                 'description': final_description,
                 'user_id': request.env.user.id
             })
-            try:
-                # Phase 0: AI Initialization (Domain & Description)
-                new_project.action_initialize_project()
-            except Exception:
-                # Fallback: If AI Init fails, ensure we are in gathering stage and proceed
-                # We catch generic exception to strictly prevent blocking the "Start" flow.
-                new_project.current_stage = 'gathering'
+            # Phase 0 & Phase 2: AI Initialization & Research
+            # This now chains: Init -> Description Refinement -> Research -> Stage='gathering'
+            new_project.action_initialize_project()
 
             # Phase 1: Gap Analysis (Start Interview)
             new_project.action_analyze_gap()

@@ -18,7 +18,9 @@ class RfpProject(models.Model):
     
     current_stage = fields.Selection([
         ('initialization', 'Initialization'),
+        ('research_initial', 'Best Practices Research'),
         ('gathering', 'Information Gathering'),
+        ('research_refinement', 'Best Practices Refinement'),
         ('structuring', 'Section Generation'),
         ('writing', 'Content Generation'),
         ('completed', 'Completed')
@@ -26,6 +28,10 @@ class RfpProject(models.Model):
 
     form_input_ids = fields.One2many('rfp.form.input', 'project_id', string="Gathered Inputs")
     document_section_ids = fields.One2many('rfp.document.section', 'project_id', string="Generated Sections")
+
+    # Research Fields
+    initial_research = fields.Text(string="Initial Best Practices", readonly=True, help="Broad research before gathering.")
+    refined_practices = fields.Text(string="Refined Best Practices", readonly=True, help="Specific research after gathering.")
 
 
 
@@ -81,6 +87,7 @@ class RfpProject(models.Model):
             # 3. Process Result
             suggested_domain = data.get('suggested_domain_name')
             refined_desc = data.get('refined_description')
+            standard_reqs = data.get('standard_rfp_requirements', [])
             
             if not suggested_domain or not refined_desc:
                 # Fallback if schema violated
@@ -101,7 +108,80 @@ class RfpProject(models.Model):
             project.description = refined_desc
             
             # Move Stage
+            project.current_stage = 'research_initial'
+            
+            # Automatically trigger Research Best Practices
+            project.action_research_initial()
+
+    def action_research_initial(self):
+        """
+        Phase 2: Initial Research (Text Mode + Search)
+        """
+        for project in self:
+            print(f"DEBUG: Starting action_research_initial for {project.name}")
+            try:
+                from google.genai import types # type: ignore
+                search_tool = [types.Tool(google_search=types.GoogleSearch())]
+            except ImportError:
+                search_tool = None 
+            
+            prompt_template = self.env['rfp.prompt'].search([('code', '=', 'research_initial')], limit=1).template_text
+            if not prompt_template:
+                # Create default on fly if missing (for safety, though we should load via XML)
+                # Or just raise error.
+                system_prompt = "You are a Research Assistant. Search for best practices and standard RFP sections for: {domain}. Output a concise summary."
+            else:
+                 system_prompt = prompt_template.format(domain=project.domain_id.name, project_name=project.name)
+
+            response_text = self.env['rfp.ai.log'].execute_request(
+                system_prompt=system_prompt,
+                user_context=f"Project Description: {project.description}",
+                env=self.env,
+                mode='text',
+                tools=search_tool
+            )
+            
+            print(f"DEBUG: Research output: {response_text[:100]}...")
+            print(f"DEBUG: Research output: {response_text[:100]}...")
+            project.initial_research = response_text
             project.current_stage = 'gathering'
+
+    def action_refine_practices(self):
+        """
+        Phase 4: Refinement (Text Mode + Search)
+        """
+        for project in self:
+             # Gather Q&A context
+            qa_list = []
+            for inp in project.form_input_ids:
+                if inp.user_value:
+                    qa_list.append(f"- {inp.label}: {inp.user_value}")
+            qa_context = "\n".join(qa_list)
+
+            try:
+                from google.genai import types # type: ignore
+                search_tool = [types.Tool(google_search=types.GoogleSearch())]
+            except ImportError:
+                search_tool = None 
+            
+            prompt_template = self.env['rfp.prompt'].search([('code', '=', 'research_refinement')], limit=1).template_text
+            if not prompt_template:
+                 system_prompt = "Refine the best practices based on user answers."
+            else:
+                 system_prompt = prompt_template
+
+            final_context = f"Initial Research:\n{project.initial_research}\n\nUser Answers:\n{qa_context}"
+
+            response_text = self.env['rfp.ai.log'].execute_request(
+                system_prompt=system_prompt,
+                user_context=final_context,
+                env=self.env,
+                mode='text',
+                tools=search_tool
+            )
+            
+            project.refined_practices = response_text
+            project.current_stage = 'structuring'
 
     def action_analyze_gap(self):
         """
@@ -115,10 +195,14 @@ class RfpProject(models.Model):
 
         for project in self:
             # 1. Gather Context
+            blob_context = json.loads(project.ai_context_blob or '{}')
+            standard_requirements = blob_context.get('standard_requirements', [])
+
             context_data = {
                 "project_name": project.name,
                 "description": project.description,
                 "domain": project.domain_id.name or 'General',
+                "initial_best_practices": project.initial_research or "No research found.", 
                 "previous_inputs": [],
                 "rejected_topics": []
             }
@@ -277,12 +361,12 @@ class RfpProject(models.Model):
                     # We might want to add a system note or just let them appear.
                     return True
 
-                project.current_stage = 'structuring'
+                project.current_stage = 'research_refinement'
                 return True
             
             # Old logic fallback
             if response_data.get('should_finalize'):
-                project.current_stage = 'structuring'
+                project.current_stage = 'research_refinement'
                 return True
 
             # Process new questions
@@ -318,7 +402,9 @@ class RfpProject(models.Model):
             else:
                 # If AI returned questions but they were all filtered out as duplicates (or AI returned empty list)
                 # We should assume the gathering phase is effectively complete to prevent infinite loops.
-                project.current_stage = 'structuring'
+                # If AI returned questions but they were all filtered out as duplicates (or AI returned empty list)
+                # We should assume the gathering phase is effectively complete to prevent infinite loops.
+                project.current_stage = 'research_refinement'
                 
             return True
 
@@ -335,6 +421,7 @@ class RfpProject(models.Model):
                 "project_name": project.name,
                 "description": project.description,
                 "domain": project.domain_id.name or 'General',
+                "refined_best_practices": project.refined_practices or project.initial_research or "No research.",
                 "q_and_a": []
             }
             for inp in project.form_input_ids:
@@ -361,6 +448,8 @@ class RfpProject(models.Model):
                  context_str=context_str
             )
             
+            # 2. Call AI (No Tools - relying on Refined Practices text)
+
             try:
                 toc_json_str = self.env['rfp.ai.log'].execute_request(
                     system_prompt=architect_prompt,
@@ -429,7 +518,6 @@ class RfpProject(models.Model):
                 "project_name": project.name,
                 "description": project.description,
                 "domain": project.domain_id.name or 'General',
-                "language": project.document_language,
                 "q_and_a": []
             }
             for inp in project.form_input_ids:
@@ -458,7 +546,6 @@ class RfpProject(models.Model):
                 writer_prompt = section_writer_template.format(
                     project_name=project.name,
                     domain=project.domain_id.name or 'General',
-                    language=project.document_language,
                     toc_context=toc_context_str,
                     section_title=section_title,
                     section_intent=section_intent,
