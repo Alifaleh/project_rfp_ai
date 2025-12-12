@@ -111,7 +111,6 @@ class RfpProject(models.Model):
         3. Parse JSON.
         4. Generate Questions.
         """
-        from odoo.addons.project_rfp_ai.utils import ai_connector
         import json
 
         for project in self:
@@ -124,12 +123,15 @@ class RfpProject(models.Model):
                 "rejected_topics": []
             }
             
-            for form_input in project.form_input_ids:
+            # Ensure chronological order for Recency Bias
+            sorted_inputs = project.form_input_ids.sorted(key=lambda r: r.create_date or r.id)
+            
+            for form_input in sorted_inputs:
                 if form_input.is_irrelevant:
                     context_data["rejected_topics"].append({
                         "key": form_input.field_key,
                         "question": form_input.label,
-                        "reason": form_input.irrelevant_reason or 'No reason provided'
+                        "reason": f"[REJECTED] {form_input.irrelevant_reason or 'No reason provided'}"
                     })
                 elif form_input.user_value:
                     context_data["previous_inputs"].append({
@@ -138,10 +140,20 @@ class RfpProject(models.Model):
                         "answer": form_input.user_value
                     })
             
+            # Calculate Round Count (Approx 4 questions per round)
+            question_count = len(context_data["previous_inputs"])
+            round_count = (question_count // 4) + 1
+            context_data["current_round"] = round_count
+
             context_str = json.dumps(context_data, indent=2)
             
             # 2. Call AI with Logging
-            prompt_template = self.env['rfp.prompt'].search([('code', '=', 'interviewer_main')], limit=1).template_text
+            prompt_record = self.env['rfp.prompt'].search([('code', '=', 'interviewer_main')], limit=1)
+            if not prompt_record:
+                raise ValueError("System Prompt 'interviewer_main' not found.")
+            
+            # Inject Round Count into Prompt Text
+            prompt_template = prompt_record.template_text.replace("{{round_count}}", str(round_count))
             if not prompt_template:
                 raise ValueError("System Prompt 'interviewer_main' not found.")
             
@@ -315,7 +327,6 @@ class RfpProject(models.Model):
         Phase 1: The Architect (Generate TOC)
         Moves stage to 'structuring'.
         """
-        from odoo.addons.project_rfp_ai.utils import ai_connector
         import json
         
         for project in self:
