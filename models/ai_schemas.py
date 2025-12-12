@@ -138,3 +138,23 @@ def get_section_content_schema():
         },
         required=["content_html"]
     )
+
+def get_domain_identification_schema():
+    if not types:
+        return None
+    return types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            'suggested_domain_name': types.Schema(
+                type=types.Type.STRING,
+                description='The name of the domain best matching the project.',
+                nullable=False
+            ),
+            'refined_description': types.Schema(
+                type=types.Type.STRING,
+                description='A refined, professional version of the project description, strictly adhering to provided facts.',
+                nullable=False
+            )
+        },
+        required=['suggested_domain_name', 'refined_description']
+    )

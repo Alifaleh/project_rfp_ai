@@ -5,10 +5,11 @@
         <field name="arch" type="xml">
             <form string="RFP Project">
                 <header>
+                    <button name="action_initialize_project" string="Initialize Project" type="object" class="oe_highlight" invisible="current_stage != 'initialization'"/>
                     <button name="action_generate_structure" string="Generate Sections" type="object" class="oe_highlight" invisible="current_stage != 'gathering'"/>
                     <button name="action_generate_content" string="Generate Content" type="object" class="oe_highlight" invisible="current_stage != 'structuring'"/>
                     <button name="action_mark_completed" string="Mark Completed" type="object" class="oe_highlight" invisible="current_stage != 'writing'"/>
-                    <field name="current_stage" widget="statusbar" statusbar_visible="gathering,structuring,writing,completed" options="{'clickable': '1'}"/>
+                    <field name="current_stage" widget="statusbar" statusbar_visible="initialization,gathering,structuring,writing,completed" options="{'clickable': '1'}"/>
                 </header>
                 <sheet>
                     <div class="oe_title">
@@ -18,8 +19,7 @@
                     </div>
                     <group>
                         <group>
-                            <field name="domain_context"/>
-                            <field name="domain_context"/>
+                            <field name="domain_id"/>
                         </group>
                     </group>
                     <notebook>
@@ -63,7 +63,7 @@
         <field name="arch" type="xml">
             <list string="RFP Projects">
                 <field name="name"/>
-                <field name="domain_context"/>
+                <field name="domain_id"/>
                 <field name="current_stage" widget="badge" decoration-info="current_stage == 'gathering'" decoration-warning="current_stage == 'structuring'" decoration-primary="current_stage == 'writing'" decoration-success="current_stage == 'completed'"/>
             </list>
         </field>

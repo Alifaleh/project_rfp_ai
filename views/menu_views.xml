@@ -6,8 +6,11 @@
     <menuitem id="menu_rfp_configuration" name="Configuration" parent="menu_rfp_root" sequence="100"/>
     <menuitem id="menu_rfp_form_input" name="Form Inputs" parent="menu_rfp_configuration" action="action_rfp_form_input" sequence="20"/>
     <menuitem id="menu_rfp_document_section" name="Document Sections" parent="menu_rfp_configuration" action="action_rfp_document_section" sequence="30"/>
-    <menuitem id="menu_rfp_prompt" name="AI Prompts" parent="menu_rfp_configuration" action="action_rfp_prompt" sequence="40"/>
-    <menuitem id="menu_rfp_ai_model" name="AI Models" parent="menu_rfp_configuration" action="action_rfp_ai_model" sequence="45"/>
+        <menuitem id="menu_rfp_ai_models" name="AI Models" parent="menu_rfp_configuration" action="action_rfp_ai_model" sequence="10"/>
+        <menuitem id="menu_rfp_prompts" name="AI Prompts" parent="menu_rfp_configuration" action="action_rfp_prompt" sequence="20"/>
+        
+        <menuitem id="menu_rfp_fields_init" name="Init Screen Fields" parent="menu_rfp_configuration" action="action_rfp_custom_field_init" sequence="30"/>
+        <menuitem id="menu_rfp_fields_post" name="Post-Analysis Fields" parent="menu_rfp_configuration" action="action_rfp_custom_field_post" sequence="40"/>
     <menuitem id="menu_rfp_ai_log" name="AI Logs" parent="menu_rfp_configuration" action="action_rfp_ai_log" sequence="50"/>
     <menuitem id="menu_rfp_settings" name="Settings" parent="menu_rfp_configuration" action="action_rfp_config_settings" groups="base.group_system" sequence="0"/>
 </odoo>

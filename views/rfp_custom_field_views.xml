@@ -1,0 +1,79 @@
+<odoo>
+    <!-- Tree View -->
+    <record id="view_rfp_custom_field_tree" model="ir.ui.view">
+        <field name="name">rfp.custom.field.list</field>
+        <field name="model">rfp.custom.field</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="code"/>
+                <field name="input_type"/>
+                <field name="phase" column_invisible="True"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Form View -->
+    <record id="view_rfp_custom_field_form" model="ir.ui.view">
+        <field name="name">rfp.custom.field.form</field>
+        <field name="model">rfp.custom.field</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name" class="oe_edit_only"/>
+                        <h1><field name="name" placeholder="E.g. Approximate Budget"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="code" placeholder="e.g. budget_limit"/>
+                            <field name="input_type"/>
+                            <field name="phase"/>
+                        </group>
+                        <group>
+                            <field name="sequence"/>
+                            <field name="active"/>
+                            <field name="is_required"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Configuration">
+                            <group>
+                                <field name="placeholder" invisible="input_type in ['radio', 'select', 'checkboxes']"/>
+                                <field name="default_value"/>
+                                <field name="help_text"/>
+                            </group>
+                            <separator string="Options" invisible="input_type not in ['radio', 'select', 'checkboxes']"/>
+                            <field name="option_ids" invisible="input_type not in ['radio', 'select', 'checkboxes']">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="label"/>
+                                    <field name="value"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Actions -->
+    <record id="action_rfp_custom_field_init" model="ir.actions.act_window">
+        <field name="name">Init Screen Fields</field>
+        <field name="res_model">rfp.custom.field</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('phase', '=', 'init')]</field>
+        <field name="context">{'default_phase': 'init'}</field>
+    </record>
+
+    <record id="action_rfp_custom_field_post" model="ir.actions.act_window">
+        <field name="name">Post-Analysis Fields</field>
+        <field name="res_model">rfp.custom.field</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('phase', '=', 'post_gathering')]</field>
+        <field name="context">{'default_phase': 'post_gathering'}</field>
+    </record>
+</odoo>

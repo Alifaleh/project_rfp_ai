@@ -14,3 +14,12 @@ access_rfp_ai_model,rfp.ai.model,model_rfp_ai_model,base.group_user,1,0,0,0
 access_rfp_ai_model_system,rfp.ai.model,model_rfp_ai_model,base.group_system,1,1,1,1
 access_rfp_ai_model_tag,rfp.ai.model.tag,model_rfp_ai_model_tag,base.group_user,1,0,0,0
 access_rfp_ai_model_tag_system,rfp.ai.model.tag,model_rfp_ai_model_tag,base.group_system,1,1,1,1
+access_rfp_custom_field_portal,rfp.custom.field,model_rfp_custom_field,base.group_portal,1,0,0,0
+access_rfp_custom_field,rfp.custom.field,model_rfp_custom_field,base.group_user,1,0,0,0
+access_rfp_custom_field_system,rfp.custom.field,model_rfp_custom_field,base.group_system,1,1,1,1
+access_rfp_field_option_system,rfp.field.option,model_rfp_field_option,base.group_system,1,1,1,1
+access_rfp_field_option_user,rfp.field.option,model_rfp_field_option,base.group_user,1,0,0,0
+access_rfp_field_option_portal,rfp.field.option,model_rfp_field_option,base.group_portal,1,0,0,0
+access_rfp_project_domain_system,rfp.project.domain,model_rfp_project_domain,base.group_system,1,1,1,1
+access_rfp_project_domain_user,rfp.project.domain,model_rfp_project_domain,base.group_user,1,0,0,0
+access_rfp_project_domain_portal,rfp.project.domain,model_rfp_project_domain,base.group_portal,1,0,0,0

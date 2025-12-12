@@ -24,7 +24,7 @@
         </record>
 
         <!-- Models -->
-        <record id="model_gemini_flash" model="rfp.ai.model">
+        <record id="model_gemini_3_pro_preview" model="rfp.ai.model">
             <field name="name">Gemini 3 Pro Preview</field>
             <field name="technical_name">gemini-3-pro-preview</field>
             <field name="provider">google</field>

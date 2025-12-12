@@ -8,13 +8,7 @@ class RfpProject(models.Model):
     name = fields.Char(string="Project Name", required=True, tracking=True)
     description = fields.Text(string="Initial Idea", help="High-level description of the project idea", required=True, tracking=True)
     
-    domain_context = fields.Selection([
-        ('software', 'Software Development'),
-        ('construction', 'Construction & Engineering'),
-        ('events', 'Event Planning'),
-        ('marketing', 'Marketing Campaign'),
-        ('other', 'Other')
-    ], string="Domain Context", default='software', tracking=True)
+    domain_id = fields.Many2one('rfp.project.domain', string="Domain Context", tracking=True)
 
     visibility_type = fields.Selection([('public', 'Public'), ('internal', 'Internal'), ('private', 'Private')], default='private')
     
@@ -23,18 +17,91 @@ class RfpProject(models.Model):
     ai_context_blob = fields.Text(string="AI Context Blob", default="{}")
     
     current_stage = fields.Selection([
+        ('initialization', 'Initialization'),
         ('gathering', 'Information Gathering'),
         ('structuring', 'Section Generation'),
         ('writing', 'Content Generation'),
         ('completed', 'Completed')
-    ], string="Stage", default='gathering', tracking=True, group_expand='_expand_stages')
+    ], string="Stage", default='initialization', tracking=True, group_expand='_expand_stages')
 
     form_input_ids = fields.One2many('rfp.form.input', 'project_id', string="Gathered Inputs")
     document_section_ids = fields.One2many('rfp.document.section', 'project_id', string="Generated Sections")
 
-    @api.model
-    def _expand_stages(self, stages, domain, order):
-        return [key for key, val in type(self).current_stage.selection]
+
+
+    def action_initialize_project(self):
+        """
+        Phase 0: Project Initialization.
+        Uses AI to:
+        1. Select or Create a Domain.
+        2. Refine the Project Description.
+        """
+        import json
+        from odoo.addons.project_rfp_ai.models.ai_schemas import get_domain_identification_schema
+
+        for project in self:
+            # 1. Gather Available Domains
+            existing_domains = self.env['rfp.project.domain'].search([])
+            domain_names = [d.name for d in existing_domains]
+            available_domains_str = "\n".join([f"- {name}" for name in domain_names])
+            
+            # 2. Call AI
+            prompt_template = self.env['rfp.prompt'].search([('code', '=', 'project_initializer')], limit=1).template_text
+            if not prompt_template:
+                raise ValueError("System Prompt 'project_initializer' not found.")
+            
+            # Prepare Prompt
+            system_prompt = prompt_template.format(
+                project_name=project.name,
+                description=project.description,
+                available_domains_str=available_domains_str
+            )
+            
+            # Call Log Execution
+            try:
+                response_json_str = self.env['rfp.ai.log'].execute_request(
+                    system_prompt=system_prompt,
+                    user_context=f"Project: {project.name}\nDescription: {project.description}",
+                    env=self.env,
+                    mode='json',
+                    schema=get_domain_identification_schema()
+                )
+            except Exception as e:
+                # Log error and return (user sees error in chatter if tracking catches it, or UI error)
+                raise models.ValidationError(f"AI Initialization Failed: {str(e)}")
+
+            if not response_json_str:
+                raise models.ValidationError("AI returned no response.")
+
+            try:
+                data = json.loads(response_json_str)
+            except json.JSONDecodeError:
+                raise models.ValidationError("AI returned invalid JSON.")
+            
+            # 3. Process Result
+            suggested_domain = data.get('suggested_domain_name')
+            refined_desc = data.get('refined_description')
+            
+            if not suggested_domain or not refined_desc:
+                # Fallback if schema violated
+                raise models.ValidationError("AI Response missing required fields.")
+                
+            # Domain Handing (Case Insensitive Match)
+            # Normalize to lower for comparison
+            match = next((d for d in existing_domains if d.name.lower() == suggested_domain.lower()), None)
+            
+            if match:
+                project.domain_id = match.id
+            else:
+                # Create New Domain
+                new_domain = self.env['rfp.project.domain'].create({'name': suggested_domain})
+                project.domain_id = new_domain.id
+                
+            # Update Description
+            project.description = refined_desc
+            
+            # Move Stage
+            project.current_stage = 'gathering'
 
     def action_analyze_gap(self):
         """
@@ -52,7 +119,7 @@ class RfpProject(models.Model):
             context_data = {
                 "project_name": project.name,
                 "description": project.description,
-                "domain": project.domain_context,
+                "domain": project.domain_id.name or 'General',
                 "previous_inputs": [],
                 "rejected_topics": []
             }
@@ -164,8 +231,41 @@ class RfpProject(models.Model):
             # Check for Auto-Finalization
             is_complete = response_data.get('is_gathering_complete', False)
             if is_complete:
+                # CHECK FOR POST-GATHERING FIELDS
+                post_fields = self.env['rfp.custom.field'].search([('phase', '=', 'post_gathering'), ('active', '=', True)])
+                post_inputs_created = False
+                
+                for pf in post_fields:
+                    # Check if already exists
+                    if not self.env['rfp.form.input'].search_count([('project_id', '=', project.id), ('field_key', '=', pf.code)]):
+                        # Serialize relational options field to JSON for form_input
+                        opts_json = "[]"
+                        if pf.option_ids:
+                            # form_input options are usually just strings, but let's see logic.
+                            # Standard form input options are ["Yes", "No"].
+                            # field.option uses {label, value}.
+                            # If we pass just a list of strings, it works for simple selects.
+                            # Let's map it to [opt.label for opt in pf.option_ids]
+                            opts_list = [opt.label for opt in pf.option_ids]
+                            opts_json = json.dumps(opts_list)
+
+                        self.env['rfp.form.input'].create({
+                            'project_id': project.id,
+                            'field_key': pf.code,
+                            'label': pf.name,
+                            'component_type': 'multiselect' if pf.input_type == 'checkboxes' else pf.input_type,
+                            'options': opts_json,
+                            'description_tooltip': pf.help_text,
+                            'round_number': 99, # High number to indicate post-phase
+                        })
+                        post_inputs_created = True
+                
+                if post_inputs_created:
+                    # If we added fields, we are NOT done. We need the user to answer them.
+                    # We might want to add a system note or just let them appear.
+                    return True
+
                 project.current_stage = 'structuring'
-                # If finished, we don't necessarily need to trigger doc gen immediately if users want to review "done" state first.
                 return True
             
             # Old logic fallback
@@ -223,7 +323,7 @@ class RfpProject(models.Model):
             context_data = {
                 "project_name": project.name,
                 "description": project.description,
-                "domain": project.domain_context,
+                "domain": project.domain_id.name or 'General',
                 "q_and_a": []
             }
             for inp in project.form_input_ids:
@@ -246,7 +346,7 @@ class RfpProject(models.Model):
 
             architect_prompt = toc_prompt_template.format(
                  project_name=project.name,
-                 domain=project.domain_context,
+                 domain=project.domain_id.name or 'General',
                  context_str=context_str
             )
             
@@ -317,7 +417,7 @@ class RfpProject(models.Model):
             context_data = {
                 "project_name": project.name,
                 "description": project.description,
-                "domain": project.domain_context,
+                "domain": project.domain_id.name or 'General',
                 "language": project.document_language,
                 "q_and_a": []
             }
@@ -346,7 +446,7 @@ class RfpProject(models.Model):
                 
                 writer_prompt = section_writer_template.format(
                     project_name=project.name,
-                    domain=project.domain_context,
+                    domain=project.domain_id.name or 'General',
                     language=project.document_language,
                     toc_context=toc_context_str,
                     section_title=section_title,

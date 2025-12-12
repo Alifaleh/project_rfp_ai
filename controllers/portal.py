@@ -28,20 +28,51 @@ class RfpCustomerPortal(CustomerPortal):
     def portal_my_rfps(self, page=1, **kw):
         return request.redirect('/my')
 
-    @http.route(['/my/rfp/start'], type='http', auth="user", website=True)
-    def portal_rfp_start(self):
-        return request.render("project_rfp_ai.portal_rfp_wizard_start")
+    @http.route(['/rfp/start'], type='http', auth="user", website=True)
+    def portal_rfp_start(self, **kw):
+        init_fields = request.env['rfp.custom.field'].search([('phase', '=', 'init'), ('active', '=', True)])
+        values = {
+            'init_fields': init_fields
+        }
+        return request.render("project_rfp_ai.portal_rfp_start", values)
 
     @http.route(['/rfp/init'], type='http', auth="user", website=True, methods=['POST'], csrf=True)
     def portal_rfp_init(self, **post):
-        if post.get('name') and post.get('description'):
+        if request.httprequest.method == 'POST':
+            # Process Init Fields
+            init_fields = request.env['rfp.custom.field'].search([('phase', '=', 'init'), ('active', '=', True)])
+            description_lines = []
+            if post.get('description'):
+                description_lines.append(post.get('description'))
+            
+            for field in init_fields:
+                if field.input_type == 'checkboxes':
+                    # Multi-select check boxes return a list of values from POST
+                    val_list = request.httprequest.form.getlist(field.code)
+                    if val_list:
+                         description_lines.append(f"{field.name}: {', '.join(val_list)}")
+                else:
+                    val = post.get(field.code)
+                    if val:
+                        description_lines.append(f"{field.name}: {val}")
+            
+            final_description = "\n".join(description_lines)
+
             Project = request.env['rfp.project'].sudo()
             new_project = Project.create({
                 'name': post.get('name'),
-                'domain': post.get('domain'),
-                'user_id': request.env.user.id,
-                'start_date': fields.Datetime.now()
+                'description': final_description,
+                'user_id': request.env.user.id
             })
+            try:
+                # Phase 0: AI Initialization (Domain & Description)
+                new_project.action_initialize_project()
+            except Exception:
+                # Fallback: If AI Init fails, ensure we are in gathering stage and proceed
+                # We catch generic exception to strictly prevent blocking the "Start" flow.
+                new_project.current_stage = 'gathering'
+
+            # Phase 1: Gap Analysis (Start Interview)
             new_project.action_analyze_gap()
             return request.redirect(f"/rfp/interface/{new_project.id}")
         return request.redirect('/my/rfp/start')

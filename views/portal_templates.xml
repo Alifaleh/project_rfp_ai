@@ -22,7 +22,7 @@
 
             <div class="row mb-3">
                 <div class="col-12">
-                    <a href="/my/rfp/start" class="btn btn-primary btn-lg">Start New Project</a>
+                    <a href="/rfp/start" class="btn btn-primary btn-lg">Start New Project</a>
                 </div>
             </div>
 
@@ -46,7 +46,7 @@
         </t>
     </template>
 
-    <template id="portal_rfp_wizard_start" name="Start RFP Wizard">
+    <template id="portal_rfp_start" name="Start RFP Wizard">
         <t t-call="portal.portal_layout">
             <div id="rfp_wizard_container">
                 <h1>Start New Project Specification</h1>
@@ -57,15 +57,58 @@
                         <label>Project Name</label>
                         <input type="text" name="name" class="form-control" required="required"/>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Project Domain</label>
-                        <input type="text" name="domain" class="form-control" placeholder="e.g. Healthcare, E-Commerce, Logistics" required="required"/>
-                    </div>
+
                     <div class="mb-3">
                         <label>Initial Description</label>
-                        <textarea name="description" class="form-control" rows="5" required="required"></textarea>
+                        <textarea name="description" class="form-control" rows="4" placeholder="Describe your high-level goal used for the RFP generation..." required="required"></textarea>
                     </div>
-                    <button type="submit" class="btn btn-primary">Start Analysis</button>
+
+                    <!-- Custom Init Fields -->
+                    <t t-foreach="init_fields" t-as="field">
+                        <div class="mb-3">
+                            <label t-esc="field.name"/> <span t-if="field.is_required" class="text-danger">*</span>
+                            
+                            <!-- Text Input -->
+                            <input t-if="field.input_type == 'text_input'" type="text" t-att-name="field.code" class="form-control" t-att-placeholder="field.placeholder" t-att-required="field.is_required and 'required'" t-att-value="field.default_value"/>
+                            
+                            <!-- Text Area -->
+                            <textarea t-if="field.input_type == 'textarea'" t-att-name="field.code" class="form-control" rows="3" t-att-placeholder="field.placeholder" t-att-required="field.is_required and 'required'"><t t-esc="field.default_value or ''"/></textarea>
+                            
+                            <!-- Select -->
+                            <select t-if="field.input_type == 'select'" t-att-name="field.code" class="form-select" t-att-required="field.is_required and 'required'">
+                                <option value="">Select...</option>
+                                <t t-foreach="field.option_ids" t-as="opt">
+                                    <option t-att-value="opt.value" t-esc="opt.label" t-att-selected="opt.value == field.default_value"/>
+                                </t>
+                            </select>
+                            
+                            <!-- Radio -->
+                            <div t-if="field.input_type == 'radio'">
+                                <t t-foreach="field.option_ids" t-as="opt">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" t-att-name="field.code" t-att-value="opt.value" t-att-id="field.code + '_' + str(opt.id)" t-att-checked="opt.value == field.default_value" t-att-required="field.is_required and 'required'"/>
+                                        <label class="form-check-label" t-att-for="field.code + '_' + str(opt.id)" t-esc="opt.label"/>
+                                    </div>
+                                </t>
+                            </div>
+
+                            <!-- Checkboxes -->
+                            <div t-if="field.input_type == 'checkboxes'">
+                                <t t-foreach="field.option_ids" t-as="opt">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" t-att-name="field.code" t-att-value="opt.value" t-att-id="field.code + '_' + str(opt.id)" t-att-checked="opt.value == field.default_value"/>
+                                        <label class="form-check-label" t-att-for="field.code + '_' + str(opt.id)" t-esc="opt.label"/>
+                                    </div>
+                                </t>
+                            </div>
+                            
+                            <small t-if="field.help_text" class="form-text text-muted" t-esc="field.help_text"/>
+                        </div>
+                    </t>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">Start Analysis</button>
+                    </div>
                 </form>
             </div>
         </t>

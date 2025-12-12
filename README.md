@@ -1,18 +1,20 @@
 # AI-Driven RFP Generator (`project_rfp_ai`)
 
-**Version**: 1.0.0
+**Version**: 1.1.0
 **License**: LGPL-3
 
 ## 1. Executive Summary
 This Odoo module implements an **Agentic AI System** designed to automate the Requirement Engineering phase of software projects. It acts as an intelligent intermediary, interviewing stakeholders to gather functional requirements and then autonomously architecting and writing a professional Request for Proposal (RFP) document.
 
 **Key Capabilities:**
+*   **Project Initialization**: Starts the project by professionally refining the user's idea and intelligently determining the **Vendor Expertise Domain** (e.g., Software Development vs. Logistics).
 *   **Active Listening**: The AI adaptation changes its questions based on user answers.
 *   **Irrelevance Detection**: The system learns from what users *skip*, updating its internal context.
 *   **Architectural Awareness**: It separates "Structure Design" (TOC) from "Content Writing" to ensure logical flow.
 *   **Resilience**: Built-in handling for AI Rate Limits (429) and Malformed JSON, plus automatic retry for queue jobs.
 *   **Flexible Workflow**: Features a robust "Revert to Edit" capability, allowing users to unlock completed documents for further refinement, and a custom finalization safety layer.
 *   **AI Model Management**: Granular control over the AI engine. You can define various Gemini models (e.g., Flash for speed, Pro for reasoning) and tag them. Each system prompt is configured to use a specific model to balance cost, speed, and intelligence.
+*   **Dynamic Custom Fields**: Fully configurable custom fields for both Project Initialization and Post-Gathering phases. Supports rich data types like Multi-Select Checkboxes, Radio Buttons, and Relational Options, allowing administrators to inject organization-specific data requirements seamlessly into the AI workflow.
 
 ---
 
@@ -29,14 +31,18 @@ project_rfp_ai/
 │   ├── project.py                  # [CORE] Main Logic Engine (Analysis & Generation)
 │   ├── ai_model.py                 # [CONFIG] AI Model Definitions & Tagging
 │   ├── form_input.py               # [DATA] Dynamic Questions Data Model
-│   ├── document_section.py         # [DATA] Generated Artifacts (Markdown Content)
+│   ├── document_section.py         # [DATA] Generated Artifacts (HTML Content)
 │   ├── prompt.py                   # [CONFIG] Database-backed System Prompts
 │   ├── ai_schemas.py               # [LOGIC] JSON Schemas for AI Structured Output
-│   └── ai_log.py                   # [CORE] AI Request Logging & Monitoring
-│   ├── ai_model_views.xml          # Backend Views for AI Models
+│   ├── ai_log.py                   # [CORE] AI Request Logging & Monitoring
+│   ├── custom_field.py             # [CONFIG] Custom Fields Definition (Init/Post-Gathering)
+│   ├── field_option.py             # [DATA] Relational Options for Select/Radio/Checkbox
+│   ├── rfp_domain.py               # [DATA] Project Domain Context Model
+│   └── ai_model_views.xml          # Backend Views for AI Models
 ├── views/
 │   ├── menu_views.xml              # Backend Menu Items
 │   ├── rfp_project_views.xml       # Backend Form/List Views (Project Management)
+│   ├── rfp_custom_field_views.xml  # Backend Views for Custom Fields
 │   ├── rfp_form_input_views.xml    # Backend View for Specific Questions (Debug)
 │   ├── rfp_document_section_views.xml # Backend View for Sections
 │   ├── rfp_prompt_views.xml        # Backend View for Editing Prompts
@@ -54,7 +60,8 @@ project_rfp_ai/
 │   ├── __init__.py
 │   └── ai_connector.py             # [LIB] Google GenAI Wrapper (Retry, Error Handling)
 └── data/
-    └── rfp_prompt_data.xml         # [DATA] Default System Prompts (Interviewer, Architect, Writer)
+    ├── rfp_prompt_data.xml         # [DATA] Default System Prompts (Interviewer, Architect, Writer)
+    └── ai_model_data.xml           # [DATA] Default AI Models and Tags
 ├── queue/                          # [LIB] OCA Queue Job Module
 │   └── queue_job/
 ```
@@ -64,14 +71,30 @@ project_rfp_ai/
 ## 3. Core Logic Deep Dive
 
 ### 3.1 The Brain: `models/project.py`
-This file contains the two "Agent Loops".
+This file contains the three "Agent Loops".
 
-#### A. Gap Analysis Loop (`action_analyze_gap`)
+#### A. Initialization Loop (`action_initialize_project`)
+This method runs immediately upon project creation (Phase 0).
+1.  **AI Invocation**:
+    *   Fetches `project_initializer` prompt.
+    *   Input: Project Name + Raw Description + List of Available Domains.
+    *   Goal: "Refine Description" and "Select Domain".
+2.  **Domain Selection**:
+    *   The AI chooses the domain representing the **Vendor's Expertise** (e.g., "Software Development").
+    *   If no matching domain exists, it suggests a new one which is automatically created.
+3.  **Refinement**:
+    *   Rewrites the description to be professional while **strictly preserving** all specific data (dates, numbers, constraints).
+4.  **State Update**:
+    *   Updates `description` and `domain_id`.
+    *   Advances stage to `gathering`.
+
+#### B. Gap Analysis Loop (`action_analyze_gap`)
 This method runs every time the user submits answers.
 1.  **Context Aggregation**:
     *   Iterates through `form_input_ids`.
     *   Formats accepted answers: `Key: Value`.
     *   Formats **Irrelevant** answers: `Key: [MARKED IRRELEVANT] Reason`. *Crucial for preventing repetitive questions.*
+    *   Injects **Custom Field Data**: Post-gathering custom fields defined in `rfp.custom.field` are injected into the input stream automatically when the AI signals completion, ensuring all mandatory data is collected.
     *   Compiles this into a JSON string `context_str`.
 2.  **AI Invocation**:
     *   Fetches `interviewer_main` prompt from DB.
@@ -93,7 +116,6 @@ This method runs once, triggered by the user after analysis.
     *   Iterates recursively through the JSON TOC.
     *   For each section, calls `writer_section_content` prompt.
     *   **Context Injection**: The prompt receives the **entire TOC** + **Current Section Title**.
-    *   Task: "Write the content for *this specific section* knowing it fits into *that global structure*."
     *   Task: "Write the content for *this specific section* knowing it fits into *that global structure*."
     *   **Asynchronous Execution**:
         *   Uses `queue_job` (OCA) to offload content generation.
@@ -127,13 +149,26 @@ The system is model-agnostic.
     *   *Interviewer* uses **Gemini Flash** (Low latency, high throughput).
     *   *Architect/Writer* uses **Gemini Pro** (Deep reasoning, long context window).
 
+### 3.5 Custom Field Engine: `models/custom_field.py`
+Allows admins to extend the project data model without code changes.
+*   **Phased Injection**: Fields can be set to appear at `Init` (Project Creation) or `Post-Gathering` (After AI Interview).
+*   **Relational Options**: Select, Radio, and Checkbox inputs use a relational `rfp.field.option` model, allowing for explicit Label/Value pairs and drag-and-drop reordering.
+*   **Advanced Data Types**: Supports `checkboxes` (Multi-Select) which are serialized as comma-separated values or JSON lists depending on the context.
+*   **Validation**: Enforces `is_required` and `default_value` logic constraints on both the Frontend (Portal) and Backend.
+
 ---
 
 ## 4. Prompt Engineering (`data/rfp_prompt_data.xml`)
 
 The intelligence is defined here. We use **XML Data Files** to load these into the database. To modify a prompt, edit this file and upgrade the module.
 
-1.  **`interviewer_main`**
+1.  **`project_initializer`** (Phase 0)
+    *   *Persona*: Senior Business Analyst.
+    *   *Goal*: Standardize the input and categorize the domain.
+    *   *Constraint*: Zero Tolerance for data loss (must preserve deadlines/facts).
+    *   *Constraint*: Domain must reflect Vendor Expertise.
+
+2.  **`interviewer_main`** (Phase 1)
     *   *Persona*: Senior Business Analyst.
     *   *Goal*: Identify gaps in requirements.
     *   *Constraint*: Must return valid JSON matching `get_interviewer_response_schema`.
@@ -148,7 +183,7 @@ The intelligence is defined here. We use **XML Data Files** to load these into t
 3.  **`writer_section_content`**
     *   *Persona*: Technical Writer.
     *   *Input*: Complete TOC (Context) + Specific Section Title (Focus).
-    *   *Output*: Markdown Content.
+    *   *Output*: HTML5 Content.
 
 ---
 
@@ -182,14 +217,19 @@ Go to **RFP AI > Configuration > AI Models**:
 Go to **RFP AI > Configuration > AI Prompts**:
 *   Link each prompt to the most appropriate AI Model. This allows you to upgrade the "Writer" logic to a newer model without risking the stability of the "Interviewer" logic.
 
+### 5.4 Domain Management
+Go to **RFP AI > Configuration > Project Domains**:
+*   Create and manage the business domains (e.g., "Healthcare", "E-Commerce", "FinTech").
+*   These are used to provide initial context to the AI Architect.
+
 ---
 
 ## 5. Frontend & Interaction (`rfp_portal.js` & `portal_templates.xml`)
 
 ### 5.1 Dynamic Form Rendering
 The template `portal_rfp_input_field` is a reusable component.
-*   If `component_type == 'select'`, renders `<select>`.
-*   If `component_type == 'radio'`, renders radio groups.
+*   **Multi-Type Support**: Renders Text, Number, Textarea, Select, Radio, and our new **Checkboxes** (Multi-select) widget.
+*   **Structure**: Uses a defined HTML structure that integrates with `rfp_portal.js` for dependency handling.
 *   **Suggested Answers**: Renders clickable badges. JS listener `_onSuggestionClick` fills the input when clicked.
 
 ### 5.2 Dependency Logic (`_checkDependencies`)
@@ -205,11 +245,13 @@ Since AI processing can take 5-15 seconds:
 *   **Effect**: Immediate visual feedback ("Thinking...") prevents user from clicking twice.
 
 ### 5.4 Document Lifecycle
+*   **Structure Review**: Users can drag-and-drop sections to reorder the Table of Contents before generation begins.
+*   **Content Review**: Integrated **Quill.js** rich text editor allows users to polish the AI-generated HTML content before finalization.
 *   **Finalization**: Uses a Bootstrap Modal for a safe "Are you sure?" confirmation before preventing further edits.
 *   **Reversion**: Includes a "Edit" button on completed documents that triggers a controller (`/rfp/revert_to_edit`) to unlock the project and return it to the 'writing' stage.
 *   **Reporting**:
     *   **PDF**: Uses an optimized browser-native print view (`window.print()`) with CSS that hides the portal UI (headers, sidebars, buttons), ensuring only the clean document card is printed.
-    *   **Word**: Downloads a clean `.doc` file containing only the title and sections (stripping external descriptions).
+    *   **Word**: Downloads a clean `.doc` file containing the semantic HTML content, wrapped for compatibility with Microsoft Word.
 
 ---
 
