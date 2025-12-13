@@ -20,7 +20,6 @@ class RfpDocumentSection(models.Model):
     sequence = fields.Integer(string="Sequence", default=10)
 
     diagram_ids = fields.One2many('rfp.section.diagram', 'section_id', string="Diagrams")
-    diagram_ids = fields.One2many('rfp.section.diagram', 'section_id', string="Diagrams")
     
     job_id = fields.Many2one('queue.job', string="Generation Job", readonly=True)
     generation_status = fields.Selection([
