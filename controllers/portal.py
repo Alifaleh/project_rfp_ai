@@ -93,6 +93,15 @@ class RfpCustomerPortal(CustomerPortal):
         elif Project.current_stage == 'research_refinement':
              # Logic to auto-advance if stuck here
              Project.action_refine_practices()
+             
+             # Correct Logic: After refinement, stage is 'gathering_practices'.
+             # Check if questions exist, if not, trigger first round.
+             if Project.current_stage == 'gathering_practices':
+                 if not Project.practice_input_ids:
+                      Project.action_analyze_practices_gap()
+                 return request.redirect(f"/rfp/interface/{Project.id}")
+             
+             # Fallback (Legacy)
              if not Project.document_section_ids:
                  Project.action_generate_structure()
              return request.redirect(f"/rfp/structure/{Project.id}")
@@ -112,9 +121,15 @@ class RfpCustomerPortal(CustomerPortal):
         if not Project.exists() or Project.user_id != request.env.user:
             return request.redirect('/my')
 
-        input_map = {inp.field_key: inp for inp in Project.form_input_ids}
-        input_map = {inp.field_key: inp for inp in Project.form_input_ids}
-        
+        input_map = {}
+        target_model = 'rfp.form.input'
+
+        if Project.current_stage == 'gathering':
+             input_map = {inp.field_key: inp for inp in Project.form_input_ids}
+        elif Project.current_stage == 'gathering_practices':
+             target_model = 'rfp.practice.input'
+             input_map = {inp.field_key: inp for inp in Project.practice_input_ids}
+
         # Iterate through all EXPECTED inputs to handle missing/disabled keys correctly
         for key, inp_record in input_map.items():
             
@@ -146,13 +161,20 @@ class RfpCustomerPortal(CustomerPortal):
                 
                 inp_record.sudo().write({'user_value': final_value})
         
-        Project.action_analyze_gap()
+        if Project.current_stage == 'gathering':
+            Project.action_analyze_gap()
+        elif Project.current_stage == 'gathering_practices':
+            Project.action_analyze_practices_gap()
         
+        # Phase Transition Handlers
         # Phase Transition Handlers
         if Project.current_stage == 'research_refinement':
             # Phase 4: Refine Best Practices
             Project.action_refine_practices()
-            # This moves it to 'structuring'
+            # This logic must align with model logic (current_stage -> gathering_practices)
+            if not Project.practice_input_ids and Project.current_stage == 'gathering_practices':
+                 # Trigger first round of practices gathering immediately
+                 Project.action_analyze_practices_gap()
 
         if Project.current_stage == 'structuring':
              # Phase 1 (Revisited): Generate Structure (Architect)

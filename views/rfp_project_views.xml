@@ -7,11 +7,13 @@
                 <header>
                     <button name="action_initialize_project" string="Initialize Project" type="object" class="oe_highlight" invisible="current_stage != 'initialization'"/>
                     <button name="action_research_initial" string="Research Best Practices" type="object" class="oe_highlight" invisible="current_stage != 'research_initial'"/>
-                    <button name="action_generate_structure" string="Generate Sections" type="object" class="oe_highlight" invisible="current_stage != 'research_refinement'"/>
                     <button name="action_refine_practices" string="Refine Practices" type="object" class="oe_highlight" invisible="current_stage != 'gathering'"/>
-                    <button name="action_generate_content" string="Generate Content" type="object" class="oe_highlight" invisible="current_stage != 'structuring'"/>
+                    <button name="action_analyze_practices_gap" string="Analyze Practices Gaps" type="object" class="oe_highlight" invisible="current_stage != 'gathering_practices'"/>
+                    <button name="action_generate_structure" string="Generate Sections" type="object" class="oe_highlight" invisible="current_stage != 'structuring'"/>
+                    <button name="action_generate_content" string="Generate Content" type="object" class="oe_highlight" invisible="current_stage != 'structuring'"/> <!-- Wait, this logic needs review? Structure -> Content. -->
+                    <!-- Correcting Button logic based on stages -->
                     <button name="action_mark_completed" string="Mark Completed" type="object" class="oe_highlight" invisible="current_stage != 'writing'"/>
-                    <field name="current_stage" widget="statusbar" statusbar_visible="initialization,research_initial,gathering,research_refinement,structuring,writing,completed" options="{'clickable': '1'}"/>
+                    <field name="current_stage" widget="statusbar" statusbar_visible="initialization,research_initial,gathering,research_refinement,gathering_practices,structuring,writing,completed" options="{'clickable': '1'}"/>
                 </header>
                 <sheet>
                     <div class="oe_title">
@@ -30,6 +32,18 @@
                         </page>
                         <page string="Gathered Inputs">
                             <field name="form_input_ids">
+                                <list editable="bottom">
+                                    <field name="field_key"/>
+                                    <field name="label"/>
+                                    <field name="user_value"/>
+                                    <field name="data_type"/>
+                                    <field name="round_number"/>
+                                </list>
+                            </field>
+
+                        </page>
+                        <page string="Practices Inputs">
+                            <field name="practice_input_ids">
                                 <list editable="bottom">
                                     <field name="field_key"/>
                                     <field name="label"/>

@@ -19,14 +19,16 @@ class RfpProject(models.Model):
     current_stage = fields.Selection([
         ('initialization', 'Initialization'),
         ('research_initial', 'Best Practices Research'),
-        ('gathering', 'Information Gathering'),
+        ('gathering', 'Information Gathering (Project)'),
         ('research_refinement', 'Best Practices Refinement'),
+        ('gathering_practices', 'Information Gathering (Best Practices)'),
         ('structuring', 'Section Generation'),
         ('writing', 'Content Generation'),
         ('completed', 'Completed')
     ], string="Stage", default='initialization', tracking=True, group_expand='_expand_stages')
 
     form_input_ids = fields.One2many('rfp.form.input', 'project_id', string="Gathered Inputs")
+    practice_input_ids = fields.One2many('rfp.practice.input', 'project_id', string="Practice Inputs")
     document_section_ids = fields.One2many('rfp.document.section', 'project_id', string="Generated Sections")
 
     # Research Fields
@@ -184,233 +186,212 @@ class RfpProject(models.Model):
             )
             
             project.refined_practices = response_text
-            project.current_stage = 'structuring'
+        project.current_stage = 'gathering_practices'
+
+    def _execute_interview_round(self, prompt_code, input_model_name, context_data):
+        """
+        Generic Driver for Information Gathering Rounds.
+        """
+        self.ensure_one()
+        project = self
+        import json
+
+        # 1. Call AI
+        prompt_record = self.env['rfp.prompt'].search([('code', '=', prompt_code)], limit=1)
+        if not prompt_record:
+            raise ValueError(f"System Prompt '{prompt_code}' not found.")
+        
+        # Inject Round Count into Prompt Text
+        prompt_template = prompt_record.template_text.replace("{{round_count}}", str(context_data.get('current_round', 1)))
+        
+        context_str = json.dumps(context_data, indent=2)
+        
+        from odoo.addons.project_rfp_ai.models.ai_schemas import get_interviewer_schema
+
+        try:
+            response_json_str = self.env['rfp.ai.log'].execute_request(
+                system_prompt=prompt_template,
+                user_context=context_str,
+                env=self.env,
+                mode='json',
+                schema=get_interviewer_schema(),
+                prompt_record=prompt_record
+            )
+        except Exception as e:
+            if "Rate Limit" in str(e):
+                    response_json_str = json.dumps({
+                    "analysis_meta": {"status": "rate_limit", "completeness_score": 0},
+                    "research_notes": "High Traffic (Rate Limit). Please wait 30 seconds and retry.",
+                    "form_fields": []
+                })
+            else: 
+                    response_json_str = json.dumps({
+                    "analysis_meta": {"status": "error", "completeness_score": 0},
+                    "research_notes": f"Error: {str(e)}",
+                    "form_fields": []
+                })
+        
+        # 2. Parse JSON
+        if not response_json_str:
+            response_json_str = json.dumps({
+                "analysis_meta": {"status": "error", "completeness_score": 0},
+                "research_notes": "The AI service is temporarily unavailable (503).",
+                "form_fields": []
+            })
+
+        try:
+            response_data = json.loads(response_json_str)
+        except json.JSONDecodeError:
+            response_data = {}
+
+        # Update Metadata
+        if 'last_input_context' not in response_data:
+             response_data['last_input_context'] = context_data
+
+        # Monotonize Score
+        current_context = project.get_context_data()
+        old_score = current_context.get('analysis_meta', {}).get('completeness_score', 0)
+        new_score = response_data.get('analysis_meta', {}).get('completeness_score', 0)
+        if new_score < old_score:
+            if 'analysis_meta' not in response_data:
+                response_data['analysis_meta'] = {}
+            response_data['analysis_meta']['completeness_score'] = old_score
+
+        project.ai_context_blob = json.dumps(response_data, indent=4)
+
+        # CRITICAL FIX: Check for Status (Rate Limit / Error)
+        analysis_meta = response_data.get('analysis_meta', {})
+        status = analysis_meta.get('status')
+        if status in ['rate_limit', 'error']:
+            return True
+                
+        # Check for Auto-Finalization
+        is_complete = response_data.get('is_gathering_complete', False)
+        if is_complete:
+            return False # INDICATES COMPLETION TO CALLER
+
+        # Process new questions
+        new_fields = response_data.get('form_fields', [])
+        
+        # Simple way to increment round number
+        try:
+            current_input_count = self.env[input_model_name].search_count([('project_id', '=', project.id)])
+            current_round_number = (current_input_count // 5) + 1
+        except:
+            current_round_number = 1
+        
+        # Track new keys in this batch to prevent duplicates
+        batch_keys = set()
+        new_inputs = []
+        
+        # Get existing keys for this specific model
+        existing_inputs = self.env[input_model_name].search([('project_id', '=', project.id)])
+        existing_keys = existing_inputs.mapped('field_key')
+
+        for field in new_fields:
+            key = field.get('field_key') or field.get('field_name')
+            if key and key not in existing_keys and key not in batch_keys:
+                batch_keys.add(key)
+                vals = {
+                    'project_id': project.id,
+                    'field_key': key,
+                    'label': field.get('label'),
+                    'component_type': field.get('field_type') or field.get('component_type', 'text_input'),
+                    'data_type': field.get('data_type_validation', 'string'),
+                    'options': json.dumps(field.get('options', [])),
+                    'description_tooltip': field.get('description') or field.get('description_tooltip'),
+                    'round_number': current_round_number,
+                    'suggested_answers': json.dumps(field.get('suggested_answers', [])),
+                    'depends_on': json.dumps(field.get('depends_on', {})),
+                    'specify_triggers': json.dumps(field.get('specify_triggers', [])),
+                }
+                new_inputs.append(vals)
+        
+        if new_inputs:
+            self.env[input_model_name].create(new_inputs)
+            return True # INDICATES MORE QUESTIONS ADDED
+        else:
+            return False # INDICATES EMPTY BATCH (COMPLETED)
 
     def action_analyze_gap(self):
         """
-        Main Engine:
-        1. Gather Context.
-        2. Call AI.
-        3. Parse JSON.
-        4. Generate Questions.
+        Phase 3: Project Information Gathering (Project Specifics)
+        Uses _execute_interview_round with 'interviewer_project' prompt and 'rfp.form.input' model.
         """
         import json
-
         for project in self:
-            # 1. Gather Context
+            # Context Building
             blob_context = json.loads(project.ai_context_blob or '{}')
-            standard_requirements = blob_context.get('standard_requirements', [])
+            
+            # Gather Previous Inputs (Project Specifics)
+            previous_inputs = []
+            # Ensure chronological order
+            sorted_inputs = project.form_input_ids.sorted(key=lambda r: r.create_date or r.id)
+            for inp in sorted_inputs:
+                if inp.user_value:
+                    previous_inputs.append({"key": inp.field_key, "question": inp.label, "answer": inp.user_value})
+                elif inp.is_irrelevant:
+                     previous_inputs.append({"key": inp.field_key, "question": inp.label, "reason": f"[REJECTED] {inp.irrelevant_reason}"})
 
             context_data = {
                 "project_name": project.name,
                 "description": project.description,
                 "domain": project.domain_id.name or 'General',
                 "initial_best_practices": project.initial_research or "No research found.", 
-                "refined_best_practices": project.refined_practices, # Added for context if available
-                "previous_inputs": [],
-                "rejected_topics": []
+                "previous_inputs": previous_inputs,
+                "rejected_topics": [], # TODO: Implement separate rejected list storage if needed
+                "current_round": (len(previous_inputs) // 4) + 1
             }
-            
-            # Ensure chronological order for Recency Bias
-            sorted_inputs = project.form_input_ids.sorted(key=lambda r: r.create_date or r.id)
-            
-            for form_input in sorted_inputs:
-                if form_input.is_irrelevant:
-                    context_data["rejected_topics"].append({
-                        "key": form_input.field_key,
-                        "question": form_input.label,
-                        "reason": f"[REJECTED] {form_input.irrelevant_reason or 'No reason provided'}"
-                    })
-                elif form_input.user_value:
-                    context_data["previous_inputs"].append({
-                        "key": form_input.field_key,
-                        "question": form_input.label,
-                        "answer": form_input.user_value
-                    })
-            
-            # Calculate Round Count (Approx 4 questions per round)
-            question_count = len(context_data["previous_inputs"])
-            round_count = (question_count // 4) + 1
-            context_data["current_round"] = round_count
 
-            context_str = json.dumps(context_data, indent=2)
+            # Execute Round
+            is_ongoing = project._execute_interview_round('interviewer_project', 'rfp.form.input', context_data)
             
-            # 2. Call AI with Logging
-            prompt_record = self.env['rfp.prompt'].search([('code', '=', 'interviewer_main')], limit=1)
-            if not prompt_record:
-                raise ValueError("System Prompt 'interviewer_main' not found.")
-            
-            # Inject Round Count into Prompt Text
-            prompt_template = prompt_record.template_text.replace("{{round_count}}", str(round_count))
-            if not prompt_template:
-                raise ValueError("System Prompt 'interviewer_main' not found.")
-            
-            from odoo.addons.project_rfp_ai.models.ai_schemas import get_interviewer_schema
-
-            # We use the new Logging Model wrapper
-            try:
-                response_json_str = self.env['rfp.ai.log'].execute_request(
-                    system_prompt=prompt_template,
-                    user_context=context_str,
-                    env=self.env,
-                    mode='json',
-                    schema=get_interviewer_schema(),
-                    prompt_record=prompt_record
-                )
-            except Exception as e:
-                # If rate limit or other error raised by log model, we handle it here or let it propagate.
-                # The Log model raises RateLimitError again so we can catch it.
-                # However, our old logic handled Rate Limit by returning a custom JSON.
-                # We need to adapt.
-                # If execute_request raises RateLimitError, we should catch it and return the "Rate Limit" JSON structure
-                # so the frontend can show the warning.
-                if "Rate Limit" in str(e):
-                     response_json_str = json.dumps({
-                        "analysis_meta": {"status": "rate_limit", "completeness_score": 0},
-                        "research_notes": "High Traffic (Rate Limit). Please wait 30 seconds and retry.",
-                        "form_fields": []
-                    })
-                else: 
-                     response_json_str = json.dumps({
-                        "analysis_meta": {"status": "error", "completeness_score": 0},
-                        "research_notes": f"Error: {str(e)}",
-                        "form_fields": []
-                    })
-            
-            # 3. Parse JSON
-            if not response_json_str:
-                response_json_str = json.dumps({
-                    "analysis_meta": {"status": "error", "completeness_score": 0},
-                    "research_notes": "The AI service is temporarily unavailable (503). Please try again in a few moments.",
-                    "form_fields": []
-                })
-
-            try:
-                response_data = json.loads(response_json_str)
-            except json.JSONDecodeError:
-                # Fallback or Error handling
-                response_data = {}
-
-            # Update Metdata (Explicit Write as Text)
-            # Inject Debug Context
-            response_data['last_input_context'] = context_data
-
-            # FIX: Ensure monotonization of completeness_score (Don't let it drop)
-            current_context = project.get_context_data()
-            old_score = current_context.get('analysis_meta', {}).get('completeness_score', 0)
-            new_score = response_data.get('analysis_meta', {}).get('completeness_score', 0)
-            
-            # If new score is lower, keep the old one to avoid confusion
-            if new_score < old_score:
-                if 'analysis_meta' not in response_data:
-                    response_data['analysis_meta'] = {}
-                response_data['analysis_meta']['completeness_score'] = old_score
-
-            project.ai_context_blob = json.dumps(response_data, indent=4)
-            
-            # 4. Generate Questions
-            form_fields = response_data.get('form_fields', [])
-            
-            # Only create fields that don't exist yet? 
-            # Or assume the AI gives us the NEXT set of questions.
-            # For this MVP, we append new questions.
-            
-            # Check existing keys to avoid duplicates in this round?
-            existing_keys = project.form_input_ids.mapped('field_key')
-            if not response_data:
-                return
-
-            # CRITICAL FIX: Check for Status (Rate Limit / Error)
-            # If status is not 'success' (or implicit success), do NOT process fields and do NOT finalize.
-            analysis_meta = response_data.get('analysis_meta', {})
-            status = analysis_meta.get('status')
-            if status in ['rate_limit', 'error']:
-                # Do nothing, just return. The context blob is already updated with this status,
-                # so the UI will show the warning. We must NOT advance stage.
-                return True
-                
-            # Check for Auto-Finalization
-            is_complete = response_data.get('is_gathering_complete', False)
-            if is_complete:
-                # CHECK FOR POST-GATHERING FIELDS
-                post_fields = self.env['rfp.custom.field'].search([('phase', '=', 'post_gathering'), ('active', '=', True)])
-                post_inputs_created = False
-                
-                for pf in post_fields:
-                    # Check if already exists
-                    if not self.env['rfp.form.input'].search_count([('project_id', '=', project.id), ('field_key', '=', pf.code)]):
-                        # Serialize relational options field to JSON for form_input
-                        opts_json = "[]"
-                        if pf.option_ids:
-                            # form_input options are usually just strings, but let's see logic.
-                            # Standard form input options are ["Yes", "No"].
-                            # field.option uses {label, value}.
-                            # If we pass just a list of strings, it works for simple selects.
-                            # Let's map it to [opt.label for opt in pf.option_ids]
-                            opts_list = [opt.label for opt in pf.option_ids]
-                            opts_json = json.dumps(opts_list)
-
-                        self.env['rfp.form.input'].create({
-                            'project_id': project.id,
-                            'field_key': pf.code,
-                            'label': pf.name,
-                            'component_type': 'multiselect' if pf.input_type == 'checkboxes' else pf.input_type,
-                            'options': opts_json,
-                            'description_tooltip': pf.help_text,
-                            'round_number': 99, # High number to indicate post-phase
-                        })
-                        post_inputs_created = True
-                
-                if post_inputs_created:
-                    # If we added fields, we are NOT done. We need the user to answer them.
-                    # We might want to add a system note or just let them appear.
-                    return True
-
+            if not is_ongoing:
+                # Phase Completed -> Move to Refinement
                 project.current_stage = 'research_refinement'
-                return True
             
-            # Old logic fallback
-            if response_data.get('should_finalize'):
-                project.current_stage = 'research_refinement'
-                return True
+            return True
 
-            # Process new questions
-            new_fields = response_data.get('form_fields', [])
-            current_round_number = len(project.form_input_ids) // 5 + 1 # Simple way to increment round number, assuming 5 questions per round
+    def action_analyze_practices_gap(self):
+        """
+        Phase 5: Best Practices Gathering (Gap Analysis)
+        Uses _execute_interview_round with 'interviewer_practices' prompt and 'rfp.practice.input' model.
+        """
+        import json
+        for project in self:
+            # Context Building
+            # Gather Previous Inputs (Project Specifics - Read Only Context)
+            previous_inputs_context = []
+            for inp in project.form_input_ids:
+                 if inp.user_value:
+                    previous_inputs_context.append({"key": inp.field_key, "question": inp.label, "answer": inp.user_value})
+
+            # Gather Current Phase Inputs (Practices)
+            practice_inputs = []
+            sorted_practices = project.practice_input_ids.sorted(key=lambda r: r.create_date or r.id)
+            for inp in sorted_practices:
+                if inp.user_value:
+                    practice_inputs.append({"key": inp.field_key, "question": inp.label, "answer": inp.user_value})
+                elif inp.is_irrelevant:
+                     practice_inputs.append({"key": inp.field_key, "question": inp.label, "reason": f"[REJECTED] {inp.irrelevant_reason}"})
+
+            context_data = {
+                "project_name": project.name,
+                "description": project.description,
+                "domain": project.domain_id.name or 'General',
+                "refined_best_practices": project.refined_practices or "No refined practices key found.",
+                "previous_inputs": previous_inputs_context, # Context from Phase 3
+                "practice_inputs": practice_inputs,         # Active Context for Phase 5
+                "current_round": (len(practice_inputs) // 4) + 1
+            }
+
+            # Execute Round
+            is_ongoing = project._execute_interview_round('interviewer_practices', 'rfp.practice.input', context_data)
             
-            # Track new keys in this batch to prevent duplicates
-            batch_keys = set()
-            new_inputs = []
-            for field in new_fields:
-                # API sometimes returns field_name, sometimes field_key. Normalize.
-                key = field.get('field_key') or field.get('field_name')
-                if key and key not in existing_keys and key not in batch_keys:
-                    batch_keys.add(key)
-                    vals = {
-                        'project_id': project.id,
-                        'field_key': key,
-                        'label': field.get('label'),
-                        'component_type': field.get('field_type') or field.get('component_type', 'text_input'),
-                        'data_type': field.get('data_type_validation', 'string'),
-                        'options': json.dumps(field.get('options', [])),
-                        'description_tooltip': field.get('description') or field.get('description_tooltip'),
-                        'round_number': current_round_number,
-                        # Phase 12 Parsing
-                        'suggested_answers': json.dumps(field.get('suggested_answers', [])),
-                        'depends_on': json.dumps(field.get('depends_on', {})),
-                        'specify_triggers': json.dumps(field.get('specify_triggers', [])),
-                    }
-                    new_inputs.append(vals)
+            if not is_ongoing:
+                # Phase Completed -> Move to Structuring
+                project.current_stage = 'structuring'
             
-            if new_inputs:
-                self.env['rfp.form.input'].create(new_inputs)
-            else:
-                # If AI returned questions but they were all filtered out as duplicates (or AI returned empty list)
-                # We should assume the gathering phase is effectively complete to prevent infinite loops.
-                # If AI returned questions but they were all filtered out as duplicates (or AI returned empty list)
-                # We should assume the gathering phase is effectively complete to prevent infinite loops.
-                project.current_stage = 'research_refinement'
-                
             return True
 
     def action_generate_structure(self):

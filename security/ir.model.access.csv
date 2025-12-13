@@ -23,3 +23,5 @@ access_rfp_field_option_portal,rfp.field.option,model_rfp_field_option,base.grou
 access_rfp_project_domain_system,rfp.project.domain,model_rfp_project_domain,base.group_system,1,1,1,1
 access_rfp_project_domain_user,rfp.project.domain,model_rfp_project_domain,base.group_user,1,0,0,0
 access_rfp_project_domain_portal,rfp.project.domain,model_rfp_project_domain,base.group_portal,1,0,0,0
+access_rfp_practice_input_user,rfp.practice.input,model_rfp_practice_input,base.group_user,1,1,1,1
+access_rfp_practice_input_portal,rfp.practice.input,model_rfp_practice_input,base.group_portal,1,0,0,0

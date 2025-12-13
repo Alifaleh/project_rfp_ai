@@ -356,7 +356,13 @@
                                 </div>
 
                                 <!-- Info Box (Hidden on Rate Limit) -->
-                                <t t-set="unanswered_ids" t-value="rfp_project.form_input_ids.filtered(lambda i: not i.user_value and not i.is_irrelevant)"/>
+                                <t t-if="rfp_project.current_stage == 'gathering'">
+                                     <t t-set="unanswered_ids" t-value="rfp_project.form_input_ids.filtered(lambda i: not i.user_value and not i.is_irrelevant)"/>
+                                </t>
+                                <t t-if="rfp_project.current_stage == 'gathering_practices'">
+                                     <t t-set="unanswered_ids" t-value="rfp_project.practice_input_ids.filtered(lambda i: not i.user_value and not i.is_irrelevant)"/>
+                                </t>
+                                
                                 <div class="alert alert-info" t-if="unanswered_ids and ai_status != 'rate_limit'">
                                     <i class="fa fa-info-circle"/>
                                     The AI has analyzed your project and needs the following details to proceed.
@@ -378,7 +384,7 @@
                                     </t>
 
                                     <!-- Checkpoint State (No unanswered, but not done) -->
-                                    <t t-if="not unanswered_ids and rfp_project.current_stage == 'gathering' and ai_status != 'rate_limit'">
+                                    <t t-if="not unanswered_ids and rfp_project.current_stage in ['gathering', 'gathering_practices'] and ai_status != 'rate_limit'">
                                         <div class="alert alert-warning text-center">
                                             <h4><i class="fa fa-refresh"/>
                                                 Analysis Checkpoint</h4>
