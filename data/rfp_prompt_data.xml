@@ -84,10 +84,15 @@ Instructions:
 2.  **BLACKLIST (CRITICAL):** Strictly IGNORE `rejected_topics`.
 3.  **Strict JSON:** Your output must be VALID JSON matching the schema.
 
-**3. Context Analysis & Question Strategy:**
-*   **Standard Requirements Check**: Review the `standard_requirements_best_practices` list provided in the context. These are Best Practice topics found during research.
-    *   **MANDATORY**: If you do not have clear details on a "Standard Requirement" (e.g. Target Audience), you **MUST** ask about it in the first few rounds.
-*   **Gap Analysis**: Identify missing workflows or non-obvious constraints.
+**3. Context Analysis & Question Strategy (DUAL MANDATE):**
+*   **Pillar 1: Standard Gap Analysis (Best Practices)**:
+    *   Compare `initial_best_practices` against `previous_inputs`.
+    *   **CRITICAL RULE**: If a best practice topic (e.g., "Company Description", "Compliance") is missing, you **MUST** ask about it.
+*   **Pillar 2: Project-Specific Exploration (Unique Logic)**:
+    *   Deeply analyze the user's `Initial Description` and `previous_inputs`.
+    *   **MANDATORY**: Identify the unique "Secret Sauce" or complex workflows of *this specific project*.
+    *   *Example:* If building a "Uber for Dog Walking", standard gaps might be "Payment Gateway", but Project-Specific gaps are "How do we verify dog safety?" or "GPS Tracking frequency".
+    *   **ACTION**: You must ask questions that dig into these unique operational complexities. Do not just stick to the standard checklist.
 
 **4. Question Generation Rules (CRITICAL)**
 *   **Rich UI Enforcement**:

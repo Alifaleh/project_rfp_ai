@@ -90,6 +90,12 @@ class RfpCustomerPortal(CustomerPortal):
              # Logic to check if done? 
              # For now, redirect to status page
              return request.redirect(f"/rfp/generating/{Project.id}")
+        elif Project.current_stage == 'research_refinement':
+             # Logic to auto-advance if stuck here
+             Project.action_refine_practices()
+             if not Project.document_section_ids:
+                 Project.action_generate_structure()
+             return request.redirect(f"/rfp/structure/{Project.id}")
         elif Project.current_stage == 'completed':
              return request.redirect(f"/rfp/document/{Project.id}")
 
@@ -142,10 +148,16 @@ class RfpCustomerPortal(CustomerPortal):
         
         Project.action_analyze_gap()
         
-        # If complete, move to Structure Phase
+        # Phase Transition Handlers
+        if Project.current_stage == 'research_refinement':
+            # Phase 4: Refine Best Practices
+            Project.action_refine_practices()
+            # This moves it to 'structuring'
+
         if Project.current_stage == 'structuring':
-             # Generate initial structure
-             Project.action_generate_structure()
+             # Phase 1 (Revisited): Generate Structure (Architect)
+             if not Project.document_section_ids:
+                 Project.action_generate_structure()
              return request.redirect(f"/rfp/structure/{Project.id}")
              
         return request.redirect(f"/rfp/interface/{Project.id}")

@@ -206,6 +206,7 @@ class RfpProject(models.Model):
                 "description": project.description,
                 "domain": project.domain_id.name or 'General',
                 "initial_best_practices": project.initial_research or "No research found.", 
+                "refined_best_practices": project.refined_practices, # Added for context if available
                 "previous_inputs": [],
                 "rejected_topics": []
             }
@@ -479,7 +480,7 @@ class RfpProject(models.Model):
                 current_blob = {}
             
             current_blob['toc_structure'] = toc_data
-            current_blob['debug_architect_context'] = context_data
+            # current_blob['debug_architect_context'] = context_data
             project.ai_context_blob = json.dumps(current_blob, indent=4)
             
             # Create Empty Sections (Structure Only)
