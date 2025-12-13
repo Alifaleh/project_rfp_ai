@@ -9,6 +9,8 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         'click .btn-suggestion': '_onSuggestionClick',
         'click .btn-irrelevant-toggle': '_onIrrelevantToggle',
         'click .btn-irrelevant-cancel': '_onIrrelevantToggle',
+        'click .btn-custom-answer-toggle': '_onCustomAnswerToggle',
+        'click .btn-custom-answer-cancel': '_onCustomAnswerToggle',
         'change .rfp-input-group input, .rfp-input-group select, .rfp-input-group textarea': '_onInputChange',
         'submit form': '_onSubmit',
 
@@ -491,9 +493,15 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
             shouldShow = $box.hasClass('d-none');
         }
 
-        const $inputs = $inputGroup.find('input:not([type="hidden"]), select, textarea').not('.irrelevant-box input');
+        const $inputs = $inputGroup.find('input:not([type="hidden"]), select, textarea').not('.irrelevant-box input, .custom-answer-box input');
 
         if (shouldShow) {
+            // Hide Custom Answer box if open
+            const $customBox = this.$el.find(`#custom_answer_${fieldKey}`);
+            if (!$customBox.hasClass('d-none')) {
+                $customBox.find('.btn-custom-answer-cancel').click();
+            }
+
             $box.removeClass('d-none');
             $flag.val('true');
             $inputs.each(function () {
@@ -502,6 +510,7 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
                     $el.data('was-required', true);
                     $el.prop('required', false);
                 }
+                $el.prop('disabled', true);
             });
             $box.find('input[type="text"]').focus();
         } else {
@@ -513,6 +522,57 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
                     $el.prop('required', true);
                     $el.removeData('was-required');
                 }
+                $el.prop('disabled', false);
+            });
+        }
+    },
+
+    _onCustomAnswerToggle: function (ev) {
+        ev.preventDefault();
+        const $btn = $(ev.currentTarget);
+        const targetId = $btn.data('target');
+        const $box = this.$el.find(`#${targetId}`);
+        const fieldKey = targetId.replace('custom_answer_', '');
+        const $flag = this.$el.find(`[name="has_custom_answer_${fieldKey}"]`);
+        const $inputGroup = $btn.closest('.rfp-input-group');
+        let shouldShow = false;
+
+        if ($btn.hasClass('btn-custom-answer-cancel')) {
+            shouldShow = false;
+        } else {
+            shouldShow = $box.hasClass('d-none');
+        }
+
+        const $inputs = $inputGroup.find('input:not([type="hidden"]), select, textarea').not('.irrelevant-box input, .custom-answer-box input');
+
+        if (shouldShow) {
+            // Hide Irrelevant box if open
+            const $irrelevantBox = this.$el.find(`#irrelevant_${fieldKey}`);
+            if (!$irrelevantBox.hasClass('d-none')) {
+                $irrelevantBox.find('.btn-irrelevant-cancel').click();
+            }
+
+            $box.removeClass('d-none');
+            $flag.val('true');
+            $inputs.each(function () {
+                const $el = $(this);
+                if ($el.prop('required')) {
+                    $el.data('was-required', true);
+                    $el.prop('required', false);
+                }
+                $el.prop('disabled', true);
+            });
+            $box.find('input[type="text"]').focus();
+        } else {
+            $box.addClass('d-none');
+            $flag.val('false');
+            $inputs.each(function () {
+                const $el = $(this);
+                if ($el.data('was-required')) {
+                    $el.prop('required', true);
+                    $el.removeData('was-required');
+                }
+                $el.prop('disabled', false);
             });
         }
     },

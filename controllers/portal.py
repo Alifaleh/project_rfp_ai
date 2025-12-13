@@ -107,21 +107,38 @@ class RfpCustomerPortal(CustomerPortal):
             return request.redirect('/my')
 
         input_map = {inp.field_key: inp for inp in Project.form_input_ids}
-        for key, value in post.items():
-            if key.startswith('is_irrelevant_'):
-                base_key = key.replace('is_irrelevant_', '')
-                if base_key in input_map and value == 'true':
-                    input_map[base_key].sudo().write({'is_irrelevant': True})
-            elif key.startswith('irrelevant_reason_'):
-                base_key = key.replace('irrelevant_reason_', '')
-                if base_key in input_map:
-                    input_map[base_key].sudo().write({'irrelevant_reason': value})
-            elif key in input_map:
+        input_map = {inp.field_key: inp for inp in Project.form_input_ids}
+        
+        # Iterate through all EXPECTED inputs to handle missing/disabled keys correctly
+        for key, inp_record in input_map.items():
+            
+            # 1. Check for Custom Answer
+            custom_answer_flag = post.get(f"has_custom_answer_{key}")
+            if custom_answer_flag == 'true':
+                custom_val = post.get(f"custom_answer_val_{key}")
+                if custom_val:
+                    inp_record.sudo().write({'user_value': custom_val})
+                continue
+
+            # 2. Check for Irrelevant
+            is_irrelevant = post.get(f"is_irrelevant_{key}")
+            if is_irrelevant == 'true':
+                reason = post.get(f"irrelevant_reason_{key}")
+                vals = {'is_irrelevant': True}
+                if reason:
+                    vals['irrelevant_reason'] = reason
+                inp_record.sudo().write(vals)
+                continue
+
+            # 3. Standard Value
+            if key in post:
+                value = post.get(key)
                 specify_key = f"{key}_specify"
                 final_value = value
                 if specify_key in post and post.get(specify_key):
                      final_value = f"{value}: {post.get(specify_key)}"
-                input_map[key].sudo().write({'user_value': final_value})
+                
+                inp_record.sudo().write({'user_value': final_value})
         
         Project.action_analyze_gap()
         
