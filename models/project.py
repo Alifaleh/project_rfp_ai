@@ -580,9 +580,12 @@ class RfpProject(models.Model):
     def action_check_generation_status(self):
         """ Check completion """
         for project in self:
-            status = project.get_generation_status()
-            if status['status'] == 'completed':
-                project.current_stage = STAGE_CONTENT_GENERATED
+            status_data = project.get_generation_status()
+            if status_data['status'] == 'completed':
+                if project.current_stage == STAGE_GENERATING_CONTENT:
+                     project.current_stage = STAGE_CONTENT_GENERATED
+                elif project.current_stage == STAGE_GENERATING_IMAGES:
+                     project.current_stage = STAGE_IMAGES_GENERATED
                 return True
         return False
         
@@ -592,7 +595,8 @@ class RfpProject(models.Model):
 
     def action_generate_diagram_images(self):
         """
-        Phase 8: Image Generation (Imagen)
+        Phase 8: Image Generation (Imagen) 
+        Now using Queue Jobs (Async)
         """
         for project in self:
             project.current_stage = STAGE_GENERATING_IMAGES
@@ -603,45 +607,15 @@ class RfpProject(models.Model):
                 ('image_file', '=', False)
             ])
             
-            total = len(diagrams)
-            processed = 0
+            prompt_record = self.env['rfp.prompt'].search([('code', '=', 'image_generator')], limit=1)
+            prompt_id = prompt_record.id if prompt_record else None
             
             for diagram in diagrams:
-                # Construct Prompt
-                # Look up the standardized image generation prompt
-                prompt_record = self.env['rfp.prompt'].search([('code', '=', 'image_generator')], limit=1)
+                # Dispatch Job
+                job = diagram.with_delay(channel='root.rfp_generation').generate_image_job(prompt_record_id=prompt_id)
+                if job and hasattr(job, 'db_record'):
+                    diagram.job_id = job.db_record()
                 
-                if prompt_record:
-                    prompt = prompt_record.template_text.format(
-                        project_name=project.name,
-                        domain=project.domain_id.name or 'General',
-                        description=diagram.description
-                    )
-                else:
-                     # Fallback if prompt record missing
-                    prompt = f" Generate a professional diagram based on this exact specification:\n\n{diagram.description}"
-                
-                # Execute Request (Synchronous for now, or we could use jobs)
-                # Given counting, sync with commit is easier for progress bar.
-                try:
-                    image_bytes = self.env['rfp.ai.log'].execute_image_request(prompt=prompt, env=self.env, prompt_record=prompt_record)
-                    if image_bytes:
-                        diagram.write({
-                            'image_file': base64.b64encode(image_bytes),
-                            'image_filename': f"diagram_{diagram.id}.png"
-                        })
-                except Exception as e:
-                    _logger.error(f"Failed to generate image for diagram {diagram.id}: {str(e)}")
-                    # Continue to next
-                    pass
-                
-                processed += 1
-                # Update progress for polling
-                project.image_generation_progress = int((processed / total) * 100) if total > 0 else 100
-                self.env.cr.commit() # Commit to update progress bar
-                
-            project.current_stage = STAGE_IMAGES_GENERATED
-            project.image_generation_progress = 100
             return True
 
     def action_mark_completed(self):
@@ -722,12 +696,42 @@ class RfpProject(models.Model):
         self.ensure_one()
         
         # Branch for Image Generation Phase
+        # Branch for Image Generation Phase
         if self.current_stage == STAGE_GENERATING_IMAGES:
+             # Count Diagram Jobs
+             diagrams = self.env['rfp.section.diagram'].search([('section_id.project_id', '=', self.id)])
+             total_diagrams = len(diagrams)
+             
+             if total_diagrams == 0:
+                  return {'status': 'completed', 'progress': 100, 'completed': 0, 'total': 0}
+
+             completed_diagrams = 0
+             failed_diagrams = 0
+             
+             for d in diagrams:
+                 if d.image_file:
+                     completed_diagrams += 1
+                 elif d.job_id: # Check job status
+                     if d.job_id.state == 'done':
+                         completed_diagrams += 1
+                     elif d.job_id.state == 'failed':
+                         failed_diagrams += 1
+             
+             progress = (completed_diagrams / total_diagrams) * 100 if total_diagrams > 0 else 0
+             
+             status = 'generating_images'
+             if completed_diagrams == total_diagrams:
+                 status = 'completed'
+             elif failed_diagrams > 0 and (completed_diagrams + failed_diagrams == total_diagrams):
+                 status = 'completed_with_errors' # Should we allow partial?
+                 # If all done (success or fail), mark complete so user isn't stuck
+                 status = 'completed' 
+                 
              return {
-                 'status': 'generating_images', 
-                 'progress': self.image_generation_progress, 
-                 'completed': self.image_generation_progress, 
-                 'total': 100
+                 'status': status, 
+                 'progress': int(progress), 
+                 'completed': completed_diagrams, 
+                 'total': total_diagrams
              }
         
         total = len(self.document_section_ids)

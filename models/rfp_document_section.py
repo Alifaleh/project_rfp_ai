@@ -1,5 +1,6 @@
 import json
 from odoo import models, fields, api
+import base64
 
 class RfpSectionDiagram(models.Model):
     _name = 'rfp.section.diagram'
@@ -11,6 +12,35 @@ class RfpSectionDiagram(models.Model):
     
     image_file = fields.Binary(string="Generated Image", attachment=True)
     image_filename = fields.Char(string="Image Filename")
+    
+    job_id = fields.Many2one('queue.job', string="Generation Job", readonly=True)
+
+    def generate_image_job(self, prompt_record_id=None):
+        self.ensure_one()
+        try:
+            prompt_record = self.env['rfp.prompt'].browse(prompt_record_id) if prompt_record_id else None
+            
+            # Fallback Prompt Construction
+            project = self.section_id.project_id
+            if prompt_record:
+                prompt = prompt_record.template_text.format(
+                    project_name=project.name,
+                    domain=project.domain_id.name or 'General',
+                    description=self.description
+                )
+            else:
+                prompt = f" Generate a professional diagram based on this exact specification:\n\n{self.description}"
+            
+            image_bytes = self.env['rfp.ai.log'].execute_image_request(prompt=prompt, env=self.env, prompt_record=prompt_record)
+            
+            if image_bytes:
+                self.write({
+                    'image_file': base64.b64encode(image_bytes),
+                    'image_filename': f"diagram_{self.id}.png"
+                })
+        except Exception as e:
+            raise e # Queue Job handles retry/failure
+            
 
 class RfpDocumentSection(models.Model):
     _name = 'rfp.document.section'
