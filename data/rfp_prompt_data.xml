@@ -269,7 +269,20 @@ Return ONLY the JSON object.
 2.  Use the `Global Structure` to verify if your section has children.
 3.  Use the `User Requirements` as the source of truth.
 4.  **Format**: Use semantic HTML5. Use `<h3>`, `<p>`, `<ul>`/`<li>`, `<strong>`, etc. Do NOT use `<h1>` or `<h2>` (reserved for titles). Do NOT use Markdown. Do NOT use `<html>`/`<body>` tags.
-5.  **Diagrams**: If a diagram would clarify this section (e.g. Workflow, Architecture, User Flow), include it in the `diagrams` list with a title and description. Do NOT generate the image yourself.
+
+**5. DIAGRAM DESCRIPTION GUIDE (CRITICAL FOR VISUAL AI):**
+   *   If a diagram clarifies this section (e.g., Workflow, Architecture, User Flow), add it to the `diagrams` list.
+   *   **STRICT VISUAL BLUEPRINT RULE:** The `description` field MUST be an **EXACT, EXHAUSTIVE SPECIFICATION** of the image.
+   *   **FORBIDDEN LANGUAGE:** Do NOT use: "like", "such as", "including", "phases like", "various", "etc".
+   *   **REQUIREMENT:** You must explicitly list **EVERY SINGLE ELEMENT** that appears in the diagram.
+   *   **BAD**: "A flowchart showing phases like A, B, and C."
+   *   **GOOD**: "A flowchart with exactly 4 boxes connected by arrows from left to right. Box 1: Label 'Input'. Box 2: Label 'Processing'. Box 3: Label 'Review'. Box 4: Label 'Final Output'. Arrows are grey. Background is white."
+   *   **INCLUDE**:
+       *   **Exact Labels**: You MUST write: "Node labeled 'X'".
+       *   **Exact Counts**: "Three cylinders", not "some databases".
+       *   **Visual Structure**: "Top-down hierarchy", "Left-to-Right funnel".
+   *   **The goal is to REMOVE ALL CREATIVITY from the Image Generation AI. It is a printer; YOU are the Architect.**
+
 6.  **Style**: Use **simple, clear, and easy-to-understand English**. Avoid complex jargon or overly formal legal phrasing unless necessary.
     *   **Comprehensive but Accessible**: Explain the idea fully so the reader understands it completely. Do not write filler content just to increase length; write exactly what is needed for clarity.
     *   **Engaging**: Make the content professional but **not boring**. Use active voice where appropriate.
@@ -280,6 +293,38 @@ Return ONLY the JSON object.
             </field>
         </record>
 
+
+        <!-- Phase 8: Image Generation -->
+        <record id="prompt_image_generator" model="rfp.prompt">
+            <field name="name">Phase 8: Image Generator</field>
+            <field name="code">image_generator</field>
+            <field name="ai_model_id" ref="model_imagen_4_0_generate_001"/>
+            <field name="template_text">
+                <![CDATA[
+Role: You are a Professional Technical Illustrator for Enterprise Software.
+Goal: Generate a high-fidelity, professional technical diagram based on the EXACT structural blueprint provided below.
+
+Context:
+- Project: {project_name}
+- Domain: {domain}
+
+**Visual Style Guidelines (STRICT):**
+1.  **Style**: Modern Corporate Technical Diagram. Clean lines, vector-style flat design.
+2.  **Palette**: Professional software architecture colors (Blues, Greys, Whites, subtle Accents).
+3.  **Background**: Pure White (#FFFFFF) or very light grey. NO dark mode.
+4.  **Layout**: Organized, symmetrical, and hierarchical.
+5.  **Text**: If you render text, it must be legible, sans-serif, and professional (e.g., Roboto, Arial).
+
+**BLUEPRINT (EXECUTE EXACTLY):**
+{description}
+
+**Negative Constraints (DO NOT DO):**
+- Do NOT generate sketches, hand-drawn styles, or artistic abstractions.
+- Do NOT add decorative elements that are not in the blueprint (no random clouds, no random floating icons).
+- Do NOT deviate from the count of elements specified (if it says "3 boxes", draw exactly 3).
+]]>
+            </field>
+        </record>
 
     </data>
 </odoo>

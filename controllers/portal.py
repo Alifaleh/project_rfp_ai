@@ -88,6 +88,10 @@ class RfpCustomerPortal(CustomerPortal):
              return request.redirect(f"/rfp/generating/{Project.id}")
         elif Project.current_stage == STAGE_CONTENT_GENERATED:
              return request.redirect(f"/rfp/review/{Project.id}")
+        elif Project.current_stage == STAGE_GENERATING_IMAGES:
+             return request.redirect(f"/rfp/generating_images/{Project.id}")
+        elif Project.current_stage == STAGE_IMAGES_GENERATED:
+             return request.redirect(f"/rfp/images_review/{Project.id}")
         elif Project.current_stage == STAGE_DOCUMENT_LOCKED:
              return request.redirect(f"/rfp/document/{Project.id}")
         elif Project.current_stage == STAGE_COMPLETED_WITH_ERRORS:
@@ -168,6 +172,8 @@ class RfpCustomerPortal(CustomerPortal):
                 final_value = value
                 if specify_key in post and post.get(specify_key):
                      final_value = f"{value}: {post.get(specify_key)}"
+                
+                inp_record.sudo().write({'user_value': final_value})
         # Trigger Next Analysis Step
         if stage_action:
             stage_action()
@@ -231,7 +237,10 @@ class RfpCustomerPortal(CustomerPortal):
         Project = request.env['rfp.project'].sudo().browse(project_id)
         if not Project.exists() or Project.user_id != request.env.user:
             return {'error': 'Access Denied'}
-            
+        
+        # Trigger status check to update stage if complete
+        Project.action_check_generation_status()
+        
         # Return progress
         status_data = Project.get_generation_status()
         return status_data
@@ -266,10 +275,48 @@ class RfpCustomerPortal(CustomerPortal):
             Project.action_update_content_html(sections_content)
             
         if finish:
-            Project.action_mark_completed()
-            return {'status': 'success', 'redirect': f'/rfp/document/{Project.id}'}
+            # Transition to Image Generation
+            Project.sudo().write({'current_stage': STAGE_GENERATING_IMAGES})
+            Project.with_delay().action_generate_diagram_images()
+            return {'status': 'success', 'redirect': f'/rfp/generating_images/{Project.id}'}
             
         return {'status': 'success'}
+
+    # --- PHASE 4.5: IMAGE GENERATION & REVIEW ---
+    @http.route(['/rfp/generating_images/<int:project_id>'], type='http', auth="user", website=True)
+    def portal_rfp_generating_images(self, project_id, **kw):
+        Project = request.env['rfp.project'].sudo().browse(project_id)
+        if not Project.exists() or Project.user_id != request.env.user:
+            return request.redirect('/my')
+            
+        values = self._prepare_portal_layout_values()
+        values.update({
+            'rfp_project': Project,
+            'page_name': 'rfp_generating_images',
+        })
+        return request.render("project_rfp_ai.portal_rfp_generating_images", values)
+
+    @http.route(['/rfp/images_review/<int:project_id>'], type='http', auth="user", website=True)
+    def portal_rfp_images_review(self, project_id, **kw):
+        Project = request.env['rfp.project'].sudo().browse(project_id)
+        if not Project.exists() or Project.user_id != request.env.user:
+            return request.redirect('/my')
+            
+        values = self._prepare_portal_layout_values()
+        values.update({
+            'rfp_project': Project,
+            'page_name': 'rfp_images_review',
+        })
+        return request.render("project_rfp_ai.portal_rfp_images_review", values)
+        
+    @http.route(['/rfp/images/finish/<int:project_id>'], type='json', auth="user", website=True)
+    def portal_rfp_images_finish(self, project_id):
+        Project = request.env['rfp.project'].sudo().browse(project_id)
+        if not Project.exists() or Project.user_id != request.env.user:
+             return {'error': 'Access Denied'}
+             
+        Project.action_mark_completed()
+        return {'status': 'success', 'redirect': f'/rfp/document/{Project.id}'}
 
     # --- PHASE 5: COMPLETED DOCUMENT ---
     @http.route(['/rfp/document/<int:project_id>'], type='http', auth="user", website=True)
@@ -305,32 +352,44 @@ class RfpCustomerPortal(CustomerPortal):
         if not Project.exists() or Project.user_id != request.env.user:
             return request.redirect('/my')
 
-        # Generate HTML content wrapper for Word
-        html_content = f"""
-        <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-        <head><meta charset='utf-8'><title>{Project.name}</title></head>
-        <body>
-        <h1>{Project.name}</h1>
-
-        <hr/>
-        """
+        # Use Zero-Dependency DOCX Generator
+        from odoo.addons.project_rfp_ai.utils.simple_docx import SimpleDocxGenerator
         
-        # Simple Markdown parsing (Very basic: ** -> <b>, # -> h1, etc.)
-        # Or just dump raw text if no library. 
-        # Actually, let's just dump the text but wrap in <pre> or basic formatting? 
-        # Ideally we'd use a markdown lib but might not be available.
-        # Let's try to do minimal formatting.
+        docx = SimpleDocxGenerator()
+        
+        # Add Title
+        docx.add_heading(Project.name, 1)
+        docx.add_text("") # spacing
         
         for section in Project.document_section_ids.sorted('sequence'):
-            html_content += f"<h2>{section.section_title}</h2>"
-            # Content is now HTML
-            formatted_text = section.content_html
-            html_content += f"<div>{formatted_text}</div><hr/>"
+            docx.add_heading(section.section_title, 2)
             
-        html_content += "</body></html>"
+            # Content
+            if section.content_html:
+                docx.add_html_chunk(section.content_html)
+                
+            # Diagrams
+            if section.diagram_ids:
+                docx.add_spacer()
+                
+                for diagram in section.diagram_ids:
+                    # Image
+                    if diagram.image_file:
+                        try:
+                            image_data = base64.b64decode(diagram.image_file)
+                            docx.add_image(image_data)
+                        except Exception as e:
+                            print(f"Error embedding image: {e}")
+                            docx.add_text("[Error embedding image]")
+                            
+                    # Title (Caption) under the image
+                    docx.add_caption(diagram.title)
+                    docx.add_spacer()
+
+        file_content = docx.generate()
         
         headers = [
-            ('Content-Type', 'application/msword'),
-            ('Content-Disposition', f'attachment; filename="RFP - {Project.name}.doc"')
+            ('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'),
+            ('Content-Disposition', f'attachment; filename="RFP - {Project.name}.docx"')
         ]
-        return request.make_response(html_content, headers=headers)
+        return request.make_response(file_content, headers=headers)

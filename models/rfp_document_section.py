@@ -8,6 +8,9 @@ class RfpSectionDiagram(models.Model):
     section_id = fields.Many2one('rfp.document.section', string="Section", ondelete='cascade')
     title = fields.Char(string="Diagram Title", required=True)
     description = fields.Text(string="Description", required=True)
+    
+    image_file = fields.Binary(string="Generated Image", attachment=True)
+    image_filename = fields.Char(string="Image Filename")
 
 class RfpDocumentSection(models.Model):
     _name = 'rfp.document.section'
@@ -37,6 +40,9 @@ class RfpDocumentSection(models.Model):
         try:
             from odoo.addons.project_rfp_ai.models.ai_schemas import get_section_content_schema
             
+            # Retrieve Prompt Record for Logging
+            prompt_record = self.env['rfp.prompt'].search([('code', '=', 'writer_section_content')], limit=1)
+
             # We use the existing AI Log wrapper which handles API calls, retry, and logging.
             # Updated to request JSON schema for Diagrams + Content.
             response_json_str = self.env['rfp.ai.log'].execute_request(
@@ -44,7 +50,8 @@ class RfpDocumentSection(models.Model):
                 user_context=user_context,
                 env=self.env,
                 mode='json',
-                schema=get_section_content_schema()
+                schema=get_section_content_schema(),
+                prompt_record=prompt_record
             )
             
             try:

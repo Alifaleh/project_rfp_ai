@@ -1,6 +1,7 @@
 from odoo import models, fields, api
 import json
 import logging
+import base64
 from odoo.addons.project_rfp_ai.const import *
 
 _logger = logging.getLogger(__name__)
@@ -32,10 +33,15 @@ class RfpProject(models.Model):
         (STAGE_SECTIONS_GENERATED, 'Sections Generated'),
         (STAGE_GENERATING_CONTENT, 'Generating Content'),
         (STAGE_CONTENT_GENERATED, 'Content Generated'),
+        (STAGE_GENERATING_IMAGES, 'Generating Images'),
+        (STAGE_IMAGES_GENERATED, 'Images Generated'),
         (STAGE_DOCUMENT_LOCKED, 'Document Locked'),
         (STAGE_COMPLETED_WITH_ERRORS, 'Completed With Errors'),
         (STAGE_COMPLETED, 'Completed'),
+        (STAGE_COMPLETED, 'Completed'),
     ], string="Current Stage", default=STAGE_DRAFT, tracking=False, group_expand='_expand_stages')
+
+    image_generation_progress = fields.Integer(string="Image Gen Progress", default=0, help="Transient field for progress bar")
 
     active = fields.Boolean(default=True)
 
@@ -584,6 +590,60 @@ class RfpProject(models.Model):
         self.current_stage = STAGE_DOCUMENT_LOCKED
         return True
 
+    def action_generate_diagram_images(self):
+        """
+        Phase 8: Image Generation (Imagen)
+        """
+        for project in self:
+            project.current_stage = STAGE_GENERATING_IMAGES
+            
+            # Find diagrams needing images
+            diagrams = self.env['rfp.section.diagram'].search([
+                ('section_id.project_id', '=', project.id),
+                ('image_file', '=', False)
+            ])
+            
+            total = len(diagrams)
+            processed = 0
+            
+            for diagram in diagrams:
+                # Construct Prompt
+                # Look up the standardized image generation prompt
+                prompt_record = self.env['rfp.prompt'].search([('code', '=', 'image_generator')], limit=1)
+                
+                if prompt_record:
+                    prompt = prompt_record.template_text.format(
+                        project_name=project.name,
+                        domain=project.domain_id.name or 'General',
+                        description=diagram.description
+                    )
+                else:
+                     # Fallback if prompt record missing
+                    prompt = f" Generate a professional diagram based on this exact specification:\n\n{diagram.description}"
+                
+                # Execute Request (Synchronous for now, or we could use jobs)
+                # Given counting, sync with commit is easier for progress bar.
+                try:
+                    image_bytes = self.env['rfp.ai.log'].execute_image_request(prompt=prompt, env=self.env, prompt_record=prompt_record)
+                    if image_bytes:
+                        diagram.write({
+                            'image_file': base64.b64encode(image_bytes),
+                            'image_filename': f"diagram_{diagram.id}.png"
+                        })
+                except Exception as e:
+                    _logger.error(f"Failed to generate image for diagram {diagram.id}: {str(e)}")
+                    # Continue to next
+                    pass
+                
+                processed += 1
+                # Update progress for polling
+                project.image_generation_progress = int((processed / total) * 100) if total > 0 else 100
+                self.env.cr.commit() # Commit to update progress bar
+                
+            project.current_stage = STAGE_IMAGES_GENERATED
+            project.image_generation_progress = 100
+            return True
+
     def action_mark_completed(self):
         for project in self:
             project.current_stage = 'completed'
@@ -660,6 +720,16 @@ class RfpProject(models.Model):
         Returns aggregate status of content generation jobs.
         """
         self.ensure_one()
+        
+        # Branch for Image Generation Phase
+        if self.current_stage == STAGE_GENERATING_IMAGES:
+             return {
+                 'status': 'generating_images', 
+                 'progress': self.image_generation_progress, 
+                 'completed': self.image_generation_progress, 
+                 'total': 100
+             }
+        
         total = len(self.document_section_ids)
         if total == 0:
             return {'status': 'completed', 'progress': 100}

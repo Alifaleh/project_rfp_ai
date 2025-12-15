@@ -16,9 +16,10 @@
                     <button name="action_generate_content" string="Generate Content" type="object" invisible="current_stage != 'sections_generated'"/>
                     <button name="action_check_generation_status" string="Example Check Status" type="object" invisible="current_stage != 'generating_content'"/>
                     
-                    <button name="action_mark_completed" string="Force Complete" type="object" invisible="current_stage not in ['content_generated', 'completed_with_errors']"/>
+                    <button name="action_generate_diagram_images" string="Generate Diagram Images" type="object" invisible="current_stage not in ['content_generated', 'generating_images']"/>
+                    <button name="action_mark_completed" string="Force Complete" type="object" invisible="current_stage not in ['content_generated', 'images_generated', 'completed_with_errors']"/>
                     
-                    <field name="current_stage" widget="statusbar" statusbar_visible="draft,initialized,info_gathered,practices_refined,specifications_gathered,practices_gap_gathered,sections_generated,generating_content,content_generated,document_locked" options="{'clickable': '1'}"/>
+                    <field name="current_stage" widget="statusbar" statusbar_visible="draft,initialized,info_gathered,practices_refined,specifications_gathered,practices_gap_gathered,sections_generated,generating_content,content_generated,generating_images,images_generated,document_locked" options="{'clickable': '1'}"/>
                 </header>
                 <sheet>
                     <div class="oe_title">

@@ -401,6 +401,86 @@
         </t>
     </template>
 
+    <!-- PHASE 4.5: GENERATING IMAGES STATUS -->
+    <template id="portal_rfp_generating_images" name="RFP Generating Images Status">
+        <t t-call="portal.portal_layout">
+            <div class="container mt-5 text-center rfp-portal-wrapper">
+                <div class="card shadow p-5">
+                    <h2 class="mb-4">Generating Diagrams...</h2>
+                    <p class="lead text-muted">The AI Designer is drawing your visuals. This usually takes 1-2 minutes.</p>
+                    <p class="small text-muted">Please stay on this page for faster updates.</p>
+
+                    <div class="progress mt-4 mb-3" style="height: 30px;">
+                        <!-- Reusing the same JS logic if possible, or we need slight tweak in JS to handle status='generating_images' -->
+                        <div id="rfp_generation_progress" class="progress-bar progress-bar-striped progress-bar-animated bg-info" role="progressbar" style="width: 0%" t-att-data-project-id="rfp_project.id">
+                            0%
+                        </div>
+                    </div>
+
+                    <div id="rfp_completion_area" class="d-none mt-4">
+                        <a t-attf-href="/rfp/images_review/#{rfp_project.id}" class="btn btn-primary btn-lg pulse-button">
+                            Review Diagrams
+                            <i class="fa fa-image list-inline-item mx-1"/>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </t>
+    </template>
+
+    <!-- PHASE 4.6: IMAGES REVIEW -->
+    <template id="portal_rfp_images_review" name="RFP Images Review">
+        <t t-call="portal.portal_layout">
+            <div class="container mt-4 mb-5 rfp-portal-wrapper">
+                <div class="d-flex justify-content-between align-items-center mb-4 sticky-top bg-white p-3 shadow-sm rounded">
+                    <h3>Review Diagrams</h3>
+                    <div>
+                         <!-- Finish Action -->
+                        <button id="btn_finish_images" class="btn btn-success" t-att-data-project-id="rfp_project.id">
+                            <i class="fa fa-check"/>
+                            Complete Project
+                        </button>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <t t-if="not rfp_project.document_section_ids.mapped('diagram_ids')">
+                        <div class="col-12">
+                             <div class="alert alert-warning">No diagrams were identified for this project.</div>
+                        </div>
+                    </t>
+
+                    <t t-foreach="rfp_project.document_section_ids" t-as="section">
+                         <t t-foreach="section.diagram_ids" t-as="diagram">
+                            <div class="col-md-6 mb-4">
+                                <div class="card shadow-sm h-100">
+                                    <div class="card-header">
+                                        <h5 class="mb-0"><t t-esc="diagram.title"/></h5>
+                                        <p class="text-muted small mb-0">Section: <t t-esc="section.section_title"/></p>
+                                    </div>
+                                    <div class="card-body text-center bg-light">
+                                        <t t-if="diagram.image_file">
+                                            <img t-att-src="'/web/image/rfp.section.diagram/%s/image_file' % diagram.id" class="img-fluid rounded shadow-sm" style="max-height: 400px;"/>
+                                        </t>
+                                        <t t-else="">
+                                            <div class="py-5 text-muted">
+                                                <i class="fa fa-exclamation-triangle fa-3x mb-3"/>
+                                                <p>Image Generation Failed or Missing</p>
+                                            </div>
+                                        </t>
+                                    </div>
+                                    <div class="card-footer bg-white">
+                                         <p class="small text-muted mb-0"><t t-esc="diagram.description"/></p>
+                                    </div>
+                                </div>
+                            </div>
+                         </t>
+                    </t>
+                </div>
+            </div>
+        </t>
+    </template>
+
     <!-- PHASE 4: CONTENT REVIEW -->
     <template id="portal_rfp_content_review" name="RFP Content Review">
         <t t-call="portal.portal_layout">
@@ -416,9 +496,9 @@
                             <i class="fa fa-save"/>
                             Save Draft
                         </button>
-                        <button id="btn_submit_content" class="btn btn-success" t-att-data-project-id="rfp_project.id">
-                            <i class="fa fa-check"/>
-                            Finalize Project
+                        <button id="btn_submit_content" class="btn btn-primary" t-att-data-project-id="rfp_project.id">
+                            <i class="fa fa-image"/>
+                            Generate Diagrams
                         </button>
                     </div>
                 </div>
@@ -447,16 +527,16 @@
                     <div class="modal-dialog">
                         <div class="modal-content">
                             <div class="modal-header">
-                                <h5 class="modal-title">Finalize Project?</h5>
+                                <h5 class="modal-title">Generate Diagrams?</h5>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                             </div>
                             <div class="modal-body">
-                                <p>Are you sure you want to finalize this project? </p>
-                                <p class="small text-muted">This will mark the document as completed.</p>
+                                <p>Are you sure you want to proceed to Image Generation?</p>
+                                <p class="small text-muted">The AI will generate diagrams based on the structure.</p>
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                <button type="button" class="btn btn-primary" id="btn_confirm_finalize_action">Yes, Finalize</button>
+                                <button type="button" class="btn btn-primary" id="btn_confirm_finalize_action">Yes, Generate</button>
                             </div>
                         </div>
                     </div>
@@ -522,6 +602,20 @@
                                     <div class="mb-5">
                                         <h2 t-field="section.section_title" class="mb-3"/>
                                         <div class="rfp-section-content" t-field="section.content_html"/>
+                                        
+                                        <!-- Attached Diagrams -->
+                                        <t t-if="section.diagram_ids">
+                                            <div class="mt-4">
+                                                <t t-foreach="section.diagram_ids" t-as="diagram">
+                                                    <figure class="text-center mb-4" t-if="diagram.image_file">
+                                                        <img t-att-src="'/web/image/rfp.section.diagram/%s/image_file' % diagram.id" class="img-fluid rounded shadow-sm border" style="max-height: 600px;"/>
+                                                        <figcaption class="mt-2 text-muted fst-italic">
+                                                            <strong t-esc="diagram.title"/>
+                                                        </figcaption>
+                                                    </figure>
+                                                </t>
+                                            </div>
+                                        </t>
                                     </div>
                                     <hr t-if="not section_last"/>
                                 </t>

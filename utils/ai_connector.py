@@ -83,3 +83,34 @@ def _call_gemini_api(system_instructions, user_content, env, response_mime_type=
             
         _logger.error(f"Gemini SDK Error: {error_msg}")
         return None
+
+def _generate_image_gemini(prompt, env, model_name='imagen-3.0-generate-001'):
+    """
+    Helper to generate images using Google Imagen 3 via GenAI SDK.
+    Returns: Base64 string of the image or None.
+    """
+    if not genai:
+        _logger.error("google-genai library not installed!")
+        return None
+
+    api_key = env['ir.config_parameter'].sudo().get_param('project_rfp_ai.gemini_api_key', DEFAULT_GEMINI_KEY)
+    if not api_key:
+        _logger.error("Gemini API Key is not configured!")
+        # We can raise here to be consistent
+        raise ValueError("Gemini API Key is not configured")
+
+    client = genai.Client(api_key=api_key)
+    
+    response = client.models.generate_images(
+        model=model_name,
+        prompt=prompt,
+        config=types.GenerateImagesConfig(
+            number_of_images=1,
+        )
+    )
+    
+    if response.generated_images:
+        # Return the first image as base64 bytes (or string depending on SDK, usually bytes)
+        return response.generated_images[0].image.image_bytes
+        
+    return None

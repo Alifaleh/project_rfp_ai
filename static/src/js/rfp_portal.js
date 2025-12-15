@@ -23,7 +23,9 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         // Content Review Actions
         'click #btn_save_content': '_onSaveContent',
         'click #btn_submit_content': '_onSubmitContent',
+        'click #btn_submit_content': '_onSubmitContent',
         'click #btn_confirm_finalize_action': '_onConfirmFinalizeAction',
+        'click #btn_finish_images': '_onFinishImages',
     },
 
     // Custom RPC implementation to avoid module dependency issues in frontend
@@ -668,5 +670,34 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
                 $specifyInput.addClass('d-none').prop('required', false).val('');
             }
         });
+    },
+
+    _onFinishImages: async function (ev) {
+        ev.preventDefault();
+        const $btn = $(ev.currentTarget);
+        const projectId = $btn.data('project-id');
+        const originalText = $btn.html();
+
+        if (!confirm("Are you sure you want to complete the project?")) return;
+
+        $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i>');
+
+        try {
+            const result = await this._rpc({
+                route: `/rfp/images/finish/${projectId}`,
+                params: {}
+            });
+
+            if (result.status === 'success') {
+                window.location.href = result.redirect;
+            } else {
+                alert("Error: " + result.error);
+                $btn.prop('disabled', false).html(originalText);
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Error completing project.");
+            $btn.prop('disabled', false).html(originalText);
+        }
     }
 });

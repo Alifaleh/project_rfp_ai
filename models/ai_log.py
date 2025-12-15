@@ -141,3 +141,64 @@ class RfpAiLog(models.Model):
                 'response_date': fields.Datetime.now()
             })
             raise e
+
+    @api.model
+    @api.model
+    def execute_image_request(self, prompt, env=None, prompt_record=None):
+        """
+        Execute Image Generation Request.
+        """
+        from odoo.addons.project_rfp_ai.utils import ai_connector
+        
+        if not env:
+            env = self.env
+            
+        vals = {
+            'prompt_used': prompt,
+            'input_context': 'Image Generation',
+            'state': AI_STATUS_SENDING,
+            'request_date': fields.Datetime.now(),
+        }
+
+        model_name = 'imagen-3.0-generate-001' # Default fallback
+
+        if prompt_record:
+            vals['prompt_id'] = prompt_record.id
+            if prompt_record.ai_model_id:
+                vals['ai_model_id'] = prompt_record.ai_model_id.id
+                model_name = prompt_record.ai_model_id.technical_name
+
+        log = self.create(vals)
+        start_time = time.time()
+        
+        try:
+            image_bytes = ai_connector._generate_image_gemini(prompt, env, model_name=model_name)
+            
+            duration = time.time() - start_time
+            
+            if image_bytes:
+                log.write({
+                    'response_raw': '[IMAGE BINARY DATA]',
+                    'response_date': fields.Datetime.now(),
+                    'duration': duration,
+                    'state': AI_STATUS_SUCCESS
+                })
+                return image_bytes
+            else:
+                log.write({
+                    'state': AI_STATUS_ERROR,
+                    'error_message': 'No image returned',
+                    'duration': duration,
+                    'response_date': fields.Datetime.now()
+                })
+                return None
+                
+        except Exception as e:
+            duration = time.time() - start_time
+            log.write({
+                'state': AI_STATUS_ERROR,
+                'error_message': str(e),
+                'duration': duration,
+                'response_date': fields.Datetime.now()
+            })
+            return None
