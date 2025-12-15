@@ -54,6 +54,17 @@
                                 </list>
                             </field>
                         </page>
+                        <page string="Suggestions" invisible="input_type in ['radio', 'select', 'checkboxes']">
+                            <field name="suggestion_ids">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="name"/>
+                                </list>
+                            </field>
+                            <div class="text-muted">
+                                <small>Suggestions appear as clickable chips for text inputs.</small>
+                            </div>
+                        </page>
                     </notebook>
                 </sheet>
             </form>

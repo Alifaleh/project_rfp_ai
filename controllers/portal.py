@@ -3,6 +3,7 @@ from odoo.http import request
 from odoo.addons.portal.controllers.portal import CustomerPortal
 import json
 import base64
+from odoo.addons.project_rfp_ai.const import *
 
 class RfpCustomerPortal(CustomerPortal):
 
@@ -30,33 +31,13 @@ class RfpCustomerPortal(CustomerPortal):
 
     @http.route(['/rfp/start'], type='http', auth="user", website=True)
     def portal_rfp_start(self, **kw):
-        init_fields = request.env['rfp.custom.field'].search([('phase', '=', 'init'), ('active', '=', True)])
-        values = {
-            'init_fields': init_fields
-        }
-        return request.render("project_rfp_ai.portal_rfp_start", values)
+        # Refactor Phase 4: Init fields moved to gathering stage
+        return request.render("project_rfp_ai.portal_rfp_start", {})
 
     @http.route(['/rfp/init'], type='http', auth="user", website=True, methods=['POST'], csrf=True)
     def portal_rfp_init(self, **post):
         if request.httprequest.method == 'POST':
-            # Process Init Fields
-            init_fields = request.env['rfp.custom.field'].search([('phase', '=', 'init'), ('active', '=', True)])
-            description_lines = []
-            if post.get('description'):
-                description_lines.append(post.get('description'))
-            
-            for field in init_fields:
-                if field.input_type == 'checkboxes':
-                    # Multi-select check boxes return a list of values from POST
-                    val_list = request.httprequest.form.getlist(field.code)
-                    if val_list:
-                         description_lines.append(f"{field.name}: {', '.join(val_list)}")
-                else:
-                    val = post.get(field.code)
-                    if val:
-                        description_lines.append(f"{field.name}: {val}")
-            
-            final_description = "\n".join(description_lines)
+            final_description = post.get('description', '')
 
             Project = request.env['rfp.project'].sudo()
             new_project = Project.create({
@@ -64,16 +45,14 @@ class RfpCustomerPortal(CustomerPortal):
                 'description': final_description,
                 'user_id': request.env.user.id
             })
-            # PHASE 0 & 2: Initialization & Research
-            # WE MUST CHAIN THESE EXPLICITLY TO AVOID RACE CONDITIONS
-            # 1. Initialize (Domain & Description)
+            
+            # 1. Initialize (Create empty inputs for Init Fields)
             new_project.action_initialize_project()
             
-            # 2. Research Best Practices (Must happen BEFORE gathering)
-            new_project.action_research_initial()
-
-            # 3. Information Gathering (Interviewer)
-            new_project.action_analyze_gap()
+            # 2. DO NOT trigger action_analyze_gap yet
+            # We want the user to answer the Init Fields first in the portal interface.
+            # The interface logic will detect them and present them.
+            
             return request.redirect(f"/rfp/interface/{new_project.id}")
         return request.redirect('/my/rfp/start')
 
@@ -83,35 +62,68 @@ class RfpCustomerPortal(CustomerPortal):
         if not Project.exists() or Project.user_id != request.env.user:
             return request.redirect('/my')
             
-        # Redirect based on stage
-        if Project.current_stage == 'structuring':
+        
+        # 0. Handle Draft State
+        if Project.current_stage == STAGE_DRAFT:
+            Project.action_initialize_project()
+            return request.redirect(f"/rfp/interface/{Project.id}")
+
+        # 1. Workflow Automation (Try to advance non-interactive stages)
+        if Project.current_stage == STAGE_INFO_GATHERED:
+            Project.action_proceed_next_stage() # -> practices_refined
+            return request.redirect(f"/rfp/interface/{Project.id}")
+            
+        elif Project.current_stage == STAGE_PRACTICES_REFINED:
+             Project.action_proceed_next_stage() # -> specifications_gathered
+             return request.redirect(f"/rfp/interface/{Project.id}")
+             
+        elif Project.current_stage == STAGE_PRACTICES_GAP_GATHERED:
+             Project.action_proceed_next_stage() # -> sections_generated
+             return request.redirect(f"/rfp/interface/{Project.id}")
+        
+        # 2. Redirect based on Major Phase
+        if Project.current_stage == STAGE_SECTIONS_GENERATED:
              return request.redirect(f"/rfp/structure/{Project.id}")
-        elif Project.current_stage == 'writing':
-             # Logic to check if done? 
-             # For now, redirect to status page
+        elif Project.current_stage == STAGE_GENERATING_CONTENT:
              return request.redirect(f"/rfp/generating/{Project.id}")
-        elif Project.current_stage == 'research_refinement':
-             # Logic to auto-advance if stuck here
-             Project.action_refine_practices()
-             
-             # Correct Logic: After refinement, stage is 'gathering_practices'.
-             # Check if questions exist, if not, trigger first round.
-             if Project.current_stage == 'gathering_practices':
-                 if not Project.practice_input_ids:
-                      Project.action_analyze_practices_gap()
-                 return request.redirect(f"/rfp/interface/{Project.id}")
-             
-             # Fallback (Legacy)
-             if not Project.document_section_ids:
-                 Project.action_generate_structure()
-             return request.redirect(f"/rfp/structure/{Project.id}")
-        elif Project.current_stage == 'completed':
+        elif Project.current_stage == STAGE_CONTENT_GENERATED:
+             return request.redirect(f"/rfp/review/{Project.id}")
+        elif Project.current_stage == STAGE_DOCUMENT_LOCKED:
+             return request.redirect(f"/rfp/document/{Project.id}")
+        elif Project.current_stage == STAGE_COMPLETED_WITH_ERRORS:
+             return request.redirect(f"/rfp/review/{Project.id}")
+        elif Project.current_stage == STAGE_COMPLETED:
              return request.redirect(f"/rfp/document/{Project.id}")
 
+        # 3. Gather Questions for Current Stage
+        questions_to_answer = []
+        is_generating = False 
+        
+        if Project.current_stage == STAGE_INITIALIZED:
+             # Logic for "Preliminary Questions" (Init Fields) AND AI Follow-up
+             # The first batch are init fields (created by action_initialize_project)
+             # They have user_value = False.
+             questions_to_answer = Project.form_input_ids.filtered(lambda i: not i.user_value and not i.is_irrelevant)
+             
+             # If no questions, but we are still in INITIALIZED, it means we need to trigger AI to ask more 
+             # OR we are waiting for AI.
+             if not questions_to_answer:
+                 # Check if AI job is running? For now, we assume if we are here and no questions,
+                 # we should trigger the next round analysis.
+                 # BUT, we must distinguish between "All questions answered, trigger AI" vs "AI is thinking".
+                 # The 'action_analyze_gap' handles this. If it returns True (ongoing), we might mean AI returns instantly (sync).
+                 # If using async jobs, we'd need a status check.
+                 pass
+
+        elif Project.current_stage == STAGE_SPECIFICATIONS_GATHERED:
+             questions_to_answer = Project.practice_input_ids.filtered(lambda i: not i.user_value and not i.is_irrelevant)
+             
         values = self._prepare_portal_layout_values()
         values.update({
             'rfp_project': Project,
             'page_name': 'rfp_interface',
+            'questions_to_answer': questions_to_answer,
+            'is_generating': is_generating
         })
         return request.render("project_rfp_ai.portal_rfp_interface", values)
 
@@ -121,67 +133,45 @@ class RfpCustomerPortal(CustomerPortal):
         if not Project.exists() or Project.user_id != request.env.user:
             return request.redirect('/my')
 
+        # Determine Inputs to Process
         input_map = {}
-        target_model = 'rfp.form.input'
+        stage_action = None
 
-        if Project.current_stage == 'gathering':
+        if Project.current_stage == STAGE_INITIALIZED:
              input_map = {inp.field_key: inp for inp in Project.form_input_ids}
-        elif Project.current_stage == 'gathering_practices':
-             target_model = 'rfp.practice.input'
+             stage_action = Project.action_analyze_gap
+        elif Project.current_stage == STAGE_SPECIFICATIONS_GATHERED:
              input_map = {inp.field_key: inp for inp in Project.practice_input_ids}
+             stage_action = Project.action_analyze_practices_gap
 
-        # Iterate through all EXPECTED inputs to handle missing/disabled keys correctly
+        # Process Inputs
         for key, inp_record in input_map.items():
-            
-            # 1. Check for Custom Answer
+            # 1. Custom Answer
             custom_answer_flag = post.get(f"has_custom_answer_{key}")
             if custom_answer_flag == 'true':
                 custom_val = post.get(f"custom_answer_val_{key}")
                 if custom_val:
                     inp_record.sudo().write({'user_value': custom_val})
                 continue
-
-            # 2. Check for Irrelevant
+            # 2. Irrelevant
             is_irrelevant = post.get(f"is_irrelevant_{key}")
             if is_irrelevant == 'true':
                 reason = post.get(f"irrelevant_reason_{key}")
                 vals = {'is_irrelevant': True}
-                if reason:
-                    vals['irrelevant_reason'] = reason
+                if reason: vals['irrelevant_reason'] = reason
                 inp_record.sudo().write(vals)
                 continue
-
-            # 3. Standard Value
+            # 3. Standard
             if key in post:
                 value = post.get(key)
                 specify_key = f"{key}_specify"
                 final_value = value
                 if specify_key in post and post.get(specify_key):
                      final_value = f"{value}: {post.get(specify_key)}"
-                
-                inp_record.sudo().write({'user_value': final_value})
-        
-        if Project.current_stage == 'gathering':
-            Project.action_analyze_gap()
-        elif Project.current_stage == 'gathering_practices':
-            Project.action_analyze_practices_gap()
-        
-        # Phase Transition Handlers
-        # Phase Transition Handlers
-        if Project.current_stage == 'research_refinement':
-            # Phase 4: Refine Best Practices
-            Project.action_refine_practices()
-            # This logic must align with model logic (current_stage -> gathering_practices)
-            if not Project.practice_input_ids and Project.current_stage == 'gathering_practices':
-                 # Trigger first round of practices gathering immediately
-                 Project.action_analyze_practices_gap()
-
-        if Project.current_stage == 'structuring':
-             # Phase 1 (Revisited): Generate Structure (Architect)
-             if not Project.document_section_ids:
-                 Project.action_generate_structure()
-             return request.redirect(f"/rfp/structure/{Project.id}")
-             
+        # Trigger Next Analysis Step
+        if stage_action:
+            stage_action()
+            
         return request.redirect(f"/rfp/interface/{Project.id}")
 
     # --- PHASE 2: STRUCTURE REVIEW ---
@@ -191,7 +181,7 @@ class RfpCustomerPortal(CustomerPortal):
         if not Project.exists() or Project.user_id != request.env.user:
             return request.redirect('/my')
         
-        if Project.current_stage != 'structuring':
+        if Project.current_stage != STAGE_SECTIONS_GENERATED:
              return request.redirect(f"/rfp/interface/{Project.id}")
 
         values = self._prepare_portal_layout_values()
@@ -304,8 +294,8 @@ class RfpCustomerPortal(CustomerPortal):
         if not Project.exists() or Project.user_id != request.env.user:
             return request.redirect('/my')
             
-        if Project.current_stage == 'completed':
-            Project.sudo().write({'current_stage': 'writing'})
+        if Project.current_stage == STAGE_COMPLETED:
+            Project.sudo().write({'current_stage': STAGE_CONTENT_GENERATED})
             
         return request.redirect(f"/rfp/review/{Project.id}")
 

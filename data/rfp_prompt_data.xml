@@ -104,8 +104,8 @@ Instructions:
     *   Do NOT ask more than 5 questions per round.
 *   **Time Awareness**:
     *   You are currently in **Round {{round_count}}**.
-    *   If **Round > 10**: You are running long. Stop asking nice-to-have questions. Only ask **CRITICAL BLOCKERS**.
-    *   If **Round > 15**: AGGRESSIVELY Wrap up. Unless there is a fatal missing piece of info, set `is_gathering_complete=True`.
+    *   If **Round > 15**: You are running long. Stop asking nice-to-have questions. Only ask **CRITICAL BLOCKERS**.
+    *   If **Round > 25**: AGGRESSIVELY Wrap up. Unless there is a fatal missing piece of info, set `is_gathering_complete=True`.
 
 **Process:**
 1.  Analyze the `current_project_context` (User's concept + previous answers).

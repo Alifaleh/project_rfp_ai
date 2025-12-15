@@ -55,7 +55,7 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
 
     start: function () {
         this._super.apply(this, arguments);
-        console.log("RFP Portal Interactions: Widget Started for selector", this.selector);
+
 
         // 3. Drag and Drop (Native Events)
         // We bind native events to a container (e.g. tbody)
@@ -471,9 +471,17 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         const $badge = $(ev.currentTarget);
         const value = $badge.data('value');
         const targetKey = $badge.data('target');
+
+
         const $input = this.$el.find(`[name="${targetKey}"]`);
+
+
         if ($input.length) {
             $input.val(value).trigger('change');
+        } else {
+            // Fallback: try finding by ID or without 'name' attribute specifics 
+            // (sometimes name has special chars or QWeb renders differently)
+            console.warn("Input not found for key:", targetKey);
         }
     },
 

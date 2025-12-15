@@ -1,12 +1,17 @@
 from odoo import models, fields, api
+import json
+import logging
+from odoo.addons.project_rfp_ai.const import *
+
+_logger = logging.getLogger(__name__)
 
 class RfpProject(models.Model):
     _name = 'rfp.project'
-    _description = 'RFP Project'
+    _description = 'RFP AI Project'
     _inherit = ['mail.thread', 'mail.activity.mixin']
 
     name = fields.Char(string="Project Name", required=True, tracking=True)
-    description = fields.Text(string="Initial Idea", help="High-level description of the project idea", required=True, tracking=True)
+    description = fields.Text(string="Initial Description", required=True, tracking=True)
     
     domain_id = fields.Many2one('rfp.project.domain', string="Domain Context", tracking=True)
 
@@ -16,16 +21,23 @@ class RfpProject(models.Model):
     
     ai_context_blob = fields.Text(string="AI Context Blob", default="{}")
     
+    # New Stages based on User Request + Constants
     current_stage = fields.Selection([
-        ('initialization', 'Initialization'),
-        ('research_initial', 'Best Practices Research'),
-        ('gathering', 'Information Gathering (Project)'),
-        ('research_refinement', 'Best Practices Refinement'),
-        ('gathering_practices', 'Information Gathering (Best Practices)'),
-        ('structuring', 'Section Generation'),
-        ('writing', 'Content Generation'),
-        ('completed', 'Completed')
-    ], string="Stage", default='initialization', tracking=True, group_expand='_expand_stages')
+        (STAGE_DRAFT, 'Draft'),
+        (STAGE_INITIALIZED, 'Initialized (Research Done)'),
+        (STAGE_INFO_GATHERED, 'Information Gathered'),
+        (STAGE_PRACTICES_REFINED, 'Best Practices Refined'),
+        (STAGE_SPECIFICATIONS_GATHERED, 'Specifications Gathered'),
+        (STAGE_PRACTICES_GAP_GATHERED, 'Best Practices Info Gap Gathered'),
+        (STAGE_SECTIONS_GENERATED, 'Sections Generated'),
+        (STAGE_GENERATING_CONTENT, 'Generating Content'),
+        (STAGE_CONTENT_GENERATED, 'Content Generated'),
+        (STAGE_DOCUMENT_LOCKED, 'Document Locked'),
+        (STAGE_COMPLETED_WITH_ERRORS, 'Completed With Errors'),
+        (STAGE_COMPLETED, 'Completed'),
+    ], string="Current Stage", default=STAGE_DRAFT, tracking=False, group_expand='_expand_stages')
+
+    active = fields.Boolean(default=True)
 
     form_input_ids = fields.One2many('rfp.form.input', 'project_id', string="Gathered Inputs")
     practice_input_ids = fields.One2many('rfp.practice.input', 'project_id', string="Practice Inputs")
@@ -40,32 +52,29 @@ class RfpProject(models.Model):
     def action_initialize_project(self):
         """
         Phase 0: Project Initialization.
-        Uses AI to:
-        1. Select or Create a Domain.
-        2. Refine the Project Description.
+        1. Identify Domain & Refine Description.
+        2. Perform Initial Research.
+        3. Convert 'Init' Custom Fields to Gathered Inputs.
+        4. Advance Stage.
         """
-        import json
         from odoo.addons.project_rfp_ai.models.ai_schemas import get_domain_identification_schema
 
         for project in self:
-            # 1. Gather Available Domains
+            # --- STEP 1: Domain & Description ---
             existing_domains = self.env['rfp.project.domain'].search([])
             domain_names = [d.name for d in existing_domains]
             available_domains_str = "\n".join([f"- {name}" for name in domain_names])
             
-            # 2. Call AI
-            prompt_record = self.env['rfp.prompt'].search([('code', '=', 'project_initializer')], limit=1)
+            prompt_record = self.env['rfp.prompt'].search([('code', '=', PROMPT_PROJECT_INITIALIZER)], limit=1)
             if not prompt_record:
-                raise ValueError("System Prompt 'project_initializer' not found.")
+                raise ValidationError(f"System Prompt '{PROMPT_PROJECT_INITIALIZER}' not found.")
             
-            # Prepare Prompt
             system_prompt = prompt_record.template_text.format(
                 project_name=project.name,
                 description=project.description,
                 available_domains_str=available_domains_str
             )
             
-            # Call Log Execution
             try:
                 response_json_str = self.env['rfp.ai.log'].execute_request(
                     system_prompt=system_prompt,
@@ -76,83 +85,100 @@ class RfpProject(models.Model):
                     prompt_record=prompt_record
                 )
             except Exception as e:
-                # Log error and return (user sees error in chatter if tracking catches it, or UI error)
-                raise models.ValidationError(f"AI Initialization Failed: {str(e)}")
+                raise ValidationError(f"AI Initialization Failed: {str(e)}")
 
             if not response_json_str:
-                raise models.ValidationError("AI returned no response.")
+                raise ValidationError("AI returned no response.")
 
             try:
                 data = json.loads(response_json_str)
             except json.JSONDecodeError:
-                raise models.ValidationError("AI returned invalid JSON.")
+                raise ValidationError("AI returned invalid JSON.")
             
-            # 3. Process Result
             suggested_domain = data.get('suggested_domain_name')
             refined_desc = data.get('refined_description')
-            standard_reqs = data.get('standard_rfp_requirements', [])
             
             if not suggested_domain or not refined_desc:
-                # Fallback if schema violated
-                raise models.ValidationError("AI Response missing required fields.")
+                 raise ValidationError("AI Response missing required fields.")
                 
-            # Domain Handing (Case Insensitive Match)
-            # Normalize to lower for comparison
+            # Domain Handing
             match = next((d for d in existing_domains if d.name.lower() == suggested_domain.lower()), None)
-            
             if match:
                 project.domain_id = match.id
             else:
-                # Create New Domain
                 new_domain = self.env['rfp.project.domain'].create({'name': suggested_domain})
                 project.domain_id = new_domain.id
                 
-            # Update Description
             project.description = refined_desc
             
-            # Move Stage
-            project.current_stage = 'research_initial'
+            # --- STEP 2: Initial Research ---
+            project._run_initial_research()
             
-            # NOTE: Research is now triggered explicitly by the controller to ensure ordering.
-            # project.action_research_initial()
+            # --- STEP 3: Convert Start Screen Fields ---
+            # We assume the controller or UI passed these values into the context or we read from transient?
+            # Actually, the user fills them in the form, and the controller likely writes them to 'project'
+            # IF they were fields on the model. But custom fields are dynamic.
+            # The portal controller `portal_rfp_init` receives `**kwargs`.
+            # We need to capture those values and save them as `rfp.form.input`.
+            
+            # LOGIC CHANGE: The CONTROLLER should have passed these values to `form_input_ids` or we do it here?
+            # If `action_initialize_project` is called from Backend, we might not have them.
+            # The "Custom Field" logic implies we need to generate `rfp.form.input` records for ALL init custom fields,
+            # and populate them with values if available.
+            
+            init_custom_fields = self.env['rfp.custom.field'].search([('phase', '=', 'init')])
+            
+            # We assume values are stored in `ai_context_blob` or passed via context?
+            # Let's check where the controller puts them.
+            # Current controller (portal.py) just calls `project.create`.
+            # We need to update controller to pass these inputs.
+            # For now, we will CREATE the input records. Value population is up to the caller/controller.
+            
+            for cf in init_custom_fields:
+                # Check if already exists (idempotency)
+                existing = project.form_input_ids.filtered(lambda i: i.field_key == cf.code)
+                if not existing:
+                    self.env['rfp.form.input'].create({
+                        'project_id': project.id,
+                        'field_key': cf.code,
+                        'label': cf.name,
+                        'component_type': cf.input_type,
+                        # Refactor Phase 4: Init Fields to Separate Stage
+                        # We explicitly set user_value to False so they appear in the gathering UI
+                        'user_value': False, 
+                        'sequence': cf.sequence,
+                        'suggested_answers': json.dumps(cf.suggestion_ids.mapped('name'))
+                    })
+            
+            project.current_stage = STAGE_INITIALIZED
 
-    def action_research_initial(self):
-        """
-        Phase 2: Initial Research (Text Mode + Search)
-        """
-        for project in self:
-            print(f"DEBUG: Starting action_research_initial for {project.name}")
-            try:
-                from google.genai import types # type: ignore
-                search_tool = [types.Tool(google_search=types.GoogleSearch())]
-            except ImportError:
-                search_tool = None 
+    def _run_initial_research(self):
+        self.ensure_one()
+        try:
+            from google.genai import types
+            search_tool = [types.Tool(google_search=types.GoogleSearch())]
+        except ImportError:
+            search_tool = None 
+        
+        prompt_record = self.env['rfp.prompt'].search([('code', '=', PROMPT_RESEARCH_INITIAL)], limit=1)
+        if not prompt_record:
+            return 
             
-            prompt_record = self.env['rfp.prompt'].search([('code', '=', 'research_initial')], limit=1)
-            if not prompt_record:
-                # Create default on fly if missing (for safety, though we should load via XML)
-                # Or just raise error.
-                system_prompt = "You are a Research Assistant. Search for best practices and standard RFP sections for: {domain}. Output a concise summary."
-            else:
-                 system_prompt = prompt_record.template_text.format(domain=project.domain_id.name, project_name=project.name)
-
-            response_text = self.env['rfp.ai.log'].execute_request(
-                system_prompt=system_prompt,
-                user_context=f"Project Description: {project.description}",
-                env=self.env,
-                mode='text',
-                tools=search_tool,
-                prompt_record=prompt_record
-            )
-            
-            print(f"DEBUG: Research output: {response_text[:100]}...")
-            print(f"DEBUG: Research output: {response_text[:100]}...")
-            project.initial_research = response_text
-            project.current_stage = 'gathering'
+        system_prompt = prompt_record.template_text.format(domain=self.domain_id.name, project_name=self.name)
+        
+        response_text = self.env['rfp.ai.log'].execute_request(
+            system_prompt=system_prompt,
+            user_context=f"Project Description: {self.description}",
+            env=self.env,
+            mode='text',
+            tools=search_tool,
+            prompt_record=prompt_record
+        )
+        self.initial_research = response_text
 
     def action_refine_practices(self):
         """
-        Phase 4: Refinement (Text Mode + Search)
+        Phase 4: Refinement
         """
         for project in self:
              # Gather Q&A context
@@ -163,12 +189,12 @@ class RfpProject(models.Model):
             qa_context = "\n".join(qa_list)
 
             try:
-                from google.genai import types # type: ignore
+                from google.genai import types
                 search_tool = [types.Tool(google_search=types.GoogleSearch())]
             except ImportError:
                 search_tool = None 
             
-            prompt_record = self.env['rfp.prompt'].search([('code', '=', 'research_refinement')], limit=1)
+            prompt_record = self.env['rfp.prompt'].search([('code', '=', PROMPT_RESEARCH_REFINEMENT)], limit=1)
             if not prompt_record:
                  system_prompt = "Refine the best practices based on user answers."
             else:
@@ -186,28 +212,28 @@ class RfpProject(models.Model):
             )
             
             project.refined_practices = response_text
-        project.current_stage = 'gathering_practices'
+        project.current_stage = STAGE_PRACTICES_REFINED
 
-    def _execute_interview_round(self, prompt_code, input_model_name, context_data):
+    def _execute_interview_round(self, prompt_code, input_model_name, context_data, scope_key='project'):
         """
         Generic Driver for Information Gathering Rounds.
+        Args:
+            scope_key (str): Key to separate analysis metadata (completeness) per phase.
         """
         self.ensure_one()
         project = self
         import json
+        from odoo.addons.project_rfp_ai.models.ai_schemas import get_interviewer_schema
 
         # 1. Call AI
         prompt_record = self.env['rfp.prompt'].search([('code', '=', prompt_code)], limit=1)
         if not prompt_record:
             raise ValueError(f"System Prompt '{prompt_code}' not found.")
         
-        # Inject Round Count into Prompt Text
+        # Inject Round Count
         prompt_template = prompt_record.template_text.replace("{{round_count}}", str(context_data.get('current_round', 1)))
-        
         context_str = json.dumps(context_data, indent=2)
         
-        from odoo.addons.project_rfp_ai.models.ai_schemas import get_interviewer_schema
-
         try:
             response_json_str = self.env['rfp.ai.log'].execute_request(
                 system_prompt=prompt_template,
@@ -218,73 +244,61 @@ class RfpProject(models.Model):
                 prompt_record=prompt_record
             )
         except Exception as e:
-            if "Rate Limit" in str(e):
-                    response_json_str = json.dumps({
-                    "analysis_meta": {"status": "rate_limit", "completeness_score": 0},
-                    "research_notes": "High Traffic (Rate Limit). Please wait 30 seconds and retry.",
-                    "form_fields": []
-                })
-            else: 
-                    response_json_str = json.dumps({
-                    "analysis_meta": {"status": "error", "completeness_score": 0},
-                    "research_notes": f"Error: {str(e)}",
-                    "form_fields": []
-                })
-        
-        # 2. Parse JSON
+             # Basic Error Fallback
+             return True # Keep stage open on error to retry? Or move on? usually retry.
+
         if not response_json_str:
-            response_json_str = json.dumps({
-                "analysis_meta": {"status": "error", "completeness_score": 0},
-                "research_notes": "The AI service is temporarily unavailable (503).",
-                "form_fields": []
-            })
+            return True
 
         try:
             response_data = json.loads(response_json_str)
         except json.JSONDecodeError:
-            response_data = {}
+            return True
 
-        # Update Metadata
+        # Update Metadata with Scoping
+        blob = project.get_context_data()
+        scoped_meta_key = f"analysis_meta_{scope_key}"
+        
+        # Monotonize Score
+        old_score = blob.get(scoped_meta_key, {}).get('completeness_score', 0)
+        new_meta = response_data.get('analysis_meta', {})
+        new_score = new_meta.get('completeness_score', 0)
+        
+        if new_score < old_score:
+            new_meta['completeness_score'] = old_score
+            
+        # Save Scoped Meta
+        blob[scoped_meta_key] = new_meta
+        
+        # Save Global Analysis Meta (For backward compatibility with Portal UI which reads 'analysis_meta')
+        # We overwrite the global key with the CURRENT phase's meta so UI shows correct progress.
+        blob['analysis_meta'] = new_meta
+        
         if 'last_input_context' not in response_data:
              response_data['last_input_context'] = context_data
+             
+        # Save Blob
+        project.ai_context_blob = json.dumps(blob, indent=4)
 
-        # Monotonize Score
-        current_context = project.get_context_data()
-        old_score = current_context.get('analysis_meta', {}).get('completeness_score', 0)
-        new_score = response_data.get('analysis_meta', {}).get('completeness_score', 0)
-        if new_score < old_score:
-            if 'analysis_meta' not in response_data:
-                response_data['analysis_meta'] = {}
-            response_data['analysis_meta']['completeness_score'] = old_score
-
-        project.ai_context_blob = json.dumps(response_data, indent=4)
-
-        # CRITICAL FIX: Check for Status (Rate Limit / Error)
-        analysis_meta = response_data.get('analysis_meta', {})
-        status = analysis_meta.get('status')
-        if status in ['rate_limit', 'error']:
+        # Status Check
+        status = new_meta.get('status')
+        if status in [AI_STATUS_RATE_LIMIT, AI_STATUS_ERROR]:
             return True
                 
-        # Check for Auto-Finalization
+        # Auto-Finalization
         is_complete = response_data.get('is_gathering_complete', False)
         if is_complete:
-            return False # INDICATES COMPLETION TO CALLER
+            return False # Completed
 
         # Process new questions
         new_fields = response_data.get('form_fields', [])
         
-        # Simple way to increment round number
-        try:
-            current_input_count = self.env[input_model_name].search_count([('project_id', '=', project.id)])
-            current_round_number = (current_input_count // 5) + 1
-        except:
-            current_round_number = 1
+        # Calc Round Number
+        current_input_count = self.env[input_model_name].search_count([('project_id', '=', project.id)])
+        current_round_number = (current_input_count // 5) + 1
         
-        # Track new keys in this batch to prevent duplicates
         batch_keys = set()
         new_inputs = []
-        
-        # Get existing keys for this specific model
         existing_inputs = self.env[input_model_name].search([('project_id', '=', project.id)])
         existing_keys = existing_inputs.mapped('field_key')
 
@@ -309,29 +323,22 @@ class RfpProject(models.Model):
         
         if new_inputs:
             self.env[input_model_name].create(new_inputs)
-            return True # INDICATES MORE QUESTIONS ADDED
+            return True 
         else:
-            return False # INDICATES EMPTY BATCH (COMPLETED)
+            return False
 
     def action_analyze_gap(self):
         """
-        Phase 3: Project Information Gathering (Project Specifics)
-        Uses _execute_interview_round with 'interviewer_project' prompt and 'rfp.form.input' model.
+        Phase 3: Information Gathering (Project Specifics)
         """
-        import json
         for project in self:
             # Context Building
-            blob_context = json.loads(project.ai_context_blob or '{}')
-            
-            # Gather Previous Inputs (Project Specifics)
             previous_inputs = []
-            # Ensure chronological order
-            sorted_inputs = project.form_input_ids.sorted(key=lambda r: r.create_date or r.id)
-            for inp in sorted_inputs:
+            for inp in project.form_input_ids.sorted('id'):
                 if inp.user_value:
                     previous_inputs.append({"key": inp.field_key, "question": inp.label, "answer": inp.user_value})
                 elif inp.is_irrelevant:
-                     previous_inputs.append({"key": inp.field_key, "question": inp.label, "reason": f"[REJECTED] {inp.irrelevant_reason}"})
+                     previous_inputs.append({"reason": f"[REJECTED] {inp.irrelevant_reason}"})
 
             context_data = {
                 "project_name": project.name,
@@ -339,103 +346,131 @@ class RfpProject(models.Model):
                 "domain": project.domain_id.name or 'General',
                 "initial_best_practices": project.initial_research or "No research found.", 
                 "previous_inputs": previous_inputs,
-                "rejected_topics": [], # TODO: Implement separate rejected list storage if needed
                 "current_round": (len(previous_inputs) // 4) + 1
             }
 
-            # Execute Round
-            is_ongoing = project._execute_interview_round('interviewer_project', 'rfp.form.input', context_data)
+            is_ongoing = project._execute_interview_round(PROMPT_INTERVIEWER_PROJECT, 'rfp.form.input', context_data, scope_key='project')
             
             if not is_ongoing:
-                # Phase Completed -> Move to Refinement
-                project.current_stage = 'research_refinement'
+                project.current_stage = STAGE_INFO_GATHERED
+            return is_ongoing
+
+    def action_check_specifications(self):
+        """
+        Phase 4b: Post-Analysis Custom Fields Check
+        """
+        for project in self:
+            # 1. Find Post-Gathering Custom Fields
+            post_fields = self.env['rfp.custom.field'].search([('phase', '=', 'post_gathering')])
+            if not post_fields:
+                project.current_stage = STAGE_SPECIFICATIONS_GATHERED # Skip
+                return False
             
-            return True
+            # 2. Check if they exist as Practice Inputs (or Form Inputs?)
+            # Plan said "Practice Input" or "Form Input". Since it's post-analysis, Practice Inputs is cleaner
+            # as it separates from formatting/basics.
+            new_inputs = []
+            for cf in post_fields:
+                existing = project.practice_input_ids.filtered(lambda i: i.field_key == cf.code)
+                if not existing:
+                     new_inputs.append({
+                        'project_id': project.id,
+                        'field_key': cf.code,
+                        'label': cf.name,
+                        'component_type': cf.input_type,
+                        'suggested_answers': json.dumps(cf.suggestion_ids.mapped('name')),
+                        'sequence': cf.sequence
+                    })
+            
+            if new_inputs:
+                self.env['rfp.practice.input'].create(new_inputs)
+                
+            project.current_stage = STAGE_SPECIFICATIONS_GATHERED
+            return True # Require Interaction
 
     def action_analyze_practices_gap(self):
         """
-        Phase 5: Best Practices Gathering (Gap Analysis)
-        Uses _execute_interview_round with 'interviewer_practices' prompt and 'rfp.practice.input' model.
+        Phase 5: Best Practices Gathering
         """
-        import json
         for project in self:
-            # Context Building
-            # Gather Previous Inputs (Project Specifics - Read Only Context)
+            # Gather Previous Inputs
             previous_inputs_context = []
             for inp in project.form_input_ids:
                  if inp.user_value:
                     previous_inputs_context.append({"key": inp.field_key, "question": inp.label, "answer": inp.user_value})
 
-            # Gather Current Phase Inputs (Practices)
             practice_inputs = []
-            sorted_practices = project.practice_input_ids.sorted(key=lambda r: r.create_date or r.id)
-            for inp in sorted_practices:
+            for inp in project.practice_input_ids.sorted('id'):
                 if inp.user_value:
                     practice_inputs.append({"key": inp.field_key, "question": inp.label, "answer": inp.user_value})
                 elif inp.is_irrelevant:
-                     practice_inputs.append({"key": inp.field_key, "question": inp.label, "reason": f"[REJECTED] {inp.irrelevant_reason}"})
+                     practice_inputs.append({"reason": f"[REJECTED] {inp.irrelevant_reason}"})
 
             context_data = {
                 "project_name": project.name,
                 "description": project.description,
                 "domain": project.domain_id.name or 'General',
-                "refined_best_practices": project.refined_practices or "No refined practices key found.",
-                "previous_inputs": previous_inputs_context, # Context from Phase 3
-                "practice_inputs": practice_inputs,         # Active Context for Phase 5
+                "refined_best_practices": project.refined_practices or "No refined practices info.",
+                "previous_inputs": previous_inputs_context,
+                "practice_inputs": practice_inputs,
                 "current_round": (len(practice_inputs) // 4) + 1
             }
 
-            # Execute Round
-            is_ongoing = project._execute_interview_round('interviewer_practices', 'rfp.practice.input', context_data)
+            # Scope Key = 'practices'
+            is_ongoing = project._execute_interview_round(PROMPT_INTERVIEWER_PRACTICES, 'rfp.practice.input', context_data, scope_key='practices')
             
             if not is_ongoing:
-                # Phase Completed -> Move to Structuring
-                project.current_stage = 'structuring'
-            
-            return True
+                project.current_stage = STAGE_PRACTICES_GAP_GATHERED
+            return is_ongoing
+
+    def action_proceed_next_stage(self):
+        """
+        Automated Transition Handler.
+        Called by Portal when stage is non-interactive but requires backend processing.
+        """
+        self.ensure_one()
+        if self.current_stage == STAGE_INFO_GATHERED:
+            self.action_refine_practices()
+        elif self.current_stage == STAGE_PRACTICES_REFINED:
+            self.action_check_specifications()
+        elif self.current_stage == STAGE_PRACTICES_GAP_GATHERED:
+            self.action_generate_structure()
+        return True
 
     def action_generate_structure(self):
         """
         Phase 1: The Architect (Generate TOC)
-        Moves stage to 'structuring'.
         """
-        import json
-        
+        from odoo.addons.project_rfp_ai.models.ai_schemas import get_toc_structure_schema
+
         for project in self:
             # 1. Context Building
             context_data = {
                 "project_name": project.name,
                 "description": project.description,
                 "domain": project.domain_id.name or 'General',
-                "refined_best_practices": project.refined_practices or project.initial_research or "No research.",
+                "refined_best_practices": project.refined_practices or project.initial_research,
                 "q_and_a": []
             }
             for inp in project.form_input_ids:
                 if inp.user_value:
                     context_data["q_and_a"].append(f"- **{inp.label}**: {inp.user_value}")
-                elif inp.is_irrelevant:
-                     context_data["q_and_a"].append(f"- {inp.label}: [IRRELEVANT - {inp.irrelevant_reason}]")
             
             context_str = "\n".join(context_data["q_and_a"])
 
-            # Clear existing sections to avoid duplicates on re-run
+            # Clear existing logic
             project.document_section_ids.unlink()
 
-            # --- PHASE 1: THE ARCHITECT (Generate TOC) ---
-            prompt_record = self.env['rfp.prompt'].search([('code', '=', 'writer_toc_architect')], limit=1)
+            prompt_record = self.env['rfp.prompt'].search([('code', '=', PROMPT_WRITER_TOC_ARCHITECT)], limit=1)
             if not prompt_record:
-                raise ValueError("System Prompt 'writer_toc_architect' not found.")
+                raise ValueError(f"System Prompt '{PROMPT_WRITER_TOC_ARCHITECT}' not found.")
             
-            from odoo.addons.project_rfp_ai.models.ai_schemas import get_toc_structure_schema
-
             architect_prompt = prompt_record.template_text.format(
                  project_name=project.name,
                  domain=project.domain_id.name or 'General',
                  context_str=context_str
             )
             
-            # 2. Call AI (No Tools - relying on Refined Practices text)
-
             try:
                 toc_json_str = self.env['rfp.ai.log'].execute_request(
                     system_prompt=architect_prompt,
@@ -445,32 +480,25 @@ class RfpProject(models.Model):
                     schema=get_toc_structure_schema(),
                     prompt_record=prompt_record
                 )
-            except Exception as e:
-                toc_json_str = json.dumps({"table_of_contents": [{"title": "Error Generating Structure", "subsections": []}]})
+            except Exception:
+                toc_json_str = "{}"
             
             try:
                 toc_data = json.loads(toc_json_str)
             except json.JSONDecodeError:
-                toc_data = {"table_of_contents": [{"title": "Executive Summary", "subsections": []}]}
+                toc_data = {}
 
-            # Save TOC meta
-            current_blob_str = project.ai_context_blob or "{}"
-            try:
-                current_blob = json.loads(current_blob_str)
-            except:
-                current_blob = {}
-            
+            # Save TOC
+            current_blob = project.get_context_data()
             current_blob['toc_structure'] = toc_data
-            # current_blob['debug_architect_context'] = context_data
             project.ai_context_blob = json.dumps(current_blob, indent=4)
             
-            # Create Empty Sections (Structure Only)
+            # Create Sections
             sequence = 10
             for section in toc_data.get('table_of_contents', []):
                 self.env['rfp.document.section'].create({
                     'project_id': project.id,
                     'section_title': section.get('title'),
-                    'content_html': '', # Empty for now
                     'sequence': sequence
                 })
                 sequence += 10
@@ -479,27 +507,20 @@ class RfpProject(models.Model):
                     self.env['rfp.document.section'].create({
                         'project_id': project.id,
                         'section_title': sub.get('title'),
-                        'content_html': '', 
                         'sequence': sequence
                     })
                     sequence += 10
 
-            project.current_stage = 'structuring'
+            project.current_stage = STAGE_SECTIONS_GENERATED
             return True
 
     def action_generate_content(self):
         """
-        Phase 2: The Writer (Generate Content for Sections)
-        Moves stage to 'writing'.
+        Phase 2: The Writer
         """
-        import json
-        import time
-
         for project in self:
-            project.current_stage = 'writing' # Move immediately or after? User said "writing" stage.
+            project.current_stage = STAGE_GENERATING_CONTENT
             
-            # Re-construct context (or retrieve from blob?)
-            # Valid to rebuild context to ensure freshness
              # 1. Context Building
             context_data = {
                 "project_name": project.name,
@@ -510,9 +531,7 @@ class RfpProject(models.Model):
             for inp in project.form_input_ids:
                 if inp.user_value:
                     context_data["q_and_a"].append(f"- **{inp.label}**: {inp.user_value}")
-                elif inp.is_irrelevant:
-                     context_data["q_and_a"].append(f"- {inp.label}: [IRRELEVANT - {inp.irrelevant_reason}]")
-            
+
             context_str = "\n".join(context_data["q_and_a"])
 
             # Retrieve TOC Structure for context
@@ -520,12 +539,11 @@ class RfpProject(models.Model):
             toc_data = current_blob.get('toc_structure', {})
             toc_context_str = json.dumps(toc_data.get('table_of_contents', []), indent=2)
 
-            section_writer_template = self.env['rfp.prompt'].search([('code', '=', 'writer_section_content')], limit=1).template_text
+            section_writer_template = self.env['rfp.prompt'].search([('code', '=', PROMPT_WRITER_SECTION)], limit=1).template_text
 
-            # Iterate through existing sections
             for section_record in project.document_section_ids:
                 if section_record.content_html:
-                    continue # Skip if already written (allows resume)
+                    continue
 
                 section_title = section_record.section_title
                 section_intent = "Write comprehensive details matching the project context."
@@ -541,32 +559,36 @@ class RfpProject(models.Model):
 
                 user_context = f"Project Context:\n{context_str}\n\nPlease write the {section_title} section now."
                 
-                # Dispatch to Queue
-                # We use the specific channel 'root.rfp_generation' to control concurrency
                 job = section_record.with_delay(channel='root.rfp_generation').generate_content_job(
                     system_prompt=writer_prompt,
                     user_context=user_context
                 )
                 
-                # Check if job is a Job object (from queue_job python lib) and get the recordset
-                # The .with_delay() returns a Job object, which has a db_record() method to get the Odoo record
                 if job and hasattr(job, 'db_record'):
                     section_record.job_id = job.db_record()
                 
-                section_record.generation_status = 'queued'
+                section_record.generation_status = STATUS_QUEUED
                 
-            project.current_stage = 'writing'
             return True
+    
+    def action_check_generation_status(self):
+        """ Check completion """
+        for project in self:
+            status = project.get_generation_status()
+            if status['status'] == 'completed':
+                project.current_stage = STAGE_CONTENT_GENERATED
+                return True
+        return False
+        
+    def action_lock_document(self):
+        self.current_stage = STAGE_DOCUMENT_LOCKED
+        return True
 
     def action_mark_completed(self):
         for project in self:
             project.current_stage = 'completed'
 
-    # Deprecated / Legacy Support
-    def action_generate_document(self):
-        self.action_generate_structure()
-        self.action_generate_content()
-        self.action_mark_completed()
+
 
     def get_context_data(self):
         """Helper to parse the context blob (Text) back into a Dict for views."""

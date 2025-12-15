@@ -33,6 +33,9 @@ class RfpCustomField(models.Model):
     
     sequence = fields.Integer(string="Sequence", default=10)
     
+    suggested_answers = fields.Text(string="Suggested Answers (JSON)", default="[]", help="Deprecated: Use suggestion_ids instead")
+    suggestion_ids = fields.One2many('rfp.field.suggestion', 'field_id', string="Suggestions")
+    
     active = fields.Boolean(default=True)
 
     _sql_constraints = [

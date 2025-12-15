@@ -5,15 +5,20 @@
         <field name="arch" type="xml">
             <form string="RFP Project">
                 <header>
-                    <button name="action_initialize_project" string="Initialize Project" type="object" class="oe_highlight" invisible="current_stage != 'initialization'"/>
-                    <button name="action_research_initial" string="Research Best Practices" type="object" class="oe_highlight" invisible="current_stage != 'research_initial'"/>
-                    <button name="action_refine_practices" string="Refine Practices" type="object" class="oe_highlight" invisible="current_stage != 'gathering'"/>
-                    <button name="action_analyze_practices_gap" string="Analyze Practices Gaps" type="object" class="oe_highlight" invisible="current_stage != 'gathering_practices'"/>
-                    <button name="action_generate_structure" string="Generate Sections" type="object" class="oe_highlight" invisible="current_stage != 'structuring'"/>
-                    <button name="action_generate_content" string="Generate Content" type="object" class="oe_highlight" invisible="current_stage != 'structuring'"/> <!-- Wait, this logic needs review? Structure -> Content. -->
-                    <!-- Correcting Button logic based on stages -->
-                    <button name="action_mark_completed" string="Mark Completed" type="object" class="oe_highlight" invisible="current_stage != 'writing'"/>
-                    <field name="current_stage" widget="statusbar" statusbar_visible="initialization,research_initial,gathering,research_refinement,gathering_practices,structuring,writing,completed" options="{'clickable': '1'}"/>
+                    <button name="action_initialize_project" string="Initialize Project" type="object" class="oe_highlight" invisible="current_stage != 'draft'"/>
+                    
+                    <!-- Debug/Manual Progression Buttons (Admin) -->
+                    <button name="action_analyze_gap" string="Run Analysis (Info Gap)" type="object" invisible="current_stage != 'initialized'"/>
+                    <button name="action_refine_practices" string="Refine Practices" type="object" invisible="current_stage != 'info_gathered'"/>
+                    <button name="action_check_specifications" string="Check Specifications" type="object" invisible="current_stage != 'practices_refined'"/>
+                    <button name="action_analyze_practices_gap" string="Analyze Practices" type="object" invisible="current_stage != 'specifications_gathered'"/>
+                    <button name="action_generate_structure" string="Generate Structure" type="object" invisible="current_stage != 'practices_gap_gathered'"/>
+                    <button name="action_generate_content" string="Generate Content" type="object" invisible="current_stage != 'sections_generated'"/>
+                    <button name="action_check_generation_status" string="Example Check Status" type="object" invisible="current_stage != 'generating_content'"/>
+                    
+                    <button name="action_mark_completed" string="Force Complete" type="object" invisible="current_stage not in ['content_generated', 'completed_with_errors']"/>
+                    
+                    <field name="current_stage" widget="statusbar" statusbar_visible="draft,initialized,info_gathered,practices_refined,specifications_gathered,practices_gap_gathered,sections_generated,generating_content,content_generated,document_locked" options="{'clickable': '1'}"/>
                 </header>
                 <sheet>
                     <div class="oe_title">
@@ -24,6 +29,7 @@
                     <group>
                         <group>
                             <field name="domain_id"/>
+                            <field name="user_id"/>
                         </group>
                     </group>
                     <notebook>

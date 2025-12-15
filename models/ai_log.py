@@ -1,4 +1,5 @@
 from odoo import models, fields, api
+from odoo.addons.project_rfp_ai.const import AI_STATUS_SENDING, AI_STATUS_SUCCESS, AI_STATUS_ERROR, AI_STATUS_RATE_LIMIT
 from datetime import datetime
 import time
 import json
@@ -28,10 +29,10 @@ class RfpAiLog(models.Model):
     # Status
     state = fields.Selection([
         ('draft', 'Draft'),
-        ('sending', 'Sending'),
-        ('success', 'Success'),
-        ('error', 'Error'),
-        ('rate_limit', 'Rate Limit')
+        (AI_STATUS_SENDING, 'Sending'),
+        (AI_STATUS_SUCCESS, 'Success'),
+        (AI_STATUS_ERROR, 'Error'),
+        (AI_STATUS_RATE_LIMIT, 'Rate Limit')
     ], string="Status", default='draft', readonly=True)
     
     error_message = fields.Text(string="Error Message", readonly=True)
@@ -58,6 +59,7 @@ class RfpAiLog(models.Model):
             mode (str): 'json' or 'text'.
             schema (dict): Optional JSON schema for validation.
             tools (list): Optional list of tools (e.g. Google Search).
+            prompt_record (recordset): Optional rfp.prompt record.
         Returns:
             str: The AI response text (or JSON string).
         """
@@ -65,51 +67,29 @@ class RfpAiLog(models.Model):
 
         if not env:
             env = self.env
-        
-        print(f"DEBUG: execute_request called. Mode={mode}, Tools={tools}")
 
         # 1. Create Log Record (Sending)
         vals = {
             'prompt_used': system_prompt,
             'input_context': user_context,
-            'state': 'sending',
+            'state': AI_STATUS_SENDING,
             'request_date': fields.Datetime.now(),
         }
+        
+        model_name = None
         if prompt_record:
             vals['prompt_id'] = prompt_record.id
             if prompt_record.ai_model_id:
                 vals['ai_model_id'] = prompt_record.ai_model_id.id
+                model_name = prompt_record.ai_model_id.technical_name
                 
         log = self.create(vals)
         
-        # Commit to ensure log exists even if crash occurs (Odoo atomic transaction might roll this back on crash, 
-        # but useful for long running process visibility if running in checked env).
-        # In standard Odoo, explicit commit is dangerous, so we rely on standard transaction. 
-        # If it crashes hard, we might lose the log. But for handled exceptions, we are fine.
-
         start_time = time.time()
-        response_text = None
         
         try:
-            # 2. Call API
-            # We need to route to the correct connector method based on mode
-            # However, ai_connector methods (generate_json_response) handle their own prompt fetching usually.
-            # Refactoring: we passed the RAW prompts here. We should call the low-level _call_gemini_api or 
-            # modify the connector helpers to accept raw strings.
-            # Looking at ai_connector.py, `_call_gemini_api` is internal but usable.
-            # `generate_json_response` and `generate_text_response` fetch prompts inside themselves.
-            # To avoid Duplicate Fetching, the caller (project.py) has already fetched the prompt to pass it here?
-            # Let's see project.py... Yes, it fetches prompts.
-            # So we should call `_call_gemini_api` directly from here to avoid double fetch?
-            # OR we keep using the high level helpers but they need refactoring.
-            
-            # DECISION: To keep it clean, we will call `ai_connector._call_gemini_api` directly 
-            # because this Log Model is now the "Manager".
-            
+            # 2. Call API via pure connector
             response_mime_type = "application/json" if mode == 'json' else "text/plain"
-            
-            # Using the internal helper from utils
-            # We need to make sure we import it or access it.
             
             response_text = ai_connector._call_gemini_api(
                 system_instructions=system_prompt,
@@ -117,6 +97,7 @@ class RfpAiLog(models.Model):
                 env=env,
                 response_mime_type=response_mime_type,
                 response_schema=schema,
+                model_name=model_name,
                 tools=tools
             )
             
@@ -129,15 +110,12 @@ class RfpAiLog(models.Model):
                     'response_raw': response_text,
                     'response_date': fields.Datetime.now(),
                     'duration': duration,
-                    'state': 'success'
+                    'state': AI_STATUS_SUCCESS
                 })
                 return response_text
             else:
-                 # None usually means error caught inside connector but returned None
-                 # We assume connector logged it to console, but we want it here.
-                 # Actually `_call_gemini_api` returns None on error or raises RateLimit.
                  log.write({
-                    'state': 'error',
+                    'state': AI_STATUS_ERROR,
                     'error_message': 'Unknown API Error (Returned None)',
                     'duration': duration,
                     'response_date': fields.Datetime.now()
@@ -147,18 +125,17 @@ class RfpAiLog(models.Model):
         except ai_connector.RateLimitError:
             duration = time.time() - start_time
             log.write({
-                'state': 'rate_limit',
+                'state': AI_STATUS_RATE_LIMIT,
                 'error_message': 'Rate Limit Exceeded (429)',
                 'duration': duration,
                 'response_date': fields.Datetime.now()
             })
-            # Re-raise so flow can handle it (e.g. show UI warning)
             raise
 
         except Exception as e:
             duration = time.time() - start_time
             log.write({
-                'state': 'error',
+                'state': AI_STATUS_ERROR,
                 'error_message': str(e),
                 'duration': duration,
                 'response_date': fields.Datetime.now()

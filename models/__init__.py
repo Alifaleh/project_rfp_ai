@@ -4,6 +4,7 @@ from . import res_config_settings
 from . import ai_schemas
 from . import ai_log
 from . import field_option
+from . import field_suggestion
 from . import rfp_domain
 from . import ai_model
 from . import rfp_document_section

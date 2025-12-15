@@ -4,8 +4,9 @@ import json
 class RfpPracticeInput(models.Model):
     _name = 'rfp.practice.input'
     _description = 'RFP Best Practice Input'
-    _order = 'create_date desc'
+    _order = 'round_number, sequence, id'
 
+    sequence = fields.Integer(string="Sequence", default=10)
     project_id = fields.Many2one('rfp.project', string="Project", required=True, ondelete='cascade')
     field_key = fields.Char(string="Field Key", required=True, help="Unique identifier from JSON schema")
     label = fields.Char(string="Question/Label") 
