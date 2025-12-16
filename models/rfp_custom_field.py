@@ -36,6 +36,8 @@ class RfpCustomField(models.Model):
     suggested_answers = fields.Text(string="Suggested Answers (JSON)", default="[]", help="Deprecated: Use suggestion_ids instead")
     suggestion_ids = fields.One2many('rfp.field.suggestion', 'field_id', string="Suggestions")
     
+    specify_triggers = fields.Text(string="Specify Triggers (JSON)", default="[]", help="List of option values that trigger a 'Verify/Specify' text box (e.g., ['other'])")
+    
     active = fields.Boolean(default=True)
 
     _sql_constraints = [

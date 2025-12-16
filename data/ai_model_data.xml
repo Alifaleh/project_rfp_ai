@@ -61,7 +61,15 @@
             <field name="technical_name">imagen-4.0-generate-001</field>
             <field name="provider">google</field>
             <field name="tag_ids" eval="[(4, ref('tag_high_quality')), (4, ref('tag_image'))]"/>
-            <field name="description">Google's Our latest image generation model, with significantly better text rendering and better overall image quality..</field>
+            <field name="description">Google's Our latest image generation model, with significantly better text rendering and better overall image quality.</field>
+        </record>
+
+        <record id="model_imagen_4_0_ultra_generate_001" model="rfp.ai.model">
+            <field name="name">Imagen 4.0 Ultra</field>
+            <field name="technical_name">imagen-4.0-ultra-generate-001</field>
+            <field name="provider">google</field>
+            <field name="tag_ids" eval="[(4, ref('tag_high_quality')), (4, ref('tag_image'))]"/>
+            <field name="description">Google's Our latest image generation model, with significantly better text rendering and better overall image quality.</field>
         </record>
 
     </data>

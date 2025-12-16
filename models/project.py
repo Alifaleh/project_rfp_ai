@@ -1,4 +1,5 @@
 from odoo import models, fields, api
+from odoo.exceptions import ValidationError
 import json
 import logging
 import base64
@@ -153,7 +154,9 @@ class RfpProject(models.Model):
                         # We explicitly set user_value to False so they appear in the gathering UI
                         'user_value': False, 
                         'sequence': cf.sequence,
-                        'suggested_answers': json.dumps(cf.suggestion_ids.mapped('name'))
+                        'suggested_answers': json.dumps(cf.suggestion_ids.mapped('name')),
+                        'options': json.dumps([{'value': o.value, 'label': o.label} for o in cf.option_ids]),
+                        'specify_triggers': cf.specify_triggers or '[]'
                     })
             
             project.current_stage = STAGE_INITIALIZED
@@ -385,7 +388,9 @@ class RfpProject(models.Model):
                         'label': cf.name,
                         'component_type': cf.input_type,
                         'suggested_answers': json.dumps(cf.suggestion_ids.mapped('name')),
-                        'sequence': cf.sequence
+                        'options': json.dumps([{'value': o.value, 'label': o.label} for o in cf.option_ids]),
+                        'sequence': cf.sequence,
+                        'specify_triggers': cf.specify_triggers or '[]'
                     })
             
             if new_inputs:

@@ -137,7 +137,12 @@
                     <option value="">Select...</option>
                     <t t-if="input_field.get_options_parsed()">
                         <t t-foreach="input_field.get_options_parsed()" t-as="opt">
-                            <option t-att-value="opt"><t t-esc="opt"/></option>
+                            <t t-if="isinstance(opt, dict)">
+                                <option t-att-value="opt['value']"><t t-esc="opt['label']"/></option>
+                            </t>
+                            <t t-else="">
+                                <option t-att-value="opt"><t t-esc="opt"/></option>
+                            </t>
                         </t>
                     </t>
                 </select>
@@ -148,9 +153,11 @@
                     <small class="text-muted">Select all that apply:</small>
                     <t t-if="input_field.get_options_parsed()">
                         <t t-foreach="input_field.get_options_parsed()" t-as="opt">
+                             <t t-set="opt_val" t-value="opt['value'] if isinstance(opt, dict) else opt"/>
+                             <t t-set="opt_label" t-value="opt['label'] if isinstance(opt, dict) else opt"/>
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" t-att-name="input_field.field_key" t-att-value="opt"/>
-                                <label class="form-check-label"><t t-esc="opt"/></label>
+                                <input class="form-check-input" type="checkbox" t-att-name="input_field.field_key" t-att-value="opt_val"/>
+                                <label class="form-check-label"><t t-esc="opt_label"/></label>
                             </div>
                         </t>
                     </t>
@@ -163,10 +170,12 @@
                 <div class="rfp-radio-group">
                     <t t-if="input_field.get_options_parsed()">
                         <t t-foreach="input_field.get_options_parsed()" t-as="opt" t-as-index="opt_index">
+                            <t t-set="opt_val" t-value="opt['value'] if isinstance(opt, dict) else opt"/>
+                            <t t-set="opt_label" t-value="opt['label'] if isinstance(opt, dict) else opt"/>
                             <div class="form-check">
-                                <input class="form-check-input rfp-dynamic-input" type="radio" t-att-name="input_field.field_key" t-att-id="input_field.field_key + '_' + str(opt_index)" t-att-value="opt" t-att-required="input_field.depends_on == '{}' or ''"/>
+                                <input class="form-check-input rfp-dynamic-input" type="radio" t-att-name="input_field.field_key" t-att-id="input_field.field_key + '_' + str(opt_index)" t-att-value="opt_val" t-att-required="input_field.depends_on == '{}' or ''"/>
                                 <label class="form-check-label" t-att-for="input_field.field_key + '_' + str(opt_index)">
-                                    <t t-esc="opt"/>
+                                    <t t-esc="opt_label"/>
                                 </label>
                             </div>
                         </t>
@@ -195,7 +204,7 @@
 
             <!-- Suggested Answers (Text/Textarea Only) -->
             <!-- Wrapped lines enabled with text-wrap and lh-sm classes -->
-            <t t-if="input_field.suggested_answers and input_field.component_type in ['text_input', 'textarea']">
+            <t t-if="input_field.get_suggested_answers_parsed() and input_field.component_type in ['text_input', 'textarea']">
                 <div class="mt-2 mb-2">
                     <small class="text-muted d-block mb-1">AI Suggestions (Click to fill):</small>
                     <div class="d-flex flex-column gap-2">
@@ -249,7 +258,7 @@
                                 <!-- Progress Bar -->
                                 <t t-set="raw_score" t-value="rfp_project.get_context_data().get('analysis_meta', {}).get('completeness_score', 0)"/>
                                 <t t-set="completeness" t-value="raw_score if raw_score > 1 else raw_score * 100"/>
-                                <div t-if="rfp_project.current_stage != 'specifications_gathered'" class="progress mb-4" style="height: 25px;">
+                                <div t-if="rfp_project.current_stage == 'initialized' and rfp_project.ai_context_blob" class="progress mb-4" style="height: 25px;">
                                     <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar" t-att-style="'width: ' + str(int(completeness)) + '%'" t-att-aria-valuenow="int(completeness)" aria-valuemin="0" aria-valuemax="100">
                                         <t t-esc="int(completeness)"/>% Analysis Complete
                                     </div>

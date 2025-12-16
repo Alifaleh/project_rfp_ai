@@ -361,6 +361,29 @@ class RfpCustomerPortal(CustomerPortal):
         docx.add_heading(Project.name, 1)
         docx.add_text("") # spacing
         
+        # Add Contact Information
+        contact_keys = ['contact_name', 'contact_email', 'contact_phone', 'contact_details']
+        contact_inputs = Project.form_input_ids.filtered(lambda i: i.field_key in contact_keys)
+        
+        if contact_inputs:
+            docx.add_heading("Contact Information", 3)
+            # Sort by intended order? The fields have sequence in DB, but inputs might be created by ID. 
+            # We can just map key to value.
+            input_map = {i.field_key: i.user_value for i in contact_inputs}
+            
+            # Helper to add line if exists
+            def add_contact_line(label, key):
+                val = input_map.get(key)
+                if val:
+                    docx.add_text(f"{label}: {val}")
+            
+            add_contact_line("Name", 'contact_name')
+            add_contact_line("Email", 'contact_email')
+            add_contact_line("Phone", 'contact_phone')
+            add_contact_line("Details", 'contact_details')
+            
+            docx.add_spacer()
+        
         for section in Project.document_section_ids.sorted('sequence'):
             docx.add_heading(section.section_title, 2)
             

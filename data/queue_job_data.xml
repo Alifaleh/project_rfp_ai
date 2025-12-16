@@ -6,7 +6,7 @@
             <field name="model_id" ref="project_rfp_ai.model_rfp_document_section"/>
             <field name="method">generate_content_job</field>
             <field name="channel_id" ref="queue_job.channel_root"/>
-            <field name="retry_pattern" eval="{1: 60, 2: 180}"/>
+            <field name="retry_pattern" eval="{1: 60, 2: 180, 3: 300, 4: 300}"/>
         </record>
     </data>
 </odoo>

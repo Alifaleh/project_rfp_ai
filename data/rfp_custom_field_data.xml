@@ -1,0 +1,294 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- ============================================== 
+             PHASE 1: INITIALIZATION (Scope and Constraints) 
+             ============================================== -->
+
+        <!-- 0. Contact Information -->
+        <record id="field_init_contact_name" model="rfp.custom.field">
+            <field name="name">Contact Person Name</field>
+            <field name="code">contact_name</field>
+            <field name="phase">init</field>
+            <field name="input_type">text_input</field>
+            <field name="sequence">0</field>
+            <field name="is_required">True</field>
+            <field name="placeholder">e.g. John Doe</field>
+        </record>
+        <record id="field_init_contact_email" model="rfp.custom.field">
+            <field name="name">Contact Email</field>
+            <field name="code">contact_email</field>
+            <field name="phase">init</field>
+            <field name="input_type">text_input</field>
+            <field name="sequence">0</field>
+            <field name="is_required">True</field>
+            <field name="placeholder">e.g. john@example.com</field>
+        </record>
+         <record id="field_init_contact_phone" model="rfp.custom.field">
+            <field name="name">Contact Phone</field>
+            <field name="code">contact_phone</field>
+            <field name="phase">init</field>
+            <field name="input_type">text_input</field>
+            <field name="sequence">0</field>
+            <field name="is_required">True</field>
+            <field name="placeholder">e.g. +1 555 0199</field>
+        </record>
+        <record id="field_init_contact_details" model="rfp.custom.field">
+            <field name="name">Other Contact Details</field>
+            <field name="code">contact_details</field>
+            <field name="phase">init</field>
+            <field name="input_type">textarea</field>
+            <field name="sequence">0</field>
+            <field name="is_required">False</field>
+            <field name="placeholder">Address, Availability, etc.</field>
+        </record>
+
+        <!-- 1. Project Type (Radio + Other) -->
+        <record id="field_init_project_type" model="rfp.custom.field">
+            <field name="name">Project Type</field>
+            <field name="code">project_type</field>
+            <field name="phase">init</field>
+            <field name="input_type">radio</field>
+            <field name="sequence">1</field>
+            <field name="help_text">Is this a completely new project or replacing an existing one?</field>
+            <field name="specify_triggers">["other"]</field>
+            <field name="is_required">True</field>
+        </record>
+        <record id="opt_init_pt_new" model="rfp.field.option">
+            <field name="field_id" ref="field_init_project_type"/>
+            <field name="value">greenfield</field>
+            <field name="label">New Application (Greenfield)</field>
+            <field name="sequence">1</field>
+        </record>
+        <record id="opt_init_pt_legacy" model="rfp.field.option">
+            <field name="field_id" ref="field_init_project_type"/>
+            <field name="value">legacy_rewrite</field>
+            <field name="label">Rewrite Legacy System</field>
+            <field name="sequence">2</field>
+        </record>
+        <record id="opt_init_pt_migration" model="rfp.field.option">
+            <field name="field_id" ref="field_init_project_type"/>
+            <field name="value">migration</field>
+            <field name="label">Migration / Upgrade</field>
+            <field name="sequence">3</field>
+        </record>
+        <record id="opt_init_pt_other" model="rfp.field.option">
+            <field name="field_id" ref="field_init_project_type"/>
+            <field name="value">other</field>
+            <field name="label">Other (Please Specify)</field>
+            <field name="sequence">4</field>
+        </record>
+
+        <!-- 2. Target Audience (Text + Extensive Suggestions) -->
+        <record id="field_init_audience" model="rfp.custom.field">
+            <field name="name">Target Audience</field>
+            <field name="code">target_audience</field>
+            <field name="phase">init</field>
+            <field name="input_type">text_input</field>
+            <field name="sequence">2</field>
+            <field name="placeholder">Who will use this system? Be specific.</field>
+            <field name="is_required">True</field>
+        </record>
+        <record id="sugg_init_aud_b2b" model="rfp.field.suggestion">
+            <field name="field_id" ref="field_init_audience"/>
+            <field name="name">B2B Enterprise Customers</field>
+        </record>
+        <record id="sugg_init_aud_b2c" model="rfp.field.suggestion">
+            <field name="field_id" ref="field_init_audience"/>
+            <field name="name">Public B2C Consumers</field>
+        </record>
+        <record id="sugg_init_aud_internal" model="rfp.field.suggestion">
+            <field name="field_id" ref="field_init_audience"/>
+            <field name="name">Internal Employees (Intranet)</field>
+        </record>
+         <record id="sugg_init_aud_admins" model="rfp.field.suggestion">
+            <field name="field_id" ref="field_init_audience"/>
+            <field name="name">System Administrators Only</field>
+        </record>
+         <record id="sugg_init_aud_partners" model="rfp.field.suggestion">
+            <field name="field_id" ref="field_init_audience"/>
+            <field name="name">External Partners / Vendors</field>
+        </record>
+
+        <!-- 3. Budget Range (Text + Suggestions) -->
+        <!-- Changed from Select to Text per request for flexibility -->
+        <record id="field_init_budget" model="rfp.custom.field">
+            <field name="name">Estimated Budget</field>
+            <field name="code">budget_range</field>
+            <field name="phase">init</field>
+            <field name="input_type">text_input</field>
+            <field name="sequence">3</field>
+            <field name="placeholder">e.g. $50,000 or "Under $20k"</field>
+            <field name="is_required">True</field>
+        </record>
+        <record id="sugg_init_budget_low" model="rfp.field.suggestion">
+            <field name="field_id" ref="field_init_budget"/>
+            <field name="name">Under $20k</field>
+        </record>
+        <record id="sugg_init_budget_med" model="rfp.field.suggestion">
+            <field name="field_id" ref="field_init_budget"/>
+            <field name="name">$20k - $50k</field>
+        </record>
+        <record id="sugg_init_budget_high" model="rfp.field.suggestion">
+            <field name="field_id" ref="field_init_budget"/>
+            <field name="name">$50k - $100k</field>
+        </record>
+        <record id="sugg_init_budget_ent" model="rfp.field.suggestion">
+            <field name="field_id" ref="field_init_budget"/>
+            <field name="name">Over $100k</field>
+        </record>
+
+        <!-- 4. Success Goal (TextArea + Suggestions) -->
+        <record id="field_init_goal" model="rfp.custom.field">
+            <field name="name">Primary Success Metric</field>
+            <field name="code">primary_goal</field>
+            <field name="phase">init</field>
+            <field name="input_type">textarea</field>
+            <field name="sequence">4</field>
+            <field name="placeholder">What does success look like? (ROI, Efficiency, etc.)</field>
+            <field name="is_required">True</field>
+        </record>
+         <record id="sugg_init_goal_rev" model="rfp.field.suggestion">
+            <field name="field_id" ref="field_init_goal"/>
+            <field name="name">Increase Revenue by 20%</field>
+        </record>
+        <record id="sugg_init_goal_eff" model="rfp.field.suggestion">
+            <field name="field_id" ref="field_init_goal"/>
+            <field name="name">Improve Operational Efficiency (Time Saving)</field>
+        </record>
+        <record id="sugg_init_goal_usr" model="rfp.field.suggestion">
+            <field name="field_id" ref="field_init_goal"/>
+            <field name="name">Improve User Experience / Satisfaction</field>
+        </record>
+        <record id="sugg_init_goal_mod" model="rfp.field.suggestion">
+            <field name="field_id" ref="field_init_goal"/>
+            <field name="name">Modernize Tech Stack (Reduce Tech Debt)</field>
+        </record>
+        
+        <!-- ============================================== 
+             PHASE 2: POST ANALYSIS (Technical Specifics)
+             ============================================== -->
+
+        <!-- 1. Hosting (Radio + Other) -->
+        <record id="field_post_hosting" model="rfp.custom.field">
+            <field name="name">Hosting Preference</field>
+            <field name="code">hosting_preference</field>
+            <field name="phase">post_gathering</field>
+            <field name="input_type">radio</field>
+            <field name="sequence">1</field>
+            <field name="specify_triggers">["other"]</field>
+            <field name="is_required">True</field>
+        </record>
+        <record id="opt_post_host_cloud" model="rfp.field.option">
+            <field name="field_id" ref="field_post_hosting"/>
+            <field name="value">cloud</field>
+            <field name="label">Cloud (AWS/GCP/Azure)</field>
+        </record>
+        <record id="opt_post_host_prem" model="rfp.field.option">
+            <field name="field_id" ref="field_post_hosting"/>
+            <field name="value">on_premise</field>
+            <field name="label">On-Premise / Private Server</field>
+        </record>
+        <record id="opt_post_host_hybrid" model="rfp.field.option">
+            <field name="field_id" ref="field_post_hosting"/>
+            <field name="value">hybrid</field>
+            <field name="label">Hybrid</field>
+        </record>
+        <record id="opt_post_host_other" model="rfp.field.option">
+            <field name="field_id" ref="field_post_hosting"/>
+            <field name="value">other</field>
+            <field name="label">Other (Please Specify)</field>
+        </record>
+
+        <!-- 2. Compliance (TextArea + Suggestions) -->
+        <!-- Changed from Checkboxes to TextArea per request for better flexibility -->
+        <record id="field_post_compliance" model="rfp.custom.field">
+            <field name="name">Compliance Requirements</field>
+            <field name="code">compliance_reqs</field>
+            <field name="phase">post_gathering</field>
+            <field name="input_type">textarea</field>
+            <field name="sequence">2</field>
+            <field name="placeholder">List all regulatory compliance needs (or select suggestions)</field>
+            <field name="is_required">True</field>
+        </record>
+        <record id="sugg_post_comp_gdpr" model="rfp.field.suggestion">
+            <field name="field_id" ref="field_post_compliance"/>
+            <field name="name">GDPR (EU Data Protection)</field>
+        </record>
+         <record id="sugg_post_comp_ccpa" model="rfp.field.suggestion">
+            <field name="field_id" ref="field_post_compliance"/>
+            <field name="name">CCPA (California Privacy)</field>
+        </record>
+        <record id="sugg_post_comp_hipaa" model="rfp.field.suggestion">
+            <field name="field_id" ref="field_post_compliance"/>
+            <field name="name">HIPAA (Health Data)</field>
+        </record>
+        <record id="sugg_post_comp_soc2" model="rfp.field.suggestion">
+            <field name="field_id" ref="field_post_compliance"/>
+            <field name="name">SOC2 Type II</field>
+        </record>
+         <record id="sugg_post_comp_pci" model="rfp.field.suggestion">
+            <field name="field_id" ref="field_post_compliance"/>
+            <field name="name">PCI DSS (Payment Security)</field>
+        </record>
+         <record id="sugg_post_comp_none" model="rfp.field.suggestion">
+            <field name="field_id" ref="field_post_compliance"/>
+            <field name="name">No specific compliance requirements</field>
+        </record>
+
+        <!-- 3. Scale (Text + Suggestions) -->
+         <!-- Changed from Select to Text -->
+        <record id="field_post_scale" model="rfp.custom.field">
+            <field name="name">Expected User Load (Concurrent)</field>
+            <field name="code">user_load_scale</field>
+            <field name="phase">post_gathering</field>
+            <field name="input_type">text_input</field>
+            <field name="sequence">3</field>
+            <field name="placeholder">e.g. 100 users, or "Mass Scale"</field>
+            <field name="is_required">True</field>
+        </record>
+        <record id="sugg_post_scale_low" model="rfp.field.suggestion">
+            <field name="field_id" ref="field_post_scale"/>
+            <field name="name">&lt; 100 Concurrent Users</field>
+        </record>
+        <record id="sugg_post_scale_med" model="rfp.field.suggestion">
+            <field name="field_id" ref="field_post_scale"/>
+            <field name="name">100 - 1,000 Concurrent Users</field>
+        </record>
+        <record id="sugg_post_scale_high" model="rfp.field.suggestion">
+            <field name="field_id" ref="field_post_scale"/>
+            <field name="name">1,000+ Concurrent Users</field>
+        </record>
+
+         <!-- 4. Integrations (TextArea + Suggestions) -->
+        <record id="field_post_integrations" model="rfp.custom.field">
+            <field name="name">Mandatory Integrations</field>
+            <field name="code">tech_integrations</field>
+            <field name="phase">post_gathering</field>
+            <field name="input_type">textarea</field>
+            <field name="sequence">4</field>
+            <field name="placeholder">List systems to integrate...</field>
+            <field name="is_required">True</field>
+        </record>
+         <record id="sugg_post_int_salesforce" model="rfp.field.suggestion">
+            <field name="field_id" ref="field_post_integrations"/>
+            <field name="name">Salesforce CRM</field>
+        </record>
+        <record id="sugg_post_int_sap" model="rfp.field.suggestion">
+            <field name="field_id" ref="field_post_integrations"/>
+            <field name="name">SAP / Oracle ERP</field>
+        </record>
+        <record id="sugg_post_int_stripe" model="rfp.field.suggestion">
+            <field name="field_id" ref="field_post_integrations"/>
+            <field name="name">Stripe / PayPal (Payments)</field>
+        </record>
+        <record id="sugg_post_int_auth" model="rfp.field.suggestion">
+            <field name="field_id" ref="field_post_integrations"/>
+            <field name="name">Auth0 / Okta (SSO)</field>
+        </record>
+         <record id="sugg_post_int_none" model="rfp.field.suggestion">
+            <field name="field_id" ref="field_post_integrations"/>
+            <field name="name">No external integrations required</field>
+        </record>
+    </data>
+</odoo>

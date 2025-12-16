@@ -82,7 +82,7 @@ def _call_gemini_api(system_instructions, user_content, env, response_mime_type=
             raise RateLimitError("Rate Limit Exceeded")
             
         _logger.error(f"Gemini SDK Error: {error_msg}")
-        return None
+        raise e
 
 def _generate_image_gemini(prompt, env, model_name='imagen-3.0-generate-001'):
     """

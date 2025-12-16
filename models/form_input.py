@@ -4,7 +4,9 @@ import json
 class RfpFormInput(models.Model):
     _name = 'rfp.form.input'
     _description = 'RFP Dynamic Input'
-    _order = 'create_date desc'
+    _order = 'sequence, create_date desc'
+
+    sequence = fields.Integer(string="Sequence", default=10)
 
     project_id = fields.Many2one('rfp.project', string="Project", required=True, ondelete='cascade')
     field_key = fields.Char(string="Field Key", required=True, help="Unique identifier from JSON schema")
