@@ -163,6 +163,20 @@ class RfpProject(models.Model):
 
     def _run_initial_research(self):
         self.ensure_one()
+        
+        # 1. Knowledge Base Check
+        kb_records = self.env['rfp.knowledge.base'].search([
+            ('domain_id', '=', self.domain_id.id),
+            ('state', '=', 'active')
+        ])
+        
+        if kb_records:
+            # Use KB Material
+            practices_text = "\n\n".join([kb.extracted_practices for kb in kb_records if kb.extracted_practices])
+            self.initial_research = f"Source: Knowledge Base\n\n{practices_text}"
+            return 
+
+        # 2. Existing AI Search Logic (Fallback)
         try:
             from google.genai import types
             search_tool = [types.Tool(google_search=types.GoogleSearch())]

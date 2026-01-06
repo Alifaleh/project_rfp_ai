@@ -72,5 +72,13 @@
             <field name="description">Google's Our latest image generation model, with significantly better text rendering and better overall image quality.</field>
         </record>
 
+        <record id="model_gemini_3_pro_image_preview" model="rfp.ai.model">
+            <field name="name">Nano Banana Pro</field>
+            <field name="technical_name">gemini-3-pro-image-preview</field>
+            <field name="provider">google</field>
+            <field name="tag_ids" eval="[(4, ref('tag_high_quality')), (4, ref('tag_image'))]"/>
+            <field name="description">Google's State-of-the-art image generation and editing model.</field>
+        </record>
+
     </data>
 </odoo>

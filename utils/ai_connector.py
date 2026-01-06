@@ -18,7 +18,7 @@ DEFAULT_GEMINI_KEY = ""
 class RateLimitError(Exception):
     pass
 
-def _call_gemini_api(system_instructions, user_content, env, response_mime_type="text/plain", response_schema=None, model_name=None, tools=None):
+def _call_gemini_api(system_instructions, user_content, env, response_mime_type="text/plain", response_schema=None, model_name=None, tools=None, attachments=None):
     """
     Helper to call Google Gemini API using the SDK.
     Uses credentials from System Parameters, but Model from arguments.
@@ -39,14 +39,20 @@ def _call_gemini_api(system_instructions, user_content, env, response_mime_type=
         return None
 
     try:
-        client = genai.Client(api_key=api_key)
+        # Increase timeout to 60 minutes (3600 seconds * 1000 ms)
+        # HTTP Options timeout is in milliseconds
+        client = genai.Client(api_key=api_key, http_options={'timeout': 3600000})
         
+        parts = [types.Part.from_text(text=user_content)]
+
+        if attachments:
+            for attach in attachments:
+                parts.append(types.Part.from_bytes(data=attach['data'], mime_type=attach['mime_type']))
+
         contents = [
             types.Content(
                 role="user",
-                parts=[
-                    types.Part.from_text(text=user_content),
-                ],
+                parts=parts,
             ),
         ]
         

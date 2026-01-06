@@ -9,5 +9,6 @@ from . import rfp_domain
 from . import ai_model
 from . import rfp_document_section
 from . import rfp_prompt
+from . import knowledge_base
 from . import rfp_custom_field
 from . import rfp_practice_input

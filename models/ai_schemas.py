@@ -158,3 +158,23 @@ def get_domain_identification_schema():
         },
         required=['suggested_domain_name', 'refined_description']
     )
+
+def get_kb_analysis_schema():
+    if not types:
+        return None
+    return types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            'suggested_domain_name': types.Schema(
+                type=types.Type.STRING,
+                description='The best fitting Domain for this document (e.g., "Healthcare", "Logistics", "Software Development").',
+                nullable=False
+            ),
+            'extracted_practices': types.Schema(
+                type=types.Type.STRING,
+                description='A generalized, structured guide of Best Practices, Standard RFP Sections, and Compliance Standards derived from the document. Must not contain specific client names.',
+                nullable=False
+            )
+        },
+        required=['suggested_domain_name', 'extracted_practices']
+    )

@@ -23,6 +23,7 @@
         'views/rfp_project_views.xml',
         'views/rfp_form_input_views.xml',
         'views/rfp_document_section_views.xml',
+        'views/knowledge_base_views.xml',
         'views/rfp_prompt_views.xml',
         'views/rfp_custom_field_views.xml',
         'views/res_config_settings_views.xml',

@@ -11,6 +11,7 @@
         
         <menuitem id="menu_rfp_fields_init" name="Init Screen Fields" parent="menu_rfp_configuration" action="action_rfp_custom_field_init" sequence="30"/>
         <menuitem id="menu_rfp_fields_post" name="Post-Analysis Fields" parent="menu_rfp_configuration" action="action_rfp_custom_field_post" sequence="40"/>
+    <menuitem id="menu_rfp_knowledge_base" name="Knowledge Base" parent="menu_rfp_configuration" action="action_rfp_knowledge_base" sequence="50"/>
     <menuitem id="menu_rfp_ai_log" name="AI Logs" parent="menu_rfp_configuration" action="action_rfp_ai_log" sequence="50"/>
     <menuitem id="menu_rfp_settings" name="Settings" parent="menu_rfp_configuration" action="action_rfp_config_settings" groups="base.group_system" sequence="0"/>
 </odoo>

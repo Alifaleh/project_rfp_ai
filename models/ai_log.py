@@ -49,7 +49,7 @@ class RfpAiLog(models.Model):
         return super().create(vals_list)
 
     @api.model
-    def execute_request(self, system_prompt, user_context, env=None, mode='json', schema=None, tools=None, prompt_record=None):
+    def execute_request(self, system_prompt, user_context, env=None, mode='json', schema=None, tools=None, prompt_record=None, attachments=None):
         """
         Centralized method to execute AI requests with full logging.
         Args:
@@ -60,6 +60,7 @@ class RfpAiLog(models.Model):
             schema (dict): Optional JSON schema for validation.
             tools (list): Optional list of tools (e.g. Google Search).
             prompt_record (recordset): Optional rfp.prompt record.
+            attachments (list): Optional list of dicts {'data': bytes, 'mime_type': str}.
         Returns:
             str: The AI response text (or JSON string).
         """
@@ -67,11 +68,11 @@ class RfpAiLog(models.Model):
 
         if not env:
             env = self.env
-
+        
         # 1. Create Log Record (Sending)
         vals = {
             'prompt_used': system_prompt,
-            'input_context': user_context,
+            'input_context': user_context + (f"\n\n[Attached {len(attachments)} files]" if attachments else ""),
             'state': AI_STATUS_SENDING,
             'request_date': fields.Datetime.now(),
         }
@@ -98,7 +99,8 @@ class RfpAiLog(models.Model):
                 response_mime_type=response_mime_type,
                 response_schema=schema,
                 model_name=model_name,
-                tools=tools
+                tools=tools,
+                attachments=attachments
             )
             
             # Calculate duration

@@ -138,17 +138,20 @@ Return ONLY the JSON object.
             <field name="description">Refines best practices based on gathered user data.</field>
             <field name="template_text">
 <![CDATA[
+                <![CDATA[
 You are a Senior Solutions Architect.
-Your goal is to refine the "Best Practices" for an RFP based on the initial research AND the specific answers provided by the user during the interview.
+Your goal is to refine the "Best Practices" for an RFP.
 
-Context:
+**Context:**
 {user_context}
 
-Instructions:
-1. Analyze the User's Answers.
-2. Search for specifics if the user mentioned unique constraints (e.g. if they mentioned "Salesforce Integration", search for "Salesforce RFP requirements").
-3. Update and Refine the Initial Research.
-4. Output a Final Best Practices Guide for the RFP Writer.
+**INSTRUCTIONS:**
+1. Check if "Initial Research" contains "Source: Knowledge Base".
+2. **IF KB Source**: You MUST Strictly adhere to the rules, commands, and structure provided in the Source Material. Do NOT prioritize general web practices over the specific commands in the KB. Your job is to *tailor* those specific practices to the User's project context, not to reinvent them.
+3. **IF General Source**: Refine the general best practices based on the User's answers.
+4. **Constraint**: Keep the extracted mandates (e.g. "Use 'Shall'") intact.
+
+Output a Final Best Practices Guide for the RFP Writer.
 ]]>
             </field>
         </record>
@@ -301,30 +304,73 @@ Return ONLY the JSON object.
             <field name="ai_model_id" ref="model_imagen_4_0_generate_001"/>
             <field name="template_text">
                 <![CDATA[
-Role: You are a Professional Technical Illustrator for Enterprise Software.
-Goal: Generate a high-fidelity, professional technical diagram based on the EXACT structural blueprint provided below.
+Role: You are a Senior Information Designer and Digital Artist.
+Goal: Create a polished, high-fidelity vector-style infographic representing a software architecture.
 
 Context:
 - Project: {project_name}
 - Domain: {domain}
 
-**Visual Style Guidelines (STRICT):**
-1.  **Style**: Modern Corporate Technical Diagram. Clean lines, vector-style flat design.
-2.  **Palette**: Professional software architecture colors (Blues, Greys, Whites, subtle Accents).
-3.  **Background**: Pure White (#FFFFFF) or very light grey. NO dark mode.
-4.  **Layout**: Organized, symmetrical, and hierarchical.
-5.  **Text**: If you render text, it must be legible, sans-serif, and professional (e.g., Roboto, Arial).
+**Visual Style Guidelines:**
+1.  **Aesthetic**: High-end corporate marketing graphic. Flat design, soft drop shadows, clean vector lines.
+2.  **Palette**: Enterprise software colors (Deep Blues, Clean Whites, Cool Greys).
+3.  **Background**: Pure White (#FFFFFF).
+4.  **Typography**: All text inside the boxes must be rendered in a crisp, professional sans-serif font (e.g., Roboto).
 
-**BLUEPRINT (EXECUTE EXACTLY):**
+**VISUAL COMPOSITION DESCRIPTION:**
+(Interpret the following text as a visual scene description, not a code specification):
 {description}
 
-**Negative Constraints (DO NOT DO):**
-- Do NOT generate sketches, hand-drawn styles, or artistic abstractions.
-- Do NOT add decorative elements that are not in the blueprint (no random clouds, no random floating icons).
-- Do NOT deviate from the count of elements specified (if it says "3 boxes", draw exactly 3).
+**CRITICAL RENDERING RULES (MANDATORY):**
+- **NO CODE:** Do not render any code blocks, Mermaid.js syntax, XML, or script text. This is a graphic, not a screenshot of an editor.
+- **NO TERMINALS:** Do not include command line interfaces or blurry text.
+- **Visuals Only:** Represent the components as geometric shapes (rectangles, cylinders) with clear labels inside them.
+- **Accuracy:** Draw exactly the number of boxes and arrows described above.
 ]]>
             </field>
         </record>
 
+        <record id="prompt_kb_analyzer" model="rfp.prompt">
+            <field name="name">Phase KB: Knowledge Base Analyzer</field>
+            <field name="code">kb_analyzer</field>
+            <field name="ai_model_id" ref="model_gemini_3_pro_preview"/>
+            <field name="template_text">
+<![CDATA[
+You are an Expert Solution Architect.
+
+**GOAL**
+Analyze the attached document to create a reusable "Best Practices Guide" for future RFPs in this domain.
+You must extract two things:
+1. The **Domain** (Vendor Expertise).
+2. The **Extracted Practices** (A generalized guide).
+
+**PART 1: DOMAIN SELECTION**
+- The Domain must represent the **Vendor's Expertise** (e.g. "Software Development", "Logistics", "Legal Services").
+- **Available Domains:**
+{available_domains}
+- **Instruction:** Select the best fit from the list above. If none fit, propose a new, broadly applicable service domain.
+
+**PART 2: EXTRACTED BEST PRACTICES**
+**CRITICAL:** Do NOT describe the specific project in the document. Instead, **generalize** the requirements into "Best Practices" for ANY similar project in this domain.
+*   *Bad:* "The system must integrate with Federal Authority for Identity." (Specific)
+*   *Good:* "The solution must support integration with National Identity Providers for user verification." (General Best Practice)
+
+**Structure your output exactly as follows:**
+
+### I. Standard RFP Sections Required
+List the mandatory sections (e.g. Project Overview, Technical Specs, Vendor Evaluation) with a brief description of what each should contain for this industry.
+
+### II. Key Functional Areas Typically Covered
+Summarize the core modules or features usually required in this domain (e.g. Data Management, beneficiary registry, auditing).
+*   **Feature Category:** Description of the best practice standard.
+
+### III. Specific Compliance Standards
+List the technical and legal standards that must be adhered to (e.g. Data Protection Laws, Security Standards, ISO certifications), keeping them applicable to the region or industry generally.
+
+**OUTPUT FORMAT**
+Return a JSON object matching the provided schema.
+]]>
+            </field>
+        </record>
     </data>
 </odoo>
