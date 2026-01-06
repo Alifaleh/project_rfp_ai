@@ -599,12 +599,25 @@ class RfpProject(models.Model):
     def action_check_generation_status(self):
         """ Check completion """
         for project in self:
+            # 1. Immediate Transitions (Start Chains)
+            if project.current_stage == STAGE_SECTIONS_GENERATED:
+                 # Structure is ready, start generating content immediately
+                 project.action_generate_content()
+                 return True
+
+            # 2. Check Status of Running Jobs
             status_data = project.get_generation_status()
+            
+            # Auto-Advance Logic
             if status_data['status'] == 'completed':
                 if project.current_stage == STAGE_GENERATING_CONTENT:
                      project.current_stage = STAGE_CONTENT_GENERATED
+                     # Auto-Trigger Images
+                     project.action_generate_diagram_images()
+                     
                 elif project.current_stage == STAGE_GENERATING_IMAGES:
                      project.current_stage = STAGE_IMAGES_GENERATED
+                
                 return True
         return False
         
@@ -659,10 +672,13 @@ class RfpProject(models.Model):
         Updates the document structure (Rename, Resequence, Add, Delete) based on portal input.
         Args:
             sections_data (list): List of dicts [{'id': int|str, 'section_title': str, 'sequence': int}]
+        Returns:
+            dict: Mapping of temp IDs (str like 'new_123') to real section IDs (int).
         """
         self.ensure_one()
         current_ids = self.document_section_ids.ids
         incoming_ids = []
+        id_map = {}  # Temp ID -> Real ID
 
         for data in sections_data:
             section_id = data.get('id')
@@ -686,13 +702,14 @@ class RfpProject(models.Model):
                     'content_html': ''
                 })
                 incoming_ids.append(new_section.id)
+                id_map[section_id] = new_section.id  # Map temp to real
         
         # Delete missing sections
         to_delete = list(set(current_ids) - set(incoming_ids))
         if to_delete:
             self.env['rfp.document.section'].browse(to_delete).unlink()
             
-        return True
+        return id_map
 
     def action_update_content_html(self, sections_content):
         """

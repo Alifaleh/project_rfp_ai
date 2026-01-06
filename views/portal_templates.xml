@@ -322,238 +322,307 @@
         </t>
     </template>
 
-    <!-- PHASE 2: STRUCTURE REVIEW -->
-    <template id="portal_rfp_structure_review" name="RFP Structure Review">
-        <t t-call="portal.portal_layout">
-            <div class="container mt-4 mb-5 rfp-portal-wrapper">
-                <div class="card shadow-lg">
-                    <div class="card-header bg-white p-4">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h3 class="mb-0">Review Structure</h3>
-                                <p class="text-muted mb-0">Customize the section tree before generation.</p>
-                            </div>
-                            <div>
-                                <button id="btn_save_structure" class="btn btn-secondary me-2">
-                                    <i class="fa fa-save mx-1"/>
-                                    Save Changes
-                                </button>
-                                <button id="btn_confirm_structure" class="btn btn-primary btn-lg">
-                                    <i class="fa fa-cogs mx-1"/>
-                                    Generate Content
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="card-body p-4">
-                        <div id="rfp_structure_editor" t-att-data-project-id="rfp_project.id">
-                            <table class="table table-hover">
-                                <thead>
-                                    <tr>
-                                        <th style="width: 5%"></th>
-                                        <th style="width: 75%">Section Title</th>
-                                        <th style="width: 20%" class="text-end">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="rfp_section_list">
-                                    <t t-foreach="rfp_project.document_section_ids.sorted('sequence')" t-as="section">
-                                        <tr class="rfp-section-row" t-att-data-section-id="section.id" draggable="true">
-                                            <td class="align-middle text-center" style="cursor: move;">
-                                                <i class="fa fa-bars text-muted handle"/>
-                                                <input type="hidden" class="section-seq" t-att-value="section.sequence"/>
-                                            </td>
-                                            <td>
-                                                <input type="text" class="form-control section-title" t-att-value="section.section_title"/>
-                                            </td>
-                                            <td class="text-end">
-                                                <button class="btn btn-sm btn-outline-danger btn-delete-section">
-                                                    <i class="fa fa-trash"/>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    </t>
-                                </tbody>
-                            </table>
-                            <button id="btn_add_section" class="btn btn-outline-secondary w-100 dashed-border">
-                                <i class="fa fa-plus"/>
-                                Add New Section
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </t>
-    </template>
-
-    <!-- PHASE 3: GENERATING STATUS -->
-    <template id="portal_rfp_generating" name="RFP Generating Status">
+    <!-- PHASE 2: UNIFIED PROCESSING STATUS -->
+    <template id="portal_rfp_processing" name="RFP Processing Status">
         <t t-call="portal.portal_layout">
             <div class="container mt-5 text-center rfp-portal-wrapper">
                 <div class="card shadow p-5">
-                    <h2 class="mb-4">Generating Content...</h2>
-                    <p class="lead text-muted">The AI Architect is writing your sections. This may take a few minutes.</p>
-                    <p class="small text-muted">You can leave this page and come back later.</p>
+                    <h2 class="mb-4">AI Architect is Working...</h2>
+                    <p class="lead text-muted mb-4">We are autonomously building your RFP document. This involves structurizing, writing, and designing.</p>
 
-                    <div class="progress mt-4 mb-3" style="height: 30px;">
-                        <div id="rfp_generation_progress" class="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar" style="width: 0%" t-att-data-project-id="rfp_project.id">
+                    <!-- Steps Visual -->
+                    <div class="row justify-content-center mb-5">
+                        <div class="col-md-8">
+                            <ul class="list-group list-group-flush text-start" id="rfp_step_list">
+                                <li class="list-group-item d-flex justify-content-between align-items-center" id="step_structure">
+                                    <span><i class="fa fa-sitemap me-2"/> 1. Designing Structure</span>
+                                    <span class="badge rounded-pill bg-secondary status-badge">Pending</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center" id="step_content">
+                                    <span><i class="fa fa-pencil me-2"/> 2. Writing Content</span>
+                                    <span class="badge rounded-pill bg-secondary status-badge">Pending</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center" id="step_images">
+                                    <span><i class="fa fa-image me-2"/> 3. Drawing Diagrams</span>
+                                    <span class="badge rounded-pill bg-secondary status-badge">Pending</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="progress mt-2 mb-3" style="height: 30px;">
+                        <div id="rfp_generation_progress" class="progress-bar progress-bar-striped progress-bar-animated bg-primary" role="progressbar" style="width: 0%" t-att-data-project-id="rfp_project.id">
                             0%
                         </div>
                     </div>
-
-                    <div id="rfp_completion_area" class="d-none mt-4">
-                        <a t-attf-href="/rfp/review/#{rfp_project.id}" class="btn btn-primary btn-lg pulse-button">
-                            Review Content
-                            <i class="fa fa-arrow-right list-inline-item mx-1"/>
-                        </a>
-                    </div>
+                    <p id="rfp_status_text" class="small text-muted">Initializing...</p>
                 </div>
             </div>
         </t>
     </template>
 
-    <!-- PHASE 4.5: GENERATING IMAGES STATUS -->
-    <template id="portal_rfp_generating_images" name="RFP Generating Images Status">
-        <t t-call="portal.portal_layout">
-            <div class="container mt-5 text-center rfp-portal-wrapper">
-                <div class="card shadow p-5">
-                    <h2 class="mb-4">Generating Diagrams...</h2>
-                    <p class="lead text-muted">The AI Designer is drawing your visuals. This usually takes 1-2 minutes.</p>
-                    <p class="small text-muted">Please stay on this page for faster updates.</p>
-
-                    <div class="progress mt-4 mb-3" style="height: 30px;">
-                        <!-- Reusing the same JS logic if possible, or we need slight tweak in JS to handle status='generating_images' -->
-                        <div id="rfp_generation_progress" class="progress-bar progress-bar-striped progress-bar-animated bg-info" role="progressbar" style="width: 0%" t-att-data-project-id="rfp_project.id">
-                            0%
-                        </div>
-                    </div>
-
-                    <div id="rfp_completion_area" class="d-none mt-4">
-                        <a t-attf-href="/rfp/images_review/#{rfp_project.id}" class="btn btn-primary btn-lg pulse-button">
-                            Review Diagrams
-                            <i class="fa fa-image list-inline-item mx-1"/>
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </t>
-    </template>
-
-    <!-- PHASE 4.6: IMAGES REVIEW -->
-    <template id="portal_rfp_images_review" name="RFP Images Review">
-        <t t-call="portal.portal_layout">
-            <div class="container mt-4 mb-5 rfp-portal-wrapper">
-                <div class="d-flex justify-content-between align-items-center mb-4 sticky-top bg-white p-3 shadow-sm rounded">
-                    <h3>Review Diagrams</h3>
-                    <div>
-                         <!-- Finish Action -->
-                        <button id="btn_finish_images" class="btn btn-success" t-att-data-project-id="rfp_project.id">
-                            <i class="fa fa-check"/>
-                            Complete Project
-                        </button>
-                    </div>
-                </div>
-
-                <div class="row">
-                    <t t-if="not rfp_project.document_section_ids.mapped('diagram_ids')">
-                        <div class="col-12">
-                             <div class="alert alert-warning">No diagrams were identified for this project.</div>
-                        </div>
-                    </t>
-
-                    <t t-foreach="rfp_project.document_section_ids" t-as="section">
-                         <t t-foreach="section.diagram_ids" t-as="diagram">
-                            <div class="col-md-6 mb-4">
-                                <div class="card shadow-sm h-100">
-                                    <div class="card-header">
-                                        <h5 class="mb-0"><t t-esc="diagram.title"/></h5>
-                                        <p class="text-muted small mb-0">Section: <t t-esc="section.section_title"/></p>
-                                    </div>
-                                    <div class="card-body text-center bg-light">
-                                        <t t-if="diagram.image_file">
-                                            <img t-att-src="'/web/image/rfp.section.diagram/%s/image_file' % diagram.id" class="img-fluid rounded shadow-sm" style="max-height: 400px;"/>
-                                        </t>
-                                        <t t-else="">
-                                            <div class="py-5 text-muted">
-                                                <i class="fa fa-exclamation-triangle fa-3x mb-3"/>
-                                                <p>Image Generation Failed or Missing</p>
-                                            </div>
-                                        </t>
-                                    </div>
-                                    <div class="card-footer bg-white">
-                                         <p class="small text-muted mb-0"><t t-esc="diagram.description"/></p>
-                                    </div>
-                                </div>
-                            </div>
-                         </t>
-                    </t>
-                </div>
-            </div>
-        </t>
-    </template>
-
-    <!-- PHASE 4: CONTENT REVIEW -->
-    <template id="portal_rfp_content_review" name="RFP Content Review">
+    <!-- PHASE 3: UNIFIED EDITOR (SPA) -->
+    <template id="portal_rfp_unified_editor" name="RFP Unified Editor">
         <t t-call="portal.portal_layout">
             <!-- Load Quill.js -->
             <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet"/>
             <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
 
-            <div class="container mt-4 mb-5 rfp-portal-wrapper">
-                <div class="d-flex justify-content-between align-items-center mb-4 sticky-top bg-white p-3 shadow-sm rounded">
-                    <h3>Review &amp; Edit Content</h3>
-                    <div>
-                        <button id="btn_save_content" class="btn btn-secondary me-2" t-att-data-project-id="rfp_project.id">
-                            <i class="fa fa-save"/>
-                            Save Draft
+            <div class="container-fluid mt-4 mb-5 rfp-portal-wrapper">
+                
+                <!-- Toolbar -->
+                <div class="d-flex justify-content-between align-items-center mb-4 sticky-top bg-white p-3 shadow-sm rounded border z-index-1000">
+                    <div class="d-flex align-items-center gap-3">
+                        <h3 class="mb-0" t-field="rfp_project.name"/>
+                        <span t-if="rfp_project.current_stage == 'completed'" class="badge bg-success">Ready</span>
+                        <span t-if="rfp_project.current_stage == 'document_locked'" class="badge bg-dark"><i class="fa fa-lock"/> Locked</span>
+                    </div>
+                    
+                    <div class="d-flex gap-2">
+                         <a t-attf-href="/rfp/download/word/#{rfp_project.id}" class="btn btn-outline-primary">
+                            <i class="fa fa-file-word-o"/> Word
+                        </a>
+                        <button onclick="window.print()" class="btn btn-outline-dark">
+                            <i class="fa fa-print"/> Print
                         </button>
-                        <button id="btn_submit_content" class="btn btn-primary" t-att-data-project-id="rfp_project.id">
-                            <i class="fa fa-image"/>
-                            Generate Diagrams
-                        </button>
+                        
+                        <div class="vr mx-2"></div>
+
+                        <t t-if="rfp_project.current_stage != 'document_locked'">
+                            <button id="btn_unified_save" class="btn btn-primary" t-att-data-project-id="rfp_project.id">
+                                <i class="fa fa-save"/> Save Changes
+                            </button>
+                            <button id="btn_toggle_lock" class="btn btn-warning" t-att-data-project-id="rfp_project.id" data-locked="true">
+                                <i class="fa fa-lock"/> Lock Document
+                            </button>
+                        </t>
+                        <t t-else="">
+                            <button id="btn_toggle_lock" class="btn btn-secondary" t-att-data-project-id="rfp_project.id" data-locked="false">
+                                <i class="fa fa-unlock"/> Unlock to Edit
+                            </button>
+                        </t>
                     </div>
                 </div>
 
-                <div id="rfp_content_editor">
-                    <t t-foreach="rfp_project.document_section_ids.sorted('sequence')" t-as="section">
-                        <div class="card mb-4 shadow-sm section-block" t-att-data-section-id="section.id">
-                            <div class="card-header bg-light">
-                                <h5 class="mb-0" t-field="section.section_title"/>
+                <div class="row">
+                    <!-- Main Editor Area -->
+                    <div class="col-12">
+                        <div id="rfp_unified_container" class="bg-light p-3 rounded">
+                            
+                            <!-- Draggable List -->
+                            <div id="rfp_section_list" class="d-flex flex-column gap-4">
+                                <t t-foreach="rfp_project.document_section_ids.sorted('sequence')" t-as="section">
+                                    <div class="card shadow-sm rfp-section-block" t-att-data-section-id="section.id" draggable="true">
+                                        <!-- Header -->
+                                        <div class="card-header bg-white d-flex align-items-center gap-3 p-3 handle" style="cursor: move;">
+                                            <i class="fa fa-bars text-muted fa-lg"/>
+                                            <input type="text" class="form-control form-control-lg fw-bold border-0 bg-transparent section-title-input" t-att-value="section.section_title" placeholder="Section Title"/>
+                                            <button class="btn btn-sm text-danger btn-delete-section ms-auto">
+                                                <i class="fa fa-trash"/>
+                                            </button>
+                                        </div>
+
+                                        <!-- Content Body -->
+                                        <div class="card-body p-0">
+                                            <div class="rfp-quill-editor bg-white border-bottom" style="min-height: 200px;" t-att-id="'editor_' + str(section.id)">
+                                                <t t-out="section.content_html"/>
+                                            </div>
+                                        </div>
+
+                                        <!-- Images Footer -->
+                                        <div class="card-footer bg-light p-3">
+                                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                                <h6 class="text-muted small text-uppercase fw-bold mb-0">Diagrams &amp; Visuals</h6>
+                                                <button class="btn btn-sm btn-outline-primary btn-upload-diagram-trigger" t-att-data-section-id="section.id" t-att-disabled="rfp_project.current_stage == 'document_locked'">
+                                                    <i class="fa fa-upload"/> Add Image
+                                                </button>
+                                                <input type="file" class="d-none rfp-diagram-upload-input" accept="image/*" t-att-data-section-id="section.id"/>
+                                            </div>
+                                            
+                                            <div class="row g-3 diagrams-container" t-att-id="'diagrams-container-' + str(section.id)">
+                                                <t t-if="section.diagram_ids">
+                                                    <t t-foreach="section.diagram_ids" t-as="diagram">
+                                                        <div class="col-md-4 col-sm-6 diagram-wrapper" t-att-data-diagram-id="diagram.id">
+                                                            <div class="card h-100 border-0 shadow-sm diagram-card">
+                                                                <div class="position-relative">
+                                                                    <img t-if="diagram.image_file" t-att-src="'/web/image/rfp.section.diagram/%s/image_file' % diagram.id" class="card-img-top object-fit-cover" style="height: 150px; cursor: pointer;"/>
+                                                                    <div t-else="" class="card-img-top bg-secondary text-white d-flex align-items-center justify-content-center" style="height: 150px;">
+                                                                        <i class="fa fa-image fa-2x"/>
+                                                                    </div>
+                                                                    
+                                                                    <!-- Overlay Actions -->
+                                                                    <div class="position-absolute top-0 end-0 p-2" t-if="rfp_project.current_stage != 'document_locked'">
+                                                                        <button class="btn btn-sm btn-light text-danger shadow-sm btn-delete-diagram" t-att-data-diagram-id="diagram.id" title="Delete Image">
+                                                                            <i class="fa fa-trash"/>
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="card-body p-2">
+                                                                    <p class="card-text small text-muted text-truncate mb-0" t-att-title="diagram.description">
+                                                                        <t t-esc="diagram.description"/>
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </t>
+                                                </t>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </t>
                             </div>
-                            <div class="card-body p-0">
-                                <!-- Quill Editor Container -->
-                                <div class="rfp-quill-editor bg-white" style="min-height: 300px; font-size: 16px;" t-att-id="'editor_' + str(section.id)">
-                                    <t t-out="section.content_html"/>
+                            
+                            <!-- Add Section Button -->
+                            <div class="text-center mt-4">
+                                <button id="btn_add_section" class="btn btn-outline-secondary dashed-border w-50 py-3">
+                                    <i class="fa fa-plus-circle fa-lg mb-2"/><br/>
+                                    Add New Section
+                                </button>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Hidden Template for New Sections (cloned by JS) -->
+                <div id="section_template_clone" class="d-none">
+                    <div class="card shadow-sm rfp-section-block mb-4" data-section-id="0" draggable="true">
+                        <!-- Header -->
+                        <div class="card-header bg-white d-flex align-items-center gap-3 p-3 handle" style="cursor: move;">
+                            <i class="fa fa-bars text-muted fa-lg"/>
+                            <input type="text" class="form-control form-control-lg fw-bold border-0 bg-transparent section-title-input" value="" placeholder="Section Title"/>
+                            <button class="btn btn-sm text-danger btn-delete-section ms-auto">
+                                <i class="fa fa-trash"/>
+                            </button>
+                        </div>
+        
+                        <!-- Content Body -->
+                        <div class="card-body p-0">
+                            <div class="rfp-quill-editor bg-white border-bottom" style="min-height: 200px;"></div>
+                        </div>
+        
+                        <!-- Images Footer -->
+                        <div class="card-footer bg-light p-3">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="text-muted small text-uppercase fw-bold mb-0">Diagrams &amp; Visuals</h6>
+                                <button class="btn btn-sm btn-outline-primary btn-upload-diagram-trigger">
+                                    <i class="fa fa-upload"/> Add Image
+                                </button>
+                                <input type="file" class="d-none rfp-diagram-upload-input" accept="image/*"/>
+                            </div>
+                            <div class="row g-3 diagrams-container"></div>
+                        </div>
+                    </div>
+                </div>
+        
+                <!-- Lock Confirmation Modal -->
+                <div class="modal fade" id="modal_lock_confirm" tabindex="-1" role="dialog">
+                    <div class="modal-dialog modal-dialog-centered" role="document">
+                        <div class="modal-content">
+                            <div class="modal-header border-0 pb-0">
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body text-center pt-0">
+                                <div class="mb-3">
+                                    <i class="fa fa-lock fa-4x text-warning"></i>
                                 </div>
-                                <!-- Hidden input to store value for JS pickup if needed, though we read from Quill directly -->
-                                <input type="hidden" class="section-html-input" t-att-data-section-id="section.id"/>
+                                <h4>Lock Document?</h4>
+                                <p class="text-muted">
+                                    Locking the document will prevent further edits. you can unlock it later but it is better to finish everything before locking.
+                                </p>
+                            </div>
+                            <div class="modal-footer justify-content-center border-0">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="button" class="btn btn-primary px-4" id="btn_confirm_lock_action">Yes, Lock it!</button>
                             </div>
                         </div>
-                    </t>
+                    </div>
                 </div>
 
-
-                <!-- Confirmation Modal -->
-                <div class="modal fade" id="modal_confirm_finalize" tabindex="-1">
-                    <div class="modal-dialog">
+                <!-- Upload Diagram Modal -->
+                <div class="modal fade" id="modal_upload_diagram" tabindex="-1" role="dialog">
+                    <div class="modal-dialog modal-dialog-centered" role="document">
                         <div class="modal-content">
                             <div class="modal-header">
-                                <h5 class="modal-title">Generate Diagrams?</h5>
+                                <h5 class="modal-title">Add Diagram</h5>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                             </div>
                             <div class="modal-body">
-                                <p>Are you sure you want to proceed to Image Generation?</p>
-                                <p class="small text-muted">The AI will generate diagrams based on the structure.</p>
+                                <form id="form_upload_diagram">
+                                    <input type="hidden" id="upload_section_id" name="section_id"/>
+                                    <div class="mb-3">
+                                        <label class="form-label">Title <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" id="upload_diagram_title" name="title" required="required"/>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Description</label>
+                                        <textarea class="form-control" id="upload_diagram_desc" name="description" rows="3" required="required"></textarea>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Image File <span class="text-danger">*</span></label>
+                                        <input type="file" class="form-control" id="upload_diagram_file" name="image_file" accept="image/*" required="required"/>
+                                    </div>
+                                </form>
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                <button type="button" class="btn btn-primary" id="btn_confirm_finalize_action">Yes, Generate</button>
+                                <button type="button" class="btn btn-primary" id="btn_save_diagram">Upload</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Delete Confirmation Modal -->
+                <div class="modal fade" id="modal_delete_confirm" tabindex="-1" role="dialog">
+                    <div class="modal-dialog modal-dialog-centered modal-sm" role="document">
+                        <div class="modal-content">
+                            <div class="modal-header border-0 pb-0">
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body text-center pt-0">
+                                <div class="mb-3">
+                                    <i class="fa fa-trash fa-3x text-danger"></i>
+                                </div>
+                                <h5 id="delete_confirm_title">Delete Item?</h5>
+                                <p class="text-muted small" id="delete_confirm_message">This action cannot be undone.</p>
+                                <input type="hidden" id="delete_target_type"/>
+                                <input type="hidden" id="delete_target_id"/>
+                            </div>
+                            <div class="modal-footer justify-content-center border-0 pt-0">
+                                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                                <button type="button" class="btn btn-danger btn-sm px-4" id="btn_confirm_delete">Delete</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Image Viewer Modal -->
+                <div class="modal fade" id="modal_image_viewer" tabindex="-1" role="dialog">
+                    <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+                        <div class="modal-content bg-dark">
+                            <div class="modal-header border-0">
+                                <h6 class="modal-title text-white" id="image_viewer_title">Image Preview</h6>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body text-center p-2">
+                                <img id="image_viewer_img" src="" class="img-fluid rounded" style="max-height: 70vh;" alt="Preview"/>
+                            </div>
+                            <div class="modal-footer border-0 justify-content-center">
+                                <a id="image_viewer_download" href="" download="" class="btn btn-light">
+                                    <i class="fa fa-download"></i> Download
+                                </a>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
         </t>
+
+
     </template>
+
+
 
     <template id="portal_rfp_document" name="Generated RFP Document">
         <t t-call="portal.portal_layout">

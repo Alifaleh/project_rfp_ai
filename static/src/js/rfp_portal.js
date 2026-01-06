@@ -14,18 +14,25 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         'change .rfp-input-group input, .rfp-input-group select, .rfp-input-group textarea': '_onInputChange',
         'submit form': '_onSubmit',
 
-        // Structure Actions
+        // Unified Editor Actions
+        'click #btn_unified_save': '_onUnifiedSave',
+        'click #btn_toggle_lock': '_onToggleLock',
+        'click #btn_confirm_lock_action': '_onConfirmLockAction',
+
+        // Section Management
         'click #btn_add_section': '_onAddSection',
         'click .btn-delete-section': '_onDeleteSection',
-        'click #btn_confirm_structure': '_onConfirmStructure',
-        'click #btn_save_structure': '_onSaveStructure',
 
-        // Content Review Actions
-        'click #btn_save_content': '_onSaveContent',
-        'click #btn_submit_content': '_onSubmitContent',
-        'click #btn_submit_content': '_onSubmitContent',
-        'click #btn_confirm_finalize_action': '_onConfirmFinalizeAction',
-        'click #btn_finish_images': '_onFinishImages',
+        // Diagram Management
+        'click .btn-upload-diagram-trigger': '_onUploadDiagramTrigger',
+        'click #btn_save_diagram': '_onUploadDiagramSubmit',
+        'click .btn-delete-diagram': '_onDeleteDiagram',
+
+        // Delete Confirmation
+        'click #btn_confirm_delete': '_onConfirmDelete',
+
+        // Image Viewer
+        'click .diagram-card img': '_onViewImage',
     },
 
     // Custom RPC implementation to avoid module dependency issues in frontend
@@ -89,89 +96,108 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
 
     _onAddSection: function (ev) {
         ev.preventDefault();
-        const $tbody = this.$('#rfp_section_list');
-        const count = $tbody.find('tr').length;
-        const newSeq = (count + 1) * 10;
+        const $list = this.$('#rfp_section_list');
+        const $template = this.$('#section_template_clone').children().first().clone();
 
-        // Create internal ID for UI tracking (starts with new_)
+        if (!$template.length) {
+            console.error("Template not found");
+            return;
+        }
+
+        // Generate Temp ID
         const tempId = `new_${Date.now()}`;
+        $template.attr('data-section-id', tempId);
 
-        const rowHtml = `
-            <tr class="rfp-section-row" data-section-id="${tempId}" draggable="true">
-                <td class="align-middle text-center" style="cursor: move;">
-                    <i class="fa fa-bars text-muted handle"/>
-                    <input type="hidden" class="section-seq" value="${newSeq}"/>
-                </td>
-                <td>
-                    <input type="text" class="form-control section-title" placeholder="New Section"/>
-                </td>
-                <td class="text-end">
-                    <button class="btn btn-sm btn-outline-danger btn-delete-section">
-                        <i class="fa fa-trash"></i>
-                    </button>
-                </td>
-            </tr>
-        `;
-        $tbody.append(rowHtml);
+        // Append
+        $list.append($template);
+
+        // Initialize Quill for this new section
+        const $editorContainer = $template.find('.rfp-quill-editor');
+        $editorContainer.attr('id', `editor_${tempId}`);
+
+        // We need to re-init Quill for this new element
+        this._initQuillElement($editorContainer[0], tempId);
+
+        // Scroll to new section
+        if ($template[0] && typeof $template[0].scrollIntoView === 'function') {
+            $template[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
     },
 
     _onDeleteSection: function (ev) {
         ev.preventDefault();
-        $(ev.currentTarget).closest('tr').remove();
+        const $section = $(ev.currentTarget).closest('.rfp-section-block');
+        const sectionId = $section.data('section-id');
+
+        // Set modal data
+        this.$('#delete_confirm_title').text('Delete Section?');
+        this.$('#delete_confirm_message').text('This section and its content will be permanently removed.');
+        this.$('#delete_target_type').val('section');
+        this.$('#delete_target_id').val(sectionId);
+
+        // Show modal
+        $('#modal_delete_confirm').modal('show');
     },
 
     // Drag and Drop Handlers
     _onDragStart: function (ev) {
-        // Check target
-        const target = ev.target.closest('tr');
+        // Check target (now .rfp-section-block)
+        const target = ev.target.closest('.rfp-section-block');
         if (!target) return;
 
         this.draggedRow = target;
         ev.dataTransfer.effectAllowed = 'move';
         // Simple visual feedback
-        target.classList.add('opacity-50');
+        target.classList.add('opacity-50', 'border-primary');
     },
 
     _onDragOver: function (ev) {
         ev.preventDefault();
         ev.dataTransfer.dropEffect = 'move';
 
-        const targetRow = ev.target.closest('tr');
+        // --- Auto Scroll Logic ---
+        const scrollThreshold = 100; // px from edge
+        const scrollSpeed = 20;
+
+        if (ev.clientY < scrollThreshold) {
+            // Scroll Up
+            window.scrollBy(0, -scrollSpeed);
+        } else if ((window.innerHeight - ev.clientY) < scrollThreshold) {
+            // Scroll Down
+            window.scrollBy(0, scrollSpeed);
+        }
+        // -------------------------
+
+        const targetRow = ev.target.closest('.rfp-section-block');
         if (targetRow && targetRow !== this.draggedRow) {
-            // Visual feedback: line
-            // Determine if top or bottom
-            // We'll just underline the row for now to show "it will go near here"
-            // Or better: Use a simple border-bottom on targetRow
             this._clearDragVisuals();
 
             if (this._isBefore(this.draggedRow, targetRow)) {
                 // Dragging UP (Target is above Dragged) -> Place BEFORE Target
-                targetRow.style.borderTop = "2px solid #0dcaf0";
+                targetRow.style.borderTop = "4px solid #0dcaf0";
             } else {
                 // Dragging DOWN (Target is below Dragged) -> Place AFTER Target
-                targetRow.style.borderBottom = "2px solid #0dcaf0";
+                targetRow.style.borderBottom = "4px solid #0dcaf0";
             }
             targetRow.classList.add('rfp-drop-target');
         }
     },
 
     _onDragLeave: function (ev) {
-        // We only clear if leaving the row? 
-        // Logic is tricky because of children. 
-        // Simplest is to clear everything on Drop/End.
+        // Optional cleanup
     },
 
     _onDragEnd: function (ev) {
         this._clearDragVisuals();
         if (this.draggedRow) {
-            this.draggedRow.classList.remove('opacity-50');
+            this.draggedRow.classList.remove('opacity-50', 'border-primary');
             this.draggedRow = null;
         }
     },
 
     _clearDragVisuals: function () {
         // Iterate all rows and remove styles
-        const rows = this.el.querySelectorAll('.rfp-section-row');
+        const rows = this.el.querySelectorAll('.rfp-section-block');
         rows.forEach(r => {
             r.style.borderTop = "";
             r.style.borderBottom = "";
@@ -184,7 +210,7 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         ev.stopPropagation();
         this._clearDragVisuals();
 
-        const targetRow = ev.target.closest('tr');
+        const targetRow = ev.target.closest('.rfp-section-block');
         if (this.draggedRow && targetRow && this.draggedRow !== targetRow) {
             // Check position
             if (this._isBefore(this.draggedRow, targetRow)) {
@@ -296,12 +322,20 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         }
     },
 
-    // --- PHASE 3: GENERATION POLLING ---
+    // --- PHASE 2: UNIFIED PROCESSING POLLING ---
 
     _startGenerationPolling: function () {
         const $progressBar = this.$('#rfp_generation_progress');
+        if (!$progressBar.length) return;
+
         const projectId = $progressBar.data('project-id');
         const self = this;
+        const $statusText = this.$('#rfp_status_text');
+
+        // Steps
+        const $stepStructure = this.$('#step_structure');
+        const $stepContent = this.$('#step_content');
+        const $stepImages = this.$('#step_images');
 
         const interval = setInterval(async () => {
             try {
@@ -310,24 +344,100 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
                     params: {}
                 });
 
-                // Update UI
-                const pct = result.progress;
+                // Status Map for Steps
+                // We need to map `result.stage` (e.g., 'generating_content') to our steps
+                const stage = result.stage;
+                // Stages: sections_generated, generating_content, content_generated, generating_images, images_generated, completed...
+
+                // Helper to set step status
+                const setStep = ($el, state) => {
+                    const $badge = $el.find('.status-badge');
+                    if (state === 'done') {
+                        $badge.removeClass('bg-secondary bg-primary').addClass('bg-success').text('Completed');
+                        $el.addClass('list-group-item-success');
+                    } else if (state === 'active') {
+                        $badge.removeClass('bg-secondary bg-success').addClass('bg-primary').text('In Progress');
+                        $el.removeClass('list-group-item-success').addClass('list-group-item-light');
+                    } else {
+                        $badge.removeClass('bg-success bg-primary').addClass('bg-secondary').text('Pending');
+                        $el.removeClass('list-group-item-success list-group-item-light');
+                    }
+                };
+
+                // Logic to update steps based on stage
+                // 1. Structure
+                // Structure is instantaneous usually, so it's likely done if we are here? 
+                // Actually `sections_generated` means it IS done.
+                if (['sections_generated', 'generating_content', 'content_generated', 'generating_images', 'images_generated', 'completed', 'document_locked'].includes(stage)) {
+                    setStep($stepStructure, 'done');
+                } else {
+                    setStep($stepStructure, 'active');
+                }
+
+                // 2. Content
+                if (['content_generated', 'generating_images', 'images_generated', 'completed', 'document_locked'].includes(stage)) {
+                    setStep($stepContent, 'done');
+                } else if (stage === 'generating_content') {
+                    setStep($stepContent, 'active');
+                    $statusText.text("Writing granular content for each section...");
+                } else if (stage === 'sections_generated') {
+                    // It might be waiting to pick up job
+                    setStep($stepContent, 'active');
+                } else {
+                    setStep($stepContent, 'pending');
+                }
+
+                // 3. Images
+                if (['images_generated', 'completed', 'document_locked'].includes(stage)) {
+                    setStep($stepImages, 'done');
+                } else if (stage === 'generating_images') {
+                    setStep($stepImages, 'active');
+                    $statusText.text("Generating architectural diagrams...");
+                } else {
+                    setStep($stepImages, 'pending');
+                }
+
+                // Global Progress Bar
+                let pct = 0;
+                const jobProgress = result.progress || 0; // 0-100 from backend
+
+                if (['sections_generated'].includes(stage)) {
+                    // Just started
+                    pct = 20;
+                } else if (stage === 'generating_content') {
+                    // Structure (20) + Content Portion (50 * job_progress)
+                    pct = 20 + (jobProgress * 0.5);
+                } else if (['content_generated'].includes(stage)) {
+                    // Structure (20) + Content (50) Done
+                    pct = 70;
+                } else if (stage === 'generating_images') {
+                    // Structure (20) + Content (50) + Images Portion (30 * job_progress)
+                    pct = 70 + (jobProgress * 0.3);
+                } else if (['images_generated', 'completed', 'document_locked'].includes(stage)) {
+                    pct = 100;
+                }
+
+                // Ensure int
+                pct = Math.round(pct);
                 $progressBar.css('width', pct + '%').text(pct + '%');
 
-                if (result.status === 'completed' || result.status === 'completed_with_errors') {
+                // Completion Redirect
+                if (['images_generated', 'completed', 'document_locked'].includes(stage)) {
                     clearInterval(interval);
                     $progressBar.removeClass('progress-bar-animated').addClass('bg-success');
-                    self.$('#rfp_completion_area').removeClass('d-none');
-                    self.$('h2').text("Generation Complete!");
-                    self.$('.lead').text("Content is ready for your review.");
+                    $statusText.text("All Done! Redirecting to Editor...");
+
+                    setTimeout(() => {
+                        window.location.href = `/rfp/edit/${projectId}`;
+                    }, 1000);
                 }
             } catch (e) {
                 console.error("Polling error", e);
             }
-        }, 3000); // 3 seconds
+        }, 2000); // 2 seconds
     },
 
-    // --- PHASE 4: CONTENT REVIEW ---
+    // --- PHASE 3: UNIFIED EDITOR ---
 
     _initQuillEditors: function () {
         if (typeof Quill === 'undefined') return;
@@ -335,369 +445,330 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         this.quillInstances = {};
         const self = this;
 
+        // Unified Editor uses same class .rfp-quill-editor
         this.$('.rfp-quill-editor').each(function () {
-            const $el = $(this);
-            const sectionId = $el.attr('id').replace('editor_', '');
-
-            // Basic Toolbar
-            const toolbarOptions = [
-                [{ 'header': [2, 3, false] }],
-                ['bold', 'italic', 'underline', 'strike'],
-                [{ 'list': 'ordered' }, { 'list': 'bullet' }],
-                ['clean']
-            ];
-
-            const quill = new Quill(this, {
-                theme: 'snow',
-                modules: {
-                    toolbar: toolbarOptions
-                }
-            });
-
-            self.quillInstances[sectionId] = quill;
+            self._initQuillElement(this);
         });
     },
 
-    _onSaveContent: function (ev) {
-        this._saveContentAction(ev, false);
-    },
+    _initQuillElement: function (el, explicitId = null) {
+        if (!el) return;
+        const $el = $(el);
+        // If explicitId is provided, use it, otherwise parse from ID
+        // Note: New sections have data-section-id attribute or we rely on ID
 
-    _onSubmitContent: function (ev) {
-        ev.preventDefault();
-        // Show Bootstrap Modal
-        const modalEl = document.getElementById('modal_confirm_finalize');
-        if (modalEl) {
-            // We can use bootstrap global if available, or just jquery show if simple
-            // Odoo usually has bootstrap loaded.
-            if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-                const modal = new bootstrap.Modal(modalEl);
-                modal.show();
-            } else {
-                // Fallback to jquery
-                $(modalEl).modal('show');
+        let sectionId = explicitId;
+        if (!sectionId) {
+            const idAttr = $el.attr('id'); // editor_123
+            if (idAttr) sectionId = idAttr.replace('editor_', '');
+        }
+
+        if (!sectionId) return;
+
+        const toolbarOptions = [
+            [{ 'header': [2, 3, false] }],
+            ['bold', 'italic', 'underline', 'strike'],
+            [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+            ['clean']
+        ];
+
+        // Prevent double init
+        if (this.quillInstances[sectionId]) return;
+
+        const quill = new Quill(el, {
+            theme: 'snow',
+            modules: {
+                toolbar: toolbarOptions
             }
-        } else {
-            // Fallback if modal missing
-            if (confirm("Are you sure you want to finalize?")) {
-                this._saveContentAction(ev, true);
-            }
+        });
+
+        this.quillInstances[sectionId] = quill;
+
+        // Check lock state
+        if (this.$('#btn_toggle_lock[data-locked="false"]').length) {
+            quill.disable();
         }
     },
 
-    _onConfirmFinalizeAction: function (ev) {
-        // Find the original submit button to pass as 'ev' target (for the helper function)
-        // Or just modify helper to not rely on event target for ID if possible, 
-        // but helper uses ev.currentTarget.
-        // We need to pass the #btn_submit_content element.
-
-        // Hide modal
-        $('#modal_confirm_finalize').modal('hide');
-
-        // Mock event with the real button as currentTarget
-        const $realBtn = this.$('#btn_submit_content');
-        const mockEv = {
-            preventDefault: () => { },
-            currentTarget: $realBtn.get(0)
-        };
-
-        this._saveContentAction(mockEv, true);
-    },
-
-    _saveContentAction: async function (ev, finish) {
+    _onUnifiedSave: async function (ev) {
         ev.preventDefault();
         const $btn = $(ev.currentTarget);
         const projectId = $btn.data('project-id');
         const originalText = $btn.html();
 
-        // 1. Collect Data From Quill
-        const contentMap = {};
+        $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Saving...');
 
+        // 1. Collect Structure (Order + Titles)
+        const sectionsData = [];
+        let seqCounter = 10;
+
+        this.$('.rfp-section-block').each(function () {
+            const $block = $(this);
+            const id = $block.data('section-id');
+            const title = $block.find('.section-title-input').val();
+
+            sectionsData.push({
+                id: id,
+                sequence: seqCounter,
+                section_title: title
+            });
+            seqCounter += 10;
+        });
+
+        // 2. Collect Content (Quill)
+        const contentData = {};
         if (this.quillInstances) {
             for (const [sectionId, quill] of Object.entries(this.quillInstances)) {
-                // Get HTML
-                const html = quill.root.innerHTML;
-                contentMap[sectionId] = html;
+                contentData[sectionId] = quill.root.innerHTML;
             }
-        } else {
-            // Fallback if Quill failed to load
-            this.$('.section-html-input').each(function () {
-                const id = $(this).data('section-id');
-                contentMap[id] = $(this).val(); // This is likely empty if Quill didn't init, logic fallback
-            });
         }
 
-        // 2. UI Feedback
-        $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i>');
-
-        // 3. RPC
         try {
             const result = await this._rpc({
-                route: `/rfp/content/save/${projectId}`,
+                route: `/rfp/unified/save/${projectId}`,
                 params: {
-                    sections_content: contentMap,
-                    finish: finish
+                    structure_data: sectionsData,
+                    content_data: contentData
                 }
             });
 
             if (result.status === 'success') {
-                if (finish && result.redirect) {
-                    window.location.href = result.redirect;
-                } else {
-                    // Flash success
-                    $btn.addClass('btn-success').removeClass('btn-secondary');
-                    setTimeout(() => {
-                        $btn.removeClass('btn-success').addClass('btn-secondary').html(originalText).prop('disabled', false);
-                    }, 1000);
-                }
+                $btn.addClass('btn-success').removeClass('btn-primary').html('<i class="fa fa-check"/> Saved');
+                setTimeout(() => {
+                    $btn.removeClass('btn-success').addClass('btn-primary').html(originalText).prop('disabled', false);
+                }, 1500);
             } else {
-                alert("Error: " + result.error);
+                alert("Error saving: " + (result.error || 'Unknown'));
                 $btn.prop('disabled', false).html(originalText);
             }
         } catch (e) {
             console.error(e);
-            alert("Error saving content.");
+            alert("Connection Error");
             $btn.prop('disabled', false).html(originalText);
         }
     },
 
-    // --- GAP ANALYSIS (Original Logic Preserved) ---
-
-    _onSubmit: function (ev) {
-        if (this.$('#rfp_loading_overlay').length) {
-            $('#rfp_loading_overlay').removeClass('d-none');
-        }
-    },
-
-    _onSuggestionClick: function (ev) {
-        ev.preventDefault();
-        const $badge = $(ev.currentTarget);
-        const value = $badge.data('value');
-        const targetKey = $badge.data('target');
-
-
-        const $input = this.$el.find(`[name="${targetKey}"]`);
-
-
-        if ($input.length) {
-            $input.val(value).trigger('change');
-        } else {
-            // Fallback: try finding by ID or without 'name' attribute specifics 
-            // (sometimes name has special chars or QWeb renders differently)
-            console.warn("Input not found for key:", targetKey);
-        }
-    },
-
-    _onIrrelevantToggle: function (ev) {
+    _onToggleLock: function (ev) {
         ev.preventDefault();
         const $btn = $(ev.currentTarget);
-        const targetId = $btn.data('target');
-        const $box = this.$el.find(`#${targetId}`);
-        const fieldKey = targetId.replace('irrelevant_', '');
-        const $flag = this.$el.find(`[name="is_irrelevant_${fieldKey}"]`);
-        const $inputGroup = $btn.closest('.rfp-input-group');
-        let shouldShow = false;
+        const isLocking = $btn.data('locked');
 
-        if ($btn.hasClass('btn-irrelevant-cancel')) {
-            shouldShow = false;
+        // Store project ID on modal for the confirm action
+        const projectId = $btn.data('project-id');
+        this.$('#btn_confirm_lock_action').data('project-id', projectId);
+        this.$('#btn_confirm_lock_action').data('is-locking', isLocking);
+
+        if (isLocking) {
+            // Show Custom Modal using jQuery
+            $('#modal_lock_confirm').modal('show');
         } else {
-            shouldShow = $box.hasClass('d-none');
-        }
-
-        const $inputs = $inputGroup.find('input:not([type="hidden"]), select, textarea').not('.irrelevant-box input, .custom-answer-box input');
-
-        if (shouldShow) {
-            // Hide Custom Answer box if open
-            const $customBox = this.$el.find(`#custom_answer_${fieldKey}`);
-            if (!$customBox.hasClass('d-none')) {
-                $customBox.find('.btn-custom-answer-cancel').click();
-            }
-
-            $box.removeClass('d-none');
-            $flag.val('true');
-            $inputs.each(function () {
-                const $el = $(this);
-                if ($el.prop('required')) {
-                    $el.data('was-required', true);
-                    $el.prop('required', false);
-                }
-                $el.prop('disabled', true);
-            });
-            $box.find('input[type="text"]').focus();
-        } else {
-            $box.addClass('d-none');
-            $flag.val('false');
-            $inputs.each(function () {
-                const $el = $(this);
-                if ($el.data('was-required')) {
-                    $el.prop('required', true);
-                    $el.removeData('was-required');
-                }
-                $el.prop('disabled', false);
-            });
+            // Unlocking happens immediately
+            this._performLockToggle(projectId, false);
         }
     },
 
-    _onCustomAnswerToggle: function (ev) {
-        ev.preventDefault();
-        const $btn = $(ev.currentTarget);
-        const targetId = $btn.data('target');
-        const $box = this.$el.find(`#${targetId}`);
-        const fieldKey = targetId.replace('custom_answer_', '');
-        const $flag = this.$el.find(`[name="has_custom_answer_${fieldKey}"]`);
-        const $inputGroup = $btn.closest('.rfp-input-group');
-        let shouldShow = false;
-
-        if ($btn.hasClass('btn-custom-answer-cancel')) {
-            shouldShow = false;
-        } else {
-            shouldShow = $box.hasClass('d-none');
-        }
-
-        const $inputs = $inputGroup.find('input:not([type="hidden"]), select, textarea').not('.irrelevant-box input, .custom-answer-box input');
-
-        if (shouldShow) {
-            // Hide Irrelevant box if open
-            const $irrelevantBox = this.$el.find(`#irrelevant_${fieldKey}`);
-            if (!$irrelevantBox.hasClass('d-none')) {
-                $irrelevantBox.find('.btn-irrelevant-cancel').click();
-            }
-
-            $box.removeClass('d-none');
-            $flag.val('true');
-            $inputs.each(function () {
-                const $el = $(this);
-                if ($el.prop('required')) {
-                    $el.data('was-required', true);
-                    $el.prop('required', false);
-                }
-                $el.prop('disabled', true);
-            });
-            $box.find('input[type="text"]').focus();
-        } else {
-            $box.addClass('d-none');
-            $flag.val('false');
-            $inputs.each(function () {
-                const $el = $(this);
-                if ($el.data('was-required')) {
-                    $el.prop('required', true);
-                    $el.removeData('was-required');
-                }
-                $el.prop('disabled', false);
-            });
-        }
-    },
-
-    _onInputChange: function () {
-        this._checkDependencies();
-        this._checkSpecifyTriggers();
-    },
-
-    _checkDependencies: function () {
-        const self = this;
-        this.$el.find('.rfp-input-group[data-depends-on]').each(function () {
-            const $group = $(this);
-            const dependsData = $group.data('depends-on');
-            if (!dependsData || $.isEmptyObject(dependsData)) return;
-
-            const depKey = dependsData.field_key;
-            const depValue = dependsData.value;
-
-            if (depKey && depValue) {
-                const $depInput = self.$el.find(`[name="${depKey}"]`);
-                let currentValue = "";
-
-                if ($depInput.is(':radio')) {
-                    currentValue = self.$el.find(`[name="${depKey}"]:checked`).val();
-                } else if ($depInput.is(':checkbox')) {
-                    if ($depInput.length > 1) {
-                        if (self.$el.find(`[name="${depKey}"][value="${depValue}"]:checked`).length > 0) {
-                            currentValue = depValue;
-                        }
-                    } else {
-                        currentValue = $depInput.is(':checked') ? 'yes' : 'no';
-                    }
-                } else {
-                    currentValue = $depInput.val();
-                }
-
-                const $inputs = $group.find('input:not([type="hidden"]), select, textarea').not('.irrelevant-box input');
-
-                if (currentValue == depValue) {
-                    $group.removeClass('d-none');
-                    $inputs.each(function () {
-                        const $el = $(this);
-                        if ($el.data('dep-was-required')) {
-                            $el.prop('required', true);
-                            $el.removeData('dep-was-required');
-                        }
-                    });
-                } else {
-                    $group.addClass('d-none');
-                    $inputs.each(function () {
-                        const $el = $(this);
-                        if ($el.prop('required')) {
-                            $el.data('dep-was-required', true);
-                            $el.prop('required', false);
-                        }
-                    });
-                }
-            }
-        });
-        this._checkSpecifyTriggers();
-    },
-
-    _checkSpecifyTriggers: function () {
-        const self = this;
-        this.$el.find('.rfp-input-group[data-specify-triggers]').each(function () {
-            const $group = $(this);
-            const fieldKey = $group.data('field-key');
-            let triggers = $group.data('specify-triggers');
-            if (typeof triggers === 'string') {
-                try { triggers = JSON.parse(triggers); } catch (e) { triggers = []; }
-            }
-            if (!triggers || !triggers.length) return;
-
-            let selectedValues = [];
-            const $inputs = self.$el.find(`input[name="${fieldKey}"]:checked`);
-            $inputs.each(function () { selectedValues.push($(this).val()); });
-
-            const $specifyInput = self.$el.find(`input[name="${fieldKey}_specify"]`);
-            const isMatch = selectedValues.some(val => triggers.includes(val));
-
-            if (isMatch) {
-                $specifyInput.removeClass('d-none').prop('required', true);
-            } else {
-                $specifyInput.addClass('d-none').prop('required', false).val('');
-            }
-        });
-    },
-
-    _onFinishImages: async function (ev) {
-        ev.preventDefault();
+    _onConfirmLockAction: function (ev) {
         const $btn = $(ev.currentTarget);
         const projectId = $btn.data('project-id');
-        const originalText = $btn.html();
+        const isLocking = $btn.data('is-locking');
 
-        if (!confirm("Are you sure you want to complete the project?")) return;
+        // Hide Modal using jQuery
+        $('#modal_lock_confirm').modal('hide');
 
-        $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i>');
+        this._performLockToggle(projectId, isLocking);
+    },
 
+    _performLockToggle: async function (projectId, isLocking) {
         try {
             const result = await this._rpc({
-                route: `/rfp/images/finish/${projectId}`,
-                params: {}
+                route: '/rfp/lock_toggle',
+                params: {
+                    project_id: projectId
+                } // Route now handles toggle/logic internally or we send param. 
+                // Updated route signature is `portal_rfp_lock_toggle(project_id)`
             });
 
-            if (result.status === 'success') {
-                window.location.href = result.redirect;
-            } else {
-                alert("Error: " + result.error);
-                $btn.prop('disabled', false).html(originalText);
+            if (result.success) {
+                window.location.reload();
             }
         } catch (e) {
             console.error(e);
-            alert("Error completing project.");
-            $btn.prop('disabled', false).html(originalText);
+            alert("Error updating lock status");
         }
+    },
+
+    // --- Image Management ---
+
+    // --- Image Management ---
+
+    _onUploadDiagramTrigger: function (ev) {
+        ev.preventDefault();
+        const $btn = $(ev.currentTarget);
+        const sectionId = $btn.data('section-id');
+
+        // Check if section is new (unsaved)
+        if (String(sectionId).startsWith('new_')) {
+            alert("Please save the section first before adding images.");
+            return;
+        }
+
+        // Set Hidden Input
+        this.$('#upload_section_id').val(sectionId);
+
+        // Reset Form
+        const form = document.getElementById('form_upload_diagram');
+        if (form) form.reset();
+
+        // Show Modal using jQuery
+        $('#modal_upload_diagram').modal('show');
+    },
+
+    _onUploadDiagramSubmit: async function (ev) {
+        ev.preventDefault();
+        const $btn = $(ev.currentTarget);
+        const originalText = $btn.html();
+
+        // Validate
+        const title = this.$('#upload_diagram_title').val();
+        // Use native checks or simple logic
+        if (!title || !this.$('#upload_diagram_file').val()) {
+            alert("Please fill required fields (Title and File)");
+            return;
+        }
+
+        const sectionId = this.$('#upload_section_id').val();
+        const fileInput = this.$('#upload_diagram_file')[0];
+        const description = this.$('#upload_diagram_desc').val();
+
+        $btn.html('<i class="fa fa-spinner fa-spin"></i> <span>Uploading...</span>').prop('disabled', true);
+
+        try {
+            const formData = new FormData();
+            formData.append('csrf_token', odoo.csrf_token);
+            formData.append('section_id', sectionId);
+            formData.append('image_file', fileInput.files[0]);
+            formData.append('title', title);
+            formData.append('description', description);
+
+            const response = await fetch('/rfp/diagram/upload', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                // Append to container
+                let $container = $(`#diagrams-container-${sectionId}`);
+                // Use fallback search if ID not found (e.g. if we are in a context where ID is generated)
+                if (!$container.length) {
+                    // Try to find section block by ID then find container inside
+                    const $section = this.$(`.rfp-section-block[data-section-id="${sectionId}"]`);
+                    $container = $section.find('.diagrams-container');
+                }
+
+                const cardHtml = `
+                    <div class="col-md-4 col-sm-6 diagram-wrapper" data-diagram-id="${result.diagram_id}">
+                        <div class="card h-100 border-0 shadow-sm diagram-card">
+                            <div class="position-relative">
+                                <img src="${result.image_url}" class="card-img-top object-fit-cover" style="height: 150px; cursor: pointer;" alt="${result.title}">
+                                <div class="position-absolute top-0 end-0 p-2">
+                                    <button class="btn btn-sm btn-light text-danger shadow-sm btn-delete-diagram" data-diagram-id="${result.diagram_id}" title="Delete Image">
+                                        <i class="fa fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body p-2">
+                                <h6 class="card-title text-truncate mb-1 small fw-bold" title="${result.title}">${result.title}</h6>
+                                <p class="card-text small text-muted text-truncate mb-0" title="${result.description}">
+                                    ${result.description}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                $container.append(cardHtml);
+
+                // Hide Modal using jQuery
+                $('#modal_upload_diagram').modal('hide');
+
+            } else {
+                alert("Upload failed: " + result.error);
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Upload error");
+        } finally {
+            $btn.html(originalText).prop('disabled', false);
+        }
+    },
+
+    _onDeleteDiagram: function (ev) {
+        ev.preventDefault();
+        const $btn = $(ev.currentTarget);
+        const diagramId = $btn.data('diagram-id');
+
+        // Set modal data
+        this.$('#delete_confirm_title').text('Delete Image?');
+        this.$('#delete_confirm_message').text('This image will be permanently removed.');
+        this.$('#delete_target_type').val('diagram');
+        this.$('#delete_target_id').val(diagramId);
+
+        // Show modal
+        $('#modal_delete_confirm').modal('show');
+    },
+
+    _onConfirmDelete: async function (ev) {
+        ev.preventDefault();
+        const targetType = this.$('#delete_target_type').val();
+        const targetId = this.$('#delete_target_id').val();
+
+        // Hide modal first
+        $('#modal_delete_confirm').modal('hide');
+
+        if (targetType === 'section') {
+            // Remove section from DOM
+            this.$(`.rfp-section-block[data-section-id="${targetId}"]`).remove();
+
+            // Also remove from quillInstances if it exists
+            if (this.quillInstances && this.quillInstances[targetId]) {
+                delete this.quillInstances[targetId];
+            }
+        } else if (targetType === 'diagram') {
+            try {
+                const result = await this._rpc({
+                    route: `/rfp/diagram/delete/${targetId}`,
+                    params: {}
+                });
+
+                if (result.success) {
+                    this.$(`.diagram-wrapper[data-diagram-id="${targetId}"]`).remove();
+                } else {
+                    alert("Could not delete: " + (result.error || 'Unknown error'));
+                }
+            } catch (e) {
+                console.error(e);
+                alert("Delete error");
+            }
+        }
+    },
+
+    _onViewImage: function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+
+        const $img = $(ev.currentTarget);
+        const imgSrc = $img.attr('src');
+        const $card = $img.closest('.diagram-wrapper');
+        const title = $card.find('.card-title').text() || 'Image Preview';
+
+        // Set modal content
+        this.$('#image_viewer_title').text(title);
+        this.$('#image_viewer_img').attr('src', imgSrc);
+        this.$('#image_viewer_download').attr('href', imgSrc).attr('download', title + '.png');
+
+        // Show modal
+        $('#modal_image_viewer').modal('show');
     }
+
 });

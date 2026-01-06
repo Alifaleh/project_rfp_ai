@@ -82,22 +82,13 @@ class RfpCustomerPortal(CustomerPortal):
              return request.redirect(f"/rfp/interface/{Project.id}")
         
         # 2. Redirect based on Major Phase
-        if Project.current_stage == STAGE_SECTIONS_GENERATED:
-             return request.redirect(f"/rfp/structure/{Project.id}")
-        elif Project.current_stage == STAGE_GENERATING_CONTENT:
-             return request.redirect(f"/rfp/generating/{Project.id}")
-        elif Project.current_stage == STAGE_CONTENT_GENERATED:
-             return request.redirect(f"/rfp/review/{Project.id}")
-        elif Project.current_stage == STAGE_GENERATING_IMAGES:
-             return request.redirect(f"/rfp/generating_images/{Project.id}")
-        elif Project.current_stage == STAGE_IMAGES_GENERATED:
-             return request.redirect(f"/rfp/images_review/{Project.id}")
-        elif Project.current_stage == STAGE_DOCUMENT_LOCKED:
-             return request.redirect(f"/rfp/document/{Project.id}")
-        elif Project.current_stage == STAGE_COMPLETED_WITH_ERRORS:
-             return request.redirect(f"/rfp/review/{Project.id}")
-        elif Project.current_stage == STAGE_COMPLETED:
-             return request.redirect(f"/rfp/document/{Project.id}")
+        # 2. Redirect based on Major Phase
+        if Project.current_stage in [STAGE_SECTIONS_GENERATED, STAGE_GENERATING_CONTENT, STAGE_CONTENT_GENERATED, STAGE_GENERATING_IMAGES, STAGE_IMAGES_GENERATED]:
+             # UNIFIED PROCESSING PAGE
+             return request.redirect(f"/rfp/processing/{Project.id}")
+        elif Project.current_stage in [STAGE_DOCUMENT_LOCKED, STAGE_COMPLETED, STAGE_COMPLETED_WITH_ERRORS]:
+             # FINAL VIEW / EDIT
+             return request.redirect(f"/rfp/edit/{Project.id}")
 
         # 3. Gather Questions for Current Stage
         questions_to_answer = []
@@ -180,57 +171,41 @@ class RfpCustomerPortal(CustomerPortal):
             
         return request.redirect(f"/rfp/interface/{Project.id}")
 
-    # --- PHASE 2: STRUCTURE REVIEW ---
-    @http.route(['/rfp/structure/<int:project_id>'], type='http', auth="user", website=True)
-    def portal_rfp_structure(self, project_id, **kw):
-        Project = request.env['rfp.project'].sudo().browse(project_id)
-        if not Project.exists() or Project.user_id != request.env.user:
-            return request.redirect('/my')
-        
-        if Project.current_stage != STAGE_SECTIONS_GENERATED:
-             return request.redirect(f"/rfp/interface/{Project.id}")
-
-        values = self._prepare_portal_layout_values()
-        values.update({
-            'rfp_project': Project,
-            'page_name': 'rfp_structure',
-        })
-        return request.render("project_rfp_ai.portal_rfp_structure_review", values)
-
-    @http.route(['/rfp/structure/save_and_generate/<int:project_id>'], type='json', auth="user", website=True)
-    def portal_rfp_save_structure(self, project_id, sections_data=None, generate=True):
-        """
-        AJAX Route to save structure and optionally trigger generation.
-        sections_data: List of dicts
-        generate: bool
-        """
-        Project = request.env['rfp.project'].sudo().browse(project_id)
-        if not Project.exists() or Project.user_id != request.env.user:
-            return {'error': 'Access Denied'}
-        
-        if sections_data:
-             Project.action_update_structure(sections_data)
-        
-        if generate:
-            # Trigger Generation
-            Project.action_generate_content()
-            return {'status': 'success', 'redirect': f'/rfp/generating/{Project.id}'}
-        
-        return {'status': 'success'}
-
-    # --- PHASE 3: GENERATION STATUS ---
-    @http.route(['/rfp/generating/<int:project_id>'], type='http', auth="user", website=True)
-    def portal_rfp_generating(self, project_id, **kw):
+    # --- PHASE 2: UNIFIED PROCESSING ---
+    @http.route(['/rfp/processing/<int:project_id>'], type='http', auth="user", website=True)
+    def portal_rfp_processing(self, project_id, **kw):
         Project = request.env['rfp.project'].sudo().browse(project_id)
         if not Project.exists() or Project.user_id != request.env.user:
             return request.redirect('/my')
             
+        # Define milestones for the progress bar
+        milestones = [
+            {'stage': STAGE_SECTIONS_GENERATED, 'label': 'Generating Structure...', 'progress': 20},
+            {'stage': STAGE_GENERATING_CONTENT, 'label': 'Writing Content...', 'progress': 50},
+            {'stage': STAGE_CONTENT_GENERATED, 'label': 'Content Written', 'progress': 70},
+            {'stage': STAGE_GENERATING_IMAGES, 'label': 'Drawing Diagrams...', 'progress': 90}, 
+            {'stage': STAGE_IMAGES_GENERATED, 'label': 'Finishing Up...', 'progress': 100}
+        ]
+        
+        # Determine current visual state
+        current_progress = 0
+        current_label = "Initializing..."
+        
+        # Simple lookup
+        for m in milestones:
+            if Project.current_stage == m['stage']:
+                current_label = m['label']
+                current_progress = m['progress']
+                break
+        
         values = self._prepare_portal_layout_values()
         values.update({
             'rfp_project': Project,
-            'page_name': 'rfp_generating',
+            'page_name': 'rfp_processing',
+            'current_label': current_label,
+            'current_progress': current_progress
         })
-        return request.render("project_rfp_ai.portal_rfp_generating", values)
+        return request.render("project_rfp_ai.portal_rfp_processing", values)
         
     @http.route(['/rfp/status/<int:project_id>'], type='json', auth="user", website=True)
     def portal_rfp_status(self, project_id):
@@ -243,108 +218,132 @@ class RfpCustomerPortal(CustomerPortal):
         
         # Return progress
         status_data = Project.get_generation_status()
+        status_data['stage'] = Project.current_stage # Add Stage Info
         return status_data
 
-    # --- PHASE 4: CONTENT REVIEW ---
-    @http.route(['/rfp/review/<int:project_id>'], type='http', auth="user", website=True)
-    def portal_rfp_content_review(self, project_id, **kw):
-        """
-        This is the "Show all sections with ability to make changes" page.
-        """
+    # --- PHASE 3: UNIFIED EDITOR (SPA) ---
+    @http.route(['/rfp/edit/<int:project_id>'], type='http', auth="user", website=True)
+    def portal_rfp_edit(self, project_id, **kw):
         Project = request.env['rfp.project'].sudo().browse(project_id)
         if not Project.exists() or Project.user_id != request.env.user:
             return request.redirect('/my')
             
-        # Ensure we are in writing stage (or completed, but editable?)
-        # Let's assume writing stage until verified.
-        
         values = self._prepare_portal_layout_values()
         values.update({
             'rfp_project': Project,
-            'page_name': 'rfp_content_review',
+            'page_name': 'rfp_edit',
         })
-        return request.render("project_rfp_ai.portal_rfp_content_review", values)
-        
-    @http.route(['/rfp/content/save/<int:project_id>'], type='json', auth="user", website=True)
-    def portal_rfp_save_content(self, project_id, sections_content=None, finish=False):
+        return request.render("project_rfp_ai.portal_rfp_unified_editor", values)
+
+    @http.route(['/rfp/unified/save/<int:project_id>'], type='json', auth="user", website=True)
+    def portal_rfp_unified_save(self, project_id, structure_data=None, content_data=None):
+        """
+        Unified Save Endpoint.
+        structure_data: List of {id, section_title, sequence}
+        content_data: Dict of {id: html}
+        """
         Project = request.env['rfp.project'].sudo().browse(project_id)
         if not Project.exists() or Project.user_id != request.env.user:
              return {'error': 'Access Denied'}
              
-        if sections_content:
-            Project.action_update_content_html(sections_content)
+        if structure_data:
+            # We need to map temp IDs to real IDs if new sections are created
+            # Assuming action_update_structure returns a map or we handle it here
+            id_map = Project.action_update_structure(structure_data)
             
-        if finish:
-            # Transition to Image Generation
-            Project.sudo().write({'current_stage': STAGE_GENERATING_IMAGES})
-            Project.with_delay().action_generate_diagram_images()
-            return {'status': 'success', 'redirect': f'/rfp/generating_images/{Project.id}'}
+            # Update content_data keys if we have mappings (for new sections)
+            if id_map and content_data:
+                for temp_id, real_id in id_map.items():
+                    if str(temp_id) in content_data:
+                        content_data[str(real_id)] = content_data.pop(str(temp_id))
+                        
+        if content_data:
+            Project.action_update_content_html(content_data)
             
         return {'status': 'success'}
 
-    # --- PHASE 4.5: IMAGE GENERATION & REVIEW ---
-    @http.route(['/rfp/generating_images/<int:project_id>'], type='http', auth="user", website=True)
-    def portal_rfp_generating_images(self, project_id, **kw):
-        Project = request.env['rfp.project'].sudo().browse(project_id)
-        if not Project.exists() or Project.user_id != request.env.user:
-            return request.redirect('/my')
-            
-        values = self._prepare_portal_layout_values()
-        values.update({
-            'rfp_project': Project,
-            'page_name': 'rfp_generating_images',
-        })
-        return request.render("project_rfp_ai.portal_rfp_generating_images", values)
-
-    @http.route(['/rfp/images_review/<int:project_id>'], type='http', auth="user", website=True)
-    def portal_rfp_images_review(self, project_id, **kw):
-        Project = request.env['rfp.project'].sudo().browse(project_id)
-        if not Project.exists() or Project.user_id != request.env.user:
-            return request.redirect('/my')
-            
-        values = self._prepare_portal_layout_values()
-        values.update({
-            'rfp_project': Project,
-            'page_name': 'rfp_images_review',
-        })
-        return request.render("project_rfp_ai.portal_rfp_images_review", values)
+    @http.route(['/rfp/lock_toggle'], type='json', auth="user", website=True)
+    def portal_rfp_lock_toggle(self, project_id):
+        # Use sudo to bypass ACL, then verify ownership
+        project = request.env['rfp.project'].sudo().browse(int(project_id))
+        if not project.exists():
+            return {'error': 'Project not found'}
         
-    @http.route(['/rfp/images/finish/<int:project_id>'], type='json', auth="user", website=True)
-    def portal_rfp_images_finish(self, project_id):
-        Project = request.env['rfp.project'].sudo().browse(project_id)
-        if not Project.exists() or Project.user_id != request.env.user:
-             return {'error': 'Access Denied'}
-             
-        Project.action_mark_completed()
-        return {'status': 'success', 'redirect': f'/rfp/document/{Project.id}'}
+        # Verify ownership
+        if project.user_id.id != request.env.user.id:
+            return {'error': 'Permission Denied'}
+        
+        # Toggle Logic
+        if project.current_stage == 'completed':
+            # Unlock
+            # Unlock 
+            # Note: Using 'document_locked' as the "Completed/Locked" state for now based on prompt, 
+            # but user request implies toggle. Let's assume 'document_locked' is the locked state.
+            # Rereading models: STAGE_DOCUMENT_LOCKED = 'document_locked'
+            # STAGE_COMPLETED = 'completed'
+            # Wait, user wants to Lock/Unlock. 
+            # If current is locked, unlock to generated? or completed? 
+            # Let's pivot: Unlock -> STAGE_SECTIONS_GENERATED (allows editing), Lock -> STAGE_DOCUMENT_LOCKED
+            new_stage = 'sections_generated'
+            locked = False
+        elif project.current_stage == 'document_locked':
+            # Unlock
+             new_stage = 'sections_generated'
+             locked = False
+        else:
+            # Lock
+            new_stage = 'document_locked'
+            locked = True
+            
+        project.write({'current_stage': new_stage})
+        return {'success': True, 'locked': locked, 'new_stage': new_stage}
 
-    # --- PHASE 5: COMPLETED DOCUMENT ---
-    @http.route(['/rfp/document/<int:project_id>'], type='http', auth="user", website=True)
-    def portal_rfp_document(self, project_id, **kw):
-        Project = request.env['rfp.project'].sudo().browse(project_id)
-        if not Project.exists() or Project.user_id != request.env.user:
-            return request.redirect('/my')
-            
-        values = self._prepare_portal_layout_values()
-        values.update({
-            'rfp_project': Project,
-            'page_name': 'rfp_document',
-        })
-        return request.render("project_rfp_ai.portal_rfp_document", values)
-    
-    @http.route(['/rfp/revert_to_edit/<int:project_id>'], type='http', auth="user", website=True)
-    def portal_rfp_revert_to_edit(self, project_id, **kw):
-        """
-        Reverts a completed project back to 'writing' stage and redirects to editor.
-        """
-        Project = request.env['rfp.project'].sudo().browse(project_id)
-        if not Project.exists() or Project.user_id != request.env.user:
-            return request.redirect('/my')
-            
-        if Project.current_stage == STAGE_COMPLETED:
-            Project.sudo().write({'current_stage': STAGE_CONTENT_GENERATED})
-            
-        return request.redirect(f"/rfp/review/{Project.id}")
+    @http.route(['/rfp/diagram/upload'], type='http', auth="user", website=True, methods=['POST'], csrf=True)
+    def portal_rfp_diagram_upload(self, section_id=None, image_file=None, title=None, description=None, **kwargs):
+        if not section_id or not image_file:
+            return json.dumps({'error': 'Missing data'})
+        
+        # Use sudo to browse section (portal users can't read related project)
+        section = request.env['rfp.document.section'].sudo().browse(int(section_id))
+        if not section.exists():
+             return json.dumps({'error': 'Section not found'})
+             
+        # Check ownership via explicit ID comparison
+        if section.project_id.user_id.id != request.env.user.id:
+            return json.dumps({'error': 'Permission Denied'})
+
+        try:
+            image_data = image_file.read()
+            # Create diagram record using sudo()
+            diagram = request.env['rfp.section.diagram'].sudo().create({
+                'section_id': section.id,
+                'image_file': base64.b64encode(image_data),
+                'title': title or image_file.filename,
+                'description': description or 'Uploaded Image'
+            })
+            return json.dumps({
+                'success': True, 
+                'diagram_id': diagram.id, 
+                'image_url': f"/web/image/rfp.section.diagram/{diagram.id}/image_file",
+                'title': diagram.title,
+                'description': diagram.description
+            })
+        except Exception as e:
+            return json.dumps({'error': str(e)})
+
+    @http.route(['/rfp/diagram/delete/<int:diagram_id>'], type='json', auth="user", website=True)
+    def portal_rfp_diagram_delete(self, diagram_id):
+        # Use sudo entirely to bypass the restriction, BUT modify the check logic
+        diagram = request.env['rfp.section.diagram'].sudo().browse(diagram_id)
+        if diagram.exists():
+            # Check if user owns the project via section - explicit ID check
+            # We access user_id.id to avoid record rule issues on res.user 
+            if diagram.section_id.project_id.user_id.id != request.env.user.id:
+                 return {'error': 'Permission Denied'}
+                 
+            diagram.unlink() # already sudo-ed
+            return {'success': True}
+        return {'error': 'Diagram not found'}
 
     @http.route(['/rfp/download/word/<int:project_id>'], type='http', auth="user", website=True)
     def portal_rfp_download_word(self, project_id, **kw):
