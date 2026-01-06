@@ -417,9 +417,14 @@
                                         <div class="card-header bg-white d-flex align-items-center gap-3 p-3 handle" style="cursor: move;">
                                             <i class="fa fa-bars text-muted fa-lg"/>
                                             <input type="text" class="form-control form-control-lg fw-bold border-0 bg-transparent section-title-input" t-att-value="section.section_title" placeholder="Section Title"/>
-                                            <button class="btn btn-sm text-danger btn-delete-section ms-auto">
-                                                <i class="fa fa-trash"/>
-                                            </button>
+                                            <div class="ms-auto d-flex gap-1">
+                                                <button class="btn btn-sm btn-light border btn-ai-edit-section" style="min-width: 55px;" t-att-data-section-id="section.id" title="Edit with AI" t-att-disabled="rfp_project.current_stage == 'document_locked'">
+                                                    <i class="fa fa-magic text-primary"/> AI
+                                                </button>
+                                                <button class="btn btn-sm text-danger btn-delete-section" t-att-disabled="rfp_project.current_stage == 'document_locked'">
+                                                    <i class="fa fa-trash"/>
+                                                </button>
+                                            </div>
                                         </div>
 
                                         <!-- Content Body -->
@@ -451,7 +456,10 @@
                                                                     </div>
                                                                     
                                                                     <!-- Overlay Actions -->
-                                                                    <div class="position-absolute top-0 end-0 p-2" t-if="rfp_project.current_stage != 'document_locked'">
+                                                                    <div class="position-absolute top-0 end-0 p-2 d-flex gap-1" t-if="rfp_project.current_stage != 'document_locked'">
+                                                                        <button class="btn btn-sm btn-light text-primary shadow-sm btn-ai-edit-diagram" t-att-data-diagram-id="diagram.id" title="Edit with AI">
+                                                                            <i class="fa fa-magic"/>
+                                                                        </button>
                                                                         <button class="btn btn-sm btn-light text-danger shadow-sm btn-delete-diagram" t-att-data-diagram-id="diagram.id" title="Delete Image">
                                                                             <i class="fa fa-trash"/>
                                                                         </button>
@@ -612,6 +620,50 @@
                                     <i class="fa fa-download"></i> Download
                                 </a>
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AI Edit Modal -->
+                <div class="modal fade" id="modal_ai_edit" tabindex="-1" role="dialog">
+                    <div class="modal-dialog modal-dialog-centered" role="document">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">
+                                    <i class="fa fa-magic text-primary"></i> Edit with AI
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p class="text-muted small" id="ai_edit_context_label">Describe how you want to modify the content:</p>
+                                <textarea class="form-control" id="ai_edit_prompt" rows="4" placeholder="E.g., Make it more formal, add bullet points, focus on security aspects..."></textarea>
+                                <input type="hidden" id="ai_edit_type"/>
+                                <input type="hidden" id="ai_edit_target_id"/>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="button" class="btn btn-primary" id="btn_submit_ai_edit">
+                                    <i class="fa fa-magic"></i> Apply AI Edit
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notification Modal (Success/Error) -->
+                <div class="modal fade" id="modal_notification" tabindex="-1" role="dialog">
+                    <div class="modal-dialog modal-dialog-centered modal-sm" role="document">
+                        <div class="modal-content">
+                            <div class="modal-body text-center py-4">
+                                <div class="mb-3">
+                                    <i id="notification_icon" class="fa fa-3x"></i>
+                                </div>
+                                <h5 id="notification_title">Notification</h5>
+                                <p class="text-muted small mb-0" id="notification_message"></p>
+                            </div>
+                            <div class="modal-footer justify-content-center border-0 pt-0">
+                                <button type="button" class="btn btn-primary btn-sm px-4" data-bs-dismiss="modal">OK</button>
                             </div>
                         </div>
                     </div>

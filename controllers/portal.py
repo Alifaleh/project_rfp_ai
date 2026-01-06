@@ -345,6 +345,105 @@ class RfpCustomerPortal(CustomerPortal):
             return {'success': True}
         return {'error': 'Diagram not found'}
 
+    # --- AI EDITING ROUTES ---
+    
+    @http.route(['/rfp/ai/edit/text'], type='json', auth="user", website=True)
+    def portal_rfp_ai_edit_text(self, section_id, user_prompt):
+        """Edit section content with AI based on user prompt."""
+        from odoo.addons.project_rfp_ai.utils.ai_connector import _call_gemini_api
+        
+        section = request.env['rfp.document.section'].sudo().browse(int(section_id))
+        if not section.exists():
+            return {'error': 'Section not found'}
+        
+        # Verify ownership
+        if section.project_id.user_id.id != request.env.user.id:
+            return {'error': 'Permission Denied'}
+        
+        try:
+            # Get prompt template
+            prompt_record = request.env['rfp.prompt'].sudo().search([('code', '=', 'edit_with_ai_text')], limit=1)
+            if not prompt_record:
+                return {'error': 'AI prompt not configured. Please run module upgrade.'}
+            
+            # Format system prompt and user content
+            system_prompt = prompt_record.template_text.format(
+                current_content=section.content_html or '<p>No content yet.</p>',
+                user_prompt=user_prompt
+            )
+            
+            # Get model name from prompt record
+            model_name = prompt_record.ai_model_id.technical_name if prompt_record.ai_model_id else None
+            
+            # Call AI using the utility function
+            response = _call_gemini_api(
+                system_instructions=system_prompt,
+                user_content=f"Apply the following edit to the section content: {user_prompt}",
+                env=request.env,
+                response_mime_type="text/plain",
+                model_name=model_name
+            )
+            
+            if response:
+                # Update section content
+                section.write({'content_html': response})
+                return {'success': True, 'new_content': response}
+            else:
+                return {'error': 'AI returned empty response'}
+                
+        except Exception as e:
+            return {'error': str(e)}
+    
+    @http.route(['/rfp/ai/edit/image'], type='json', auth="user", website=True)
+    def portal_rfp_ai_edit_image(self, diagram_id, user_prompt):
+        """Regenerate diagram image with AI based on user prompt."""
+        from odoo.addons.project_rfp_ai.utils.ai_connector import _generate_image_gemini
+        import base64
+        
+        diagram = request.env['rfp.section.diagram'].sudo().browse(int(diagram_id))
+        if not diagram.exists():
+            return {'error': 'Diagram not found'}
+        
+        # Verify ownership
+        if diagram.section_id.project_id.user_id.id != request.env.user.id:
+            return {'error': 'Permission Denied'}
+        
+        try:
+            # Get prompt template
+            prompt_record = request.env['rfp.prompt'].sudo().search([('code', '=', 'edit_with_ai_image')], limit=1)
+            if not prompt_record:
+                return {'error': 'AI prompt not configured. Please run module upgrade.'}
+            
+            # Format prompt
+            full_prompt = prompt_record.template_text.format(
+                original_description=diagram.description or diagram.title or 'A diagram',
+                user_prompt=user_prompt
+            )
+            
+            # Get model name from prompt record
+            model_name = prompt_record.ai_model_id.technical_name if prompt_record.ai_model_id else 'imagen-3.0-generate-001'
+            
+            # Call AI (Image generation)
+            image_bytes = _generate_image_gemini(
+                prompt=full_prompt,
+                env=request.env,
+                model_name=model_name
+            )
+            
+            if image_bytes:
+                # Convert to base64 and update diagram
+                image_b64 = base64.b64encode(image_bytes).decode('utf-8')
+                diagram.write({'image_file': image_b64})
+                return {
+                    'success': True, 
+                    'new_image_url': f"/web/image/rfp.section.diagram/{diagram.id}/image_file?t={int(__import__('time').time())}"
+                }
+            else:
+                return {'error': 'AI returned empty response'}
+                
+        except Exception as e:
+            return {'error': str(e)}
+
     @http.route(['/rfp/download/word/<int:project_id>'], type='http', auth="user", website=True)
     def portal_rfp_download_word(self, project_id, **kw):
         Project = request.env['rfp.project'].sudo().browse(project_id)

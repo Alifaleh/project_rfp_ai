@@ -33,6 +33,11 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
 
         // Image Viewer
         'click .diagram-card img': '_onViewImage',
+
+        // AI Editing
+        'click .btn-ai-edit-section': '_onAiEditSection',
+        'click .btn-ai-edit-diagram': '_onAiEditDiagram',
+        'click #btn_submit_ai_edit': '_onSubmitAiEdit',
     },
 
     // Custom RPC implementation to avoid module dependency issues in frontend
@@ -769,6 +774,123 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
 
         // Show modal
         $('#modal_image_viewer').modal('show');
+    },
+
+    // --- AI EDITING ---
+
+    _onAiEditSection: function (ev) {
+        ev.preventDefault();
+        const $btn = $(ev.currentTarget);
+        const sectionId = $btn.data('section-id');
+
+        // Set modal context
+        this.$('#ai_edit_context_label').text('Describe how you want to modify the section content:');
+        this.$('#ai_edit_prompt').val('').attr('placeholder', 'E.g., Make it more formal, add bullet points, focus on security aspects...');
+        this.$('#ai_edit_type').val('section');
+        this.$('#ai_edit_target_id').val(sectionId);
+
+        // Show modal
+        $('#modal_ai_edit').modal('show');
+    },
+
+    _onAiEditDiagram: function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const $btn = $(ev.currentTarget);
+        const diagramId = $btn.data('diagram-id');
+
+        // Set modal context
+        this.$('#ai_edit_context_label').text('Describe how you want to modify the image:');
+        this.$('#ai_edit_prompt').val('').attr('placeholder', 'E.g., Add more details, change colors to blue, add a legend...');
+        this.$('#ai_edit_type').val('diagram');
+        this.$('#ai_edit_target_id').val(diagramId);
+
+        // Show modal
+        $('#modal_ai_edit').modal('show');
+    },
+
+    _onSubmitAiEdit: async function (ev) {
+        ev.preventDefault();
+        const $btn = $(ev.currentTarget);
+        const originalText = $btn.html();
+
+        const editType = this.$('#ai_edit_type').val();
+        const targetId = this.$('#ai_edit_target_id').val();
+        const userPrompt = this.$('#ai_edit_prompt').val().trim();
+
+        if (!userPrompt) {
+            this._showNotification('error', 'Missing Input', 'Please enter instructions for the AI.');
+            return;
+        }
+
+        $btn.html('<i class="fa fa-spinner fa-spin"></i> <span>Processing...</span>').prop('disabled', true);
+
+        try {
+            let route, params;
+
+            if (editType === 'section') {
+                route = '/rfp/ai/edit/text';
+                params = { section_id: targetId, user_prompt: userPrompt };
+            } else if (editType === 'diagram') {
+                route = '/rfp/ai/edit/image';
+                params = { diagram_id: targetId, user_prompt: userPrompt };
+            } else {
+                throw new Error('Invalid edit type');
+            }
+
+            const result = await this._rpc({ route: route, params: params });
+
+            if (result.success) {
+                // Hide modal
+                $('#modal_ai_edit').modal('hide');
+
+                if (editType === 'section') {
+                    // Update Quill editor content
+                    if (this.quillInstances && this.quillInstances[targetId]) {
+                        this.quillInstances[targetId].root.innerHTML = result.new_content;
+                    } else {
+                        // Fallback: update DOM directly
+                        const $editor = this.$(`.rfp-section-block[data-section-id="${targetId}"] .rfp-quill-editor`);
+                        $editor.html(result.new_content);
+                    }
+                } else if (editType === 'diagram') {
+                    // Update image src with cache buster
+                    const $img = this.$(`.diagram-wrapper[data-diagram-id="${targetId}"] img`);
+                    $img.attr('src', result.new_image_url);
+                }
+
+                // Show success feedback
+                this._showNotification('success', 'AI Edit Applied', 'Your content has been updated successfully.');
+
+            } else {
+                this._showNotification('error', 'AI Edit Failed', result.error || 'Unknown error');
+            }
+        } catch (e) {
+            console.error(e);
+            this._showNotification('error', 'Error', 'Error processing AI edit: ' + e.message);
+        } finally {
+            $btn.html(originalText).prop('disabled', false);
+        }
+    },
+
+    _showNotification: function (type, title, message) {
+        const $icon = this.$('#notification_icon');
+        const $title = this.$('#notification_title');
+        const $message = this.$('#notification_message');
+
+        // Set icon based on type
+        if (type === 'success') {
+            $icon.removeClass().addClass('fa fa-check-circle fa-3x text-success');
+        } else if (type === 'error') {
+            $icon.removeClass().addClass('fa fa-times-circle fa-3x text-danger');
+        } else {
+            $icon.removeClass().addClass('fa fa-info-circle fa-3x text-primary');
+        }
+
+        $title.text(title);
+        $message.text(message);
+
+        $('#modal_notification').modal('show');
     }
 
 });

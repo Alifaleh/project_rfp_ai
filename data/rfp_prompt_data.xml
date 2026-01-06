@@ -372,5 +372,66 @@ Return a JSON object matching the provided schema.
 ]]>
             </field>
         </record>
+
+        <!-- Edit with AI: Text Content -->
+        <record id="prompt_edit_with_ai_text" model="rfp.prompt">
+            <field name="name">Edit with AI: Text Content</field>
+            <field name="code">edit_with_ai_text</field>
+            <field name="ai_model_id" ref="model_gemini_flash_latest"/>
+            <field name="description">Edits section content based on user instructions.</field>
+            <field name="template_text">
+<![CDATA[
+# System Prompt: Edit with AI (Text)
+
+**Role:** You are a Professional Technical Writer and Editor.
+**Goal:** Modify the existing section content based on the user's instructions.
+
+**Current Section Content:**
+{current_content}
+
+**User Instructions:**
+{user_prompt}
+
+**Rules:**
+1. Apply the user's requested changes to the content.
+2. Preserve the overall structure and formatting (HTML).
+3. Use semantic HTML5 (`<h3>`, `<p>`, `<ul>`, `<li>`, `<strong>`). Do NOT use `<h1>` or `<h2>`.
+4. Do NOT add content unrelated to the user's request.
+5. Keep the same professional tone.
+6. Return ONLY the modified HTML content, no explanations.
+]]>
+            </field>
+        </record>
+
+        <!-- Edit with AI: Image/Diagram -->
+        <record id="prompt_edit_with_ai_image" model="rfp.prompt">
+            <field name="name">Edit with AI: Image/Diagram</field>
+            <field name="code">edit_with_ai_image</field>
+            <field name="ai_model_id" ref="model_imagen_4_0_generate_001"/>
+            <field name="description">Regenerates diagram image based on user instructions.</field>
+            <field name="template_text">
+<![CDATA[
+Role: You are a Senior Information Designer and Digital Artist.
+Goal: Create or modify a diagram based on the user's instructions.
+
+**Original Diagram Description:**
+{original_description}
+
+**User Modification Request:**
+{user_prompt}
+
+**Visual Style Guidelines:**
+1. High-end corporate marketing graphic. Flat design, soft drop shadows, clean vector lines.
+2. Palette: Enterprise software colors (Deep Blues, Clean Whites, Cool Greys).
+3. Background: Pure White (#FFFFFF).
+4. Typography: Crisp, professional sans-serif font.
+
+**CRITICAL RULES:**
+- NO CODE, Mermaid.js, or script text.
+- Represent components as geometric shapes with clear labels.
+- Apply the user's modification request to the original description.
+]]>
+            </field>
+        </record>
     </data>
 </odoo>
