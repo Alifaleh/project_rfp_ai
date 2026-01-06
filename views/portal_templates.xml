@@ -61,7 +61,8 @@
 
     <template id="portal_rfp_start" name="Start RFP Wizard">
         <t t-call="portal.portal_layout">
-            <div id="rfp_wizard_container">
+            <div id="rfp_wizard_container" class="container rfp-portal-wrapper">
+                <t t-call="project_rfp_ai.rfp_loading_overlay_component"/>
                 <h1>Start New Project Specification</h1>
                 <p>Describe your idea to start the AI Interview.</p>
                 <form action="/rfp/init" method="post">
