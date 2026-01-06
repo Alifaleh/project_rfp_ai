@@ -1,4 +1,255 @@
 <odoo>
+    <!-- GLOBAL RFP THEME STYLES -->
+    <template id="rfp_theme_styles" name="RFP Theme Styles">
+        <!-- Google Fonts -->
+        <link rel="preconnect" href="https://fonts.googleapis.com"/>
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous"/>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+        
+        <style>
+            /* === RFP GOLD THEME === */
+            :root {
+                --rfp-gold: #C9A227;
+                --rfp-gold-light: #F5ECD7;
+                --rfp-gold-dark: #8B6914;
+                --rfp-gold-gradient: linear-gradient(135deg, #C9A227 0%, #E8D48B 50%, #C9A227 100%);
+                --rfp-dark: #1A1A2E;
+                --rfp-gray: #4A5568;
+                --rfp-light: #F8F9FA;
+                --rfp-white: #FFFFFF;
+                --rfp-shadow: 0 4px 20px rgba(0,0,0,0.08);
+                --rfp-shadow-hover: 0 8px 30px rgba(0,0,0,0.12);
+                --rfp-radius: 12px;
+                --rfp-radius-sm: 8px;
+            }
+            
+            /* Typography - exclude FontAwesome icons */
+            .rfp-portal-wrapper,
+            .rfp-portal-wrapper *:not(.fa):not([class*="fa-"]) {
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+            }
+            
+            .rfp-portal-wrapper h1, .rfp-portal-wrapper h2, .rfp-portal-wrapper h3,
+            .rfp-portal-wrapper h4, .rfp-portal-wrapper h5, .rfp-portal-wrapper h6 {
+                color: var(--rfp-dark);
+                font-weight: 600;
+            }
+            
+            .rfp-portal-wrapper p, .rfp-portal-wrapper span, .rfp-portal-wrapper label {
+                color: var(--rfp-gray);
+            }
+            
+            /* Gold Button */
+            .btn-rfp-gold {
+                background: var(--rfp-gold-gradient);
+                border: none;
+                color: var(--rfp-dark) !important;
+                font-weight: 600;
+                padding: 0.625rem 1.5rem;
+                border-radius: var(--rfp-radius-sm);
+                box-shadow: 0 2px 8px rgba(201, 162, 39, 0.3);
+                transition: all 0.3s ease;
+            }
+            .btn-rfp-gold:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 16px rgba(201, 162, 39, 0.4);
+                color: var(--rfp-dark) !important;
+            }
+            .btn-rfp-gold:active {
+                transform: translateY(0);
+            }
+            
+            /* Gold Outline Button */
+            .btn-rfp-gold-outline {
+                background: transparent;
+                border: 2px solid var(--rfp-gold);
+                color: var(--rfp-gold) !important;
+                font-weight: 600;
+                padding: 0.5rem 1.25rem;
+                border-radius: var(--rfp-radius-sm);
+                transition: all 0.3s ease;
+            }
+            .btn-rfp-gold-outline:hover {
+                background: var(--rfp-gold);
+                color: var(--rfp-dark) !important;
+            }
+            
+            /* Override Bootstrap Primary with Gold */
+            .rfp-portal-wrapper .btn-primary {
+                background: var(--rfp-gold-gradient) !important;
+                border: none !important;
+                color: var(--rfp-dark) !important;
+                font-weight: 600;
+            }
+            .rfp-portal-wrapper .btn-primary:hover {
+                box-shadow: 0 4px 16px rgba(201, 162, 39, 0.4);
+            }
+            
+            .rfp-portal-wrapper .btn-outline-primary {
+                border-color: var(--rfp-gold) !important;
+                color: var(--rfp-gold) !important;
+            }
+            .rfp-portal-wrapper .btn-outline-primary:hover {
+                background: var(--rfp-gold) !important;
+                color: var(--rfp-dark) !important;
+            }
+            
+            /* Cards */
+            .rfp-portal-wrapper .card {
+                border: none;
+                border-radius: var(--rfp-radius);
+                box-shadow: var(--rfp-shadow);
+                transition: all 0.3s ease;
+            }
+            .rfp-portal-wrapper .card:hover {
+                box-shadow: var(--rfp-shadow-hover);
+            }
+            
+            /* Section Cards with Gold Accent */
+            .rfp-portal-wrapper .rfp-section-block {
+                border-left: 4px solid var(--rfp-gold) !important;
+                border-radius: var(--rfp-radius) !important;
+            }
+            
+            /* Form Inputs */
+            .rfp-portal-wrapper .form-control:focus,
+            .rfp-portal-wrapper .form-select:focus {
+                border-color: var(--rfp-gold);
+                box-shadow: 0 0 0 3px rgba(201, 162, 39, 0.15);
+            }
+            
+            /* Progress Bar */
+            .rfp-portal-wrapper .progress {
+                background: var(--rfp-gold-light);
+                border-radius: 50px;
+                overflow: hidden;
+            }
+            .rfp-portal-wrapper .progress-bar {
+                background: var(--rfp-gold-gradient) !important;
+                color: var(--rfp-dark) !important;
+                font-weight: 600;
+            }
+            
+            /* Badges - only override primary, keep success green */
+            .rfp-portal-wrapper .badge.bg-primary {
+                background: var(--rfp-gold) !important;
+                color: var(--rfp-dark) !important;
+            }
+            /* Gold badge utility class */
+            .rfp-portal-wrapper .badge.bg-rfp-gold {
+                background: var(--rfp-gold) !important;
+                color: var(--rfp-dark) !important;
+            }
+            
+            /* Spinner */
+            .rfp-portal-wrapper .spinner-border.text-primary {
+                color: var(--rfp-gold) !important;
+            }
+            
+            /* Loading Overlay */
+            #rfp_loading_overlay .spinner-border {
+                color: var(--rfp-gold) !important;
+            }
+            #rfp_loading_overlay h4 {
+                color: var(--rfp-dark) !important;
+            }
+            
+            /* Toolbar */
+            .rfp-toolbar {
+                background: var(--rfp-white);
+                border-radius: var(--rfp-radius);
+                box-shadow: var(--rfp-shadow);
+                border-bottom: 3px solid var(--rfp-gold);
+            }
+            
+            /* Modal Headers */
+            .rfp-portal-wrapper .modal-header {
+                border-bottom: 2px solid var(--rfp-gold-light);
+            }
+            
+            /* Alert Info */
+            .rfp-portal-wrapper .alert-info {
+                background: var(--rfp-gold-light);
+                border-color: var(--rfp-gold);
+                color: var(--rfp-dark);
+            }
+            
+            /* Text Utilities */
+            .text-rfp-gold { color: var(--rfp-gold) !important; }
+            .bg-rfp-gold { background: var(--rfp-gold) !important; }
+            .bg-rfp-gold-light { background: var(--rfp-gold-light) !important; }
+            
+            /* Page Hero Section */
+            .rfp-hero {
+                background: linear-gradient(135deg, var(--rfp-dark) 0%, #2D2D4A 100%);
+                color: var(--rfp-white);
+                padding: 2.5rem 2rem;
+                border-radius: var(--rfp-radius);
+                margin-bottom: 2rem;
+                position: relative;
+                overflow: hidden;
+            }
+            .rfp-hero::before {
+                content: '';
+                position: absolute;
+                top: -50%;
+                right: -20%;
+                width: 400px;
+                height: 400px;
+                background: radial-gradient(circle, rgba(201, 162, 39, 0.3) 0%, transparent 70%);
+                border-radius: 50%;
+            }
+            .rfp-hero h1, .rfp-hero h2, .rfp-hero h3 {
+                color: var(--rfp-white);
+                position: relative;
+                z-index: 1;
+            }
+            .rfp-hero p {
+                color: rgba(255,255,255,0.8);
+                position: relative;
+                z-index: 1;
+            }
+            
+            /* Project Cards */
+            .rfp-project-card {
+                background: var(--rfp-white);
+                border-radius: var(--rfp-radius);
+                padding: 1.5rem;
+                box-shadow: var(--rfp-shadow);
+                transition: all 0.3s ease;
+                border-left: 4px solid var(--rfp-gold);
+            }
+            .rfp-project-card:hover {
+                transform: translateY(-4px);
+                box-shadow: var(--rfp-shadow-hover);
+            }
+            
+            /* Diagram Cards */
+            .rfp-portal-wrapper .diagram-card {
+                border-radius: var(--rfp-radius-sm) !important;
+                overflow: hidden;
+            }
+            .rfp-portal-wrapper .diagram-card img {
+                transition: transform 0.3s ease;
+            }
+            .rfp-portal-wrapper .diagram-card:hover img {
+                transform: scale(1.05);
+            }
+            
+            /* Add Section Button */
+            .rfp-portal-wrapper .dashed-border {
+                border: 2px dashed var(--rfp-gold) !important;
+                border-radius: var(--rfp-radius);
+                color: var(--rfp-gold);
+                transition: all 0.3s ease;
+            }
+            .rfp-portal-wrapper .dashed-border:hover {
+                background: var(--rfp-gold-light);
+                color: var(--rfp-dark);
+            }
+        </style>
+    </template>
+    
     <!-- Tile template removed as we are overriding the home page -->
 
     <template id="portal_breadcrumbs_rfp" inherit_id="portal.portal_breadcrumbs" priority="30">
@@ -27,60 +278,102 @@
 
     <template id="portal_my_rfps" name="My RFPs">
         <t t-call="portal.portal_layout">
+            <t t-call="project_rfp_ai.rfp_theme_styles"/>
             <t t-set="breadcrumbs_searchbar" t-value="True"/>
 
-            <t t-call="portal.portal_searchbar">
-                <t t-set="title">RFP Projects</t>
-            </t>
-
-            <div class="row mb-3">
-                <div class="col-12">
-                    <a href="/rfp/start" class="btn btn-primary btn-lg">Start New Project</a>
-                </div>
-            </div>
-
-            <t t-if="not projects">
-                <p>There are no projects yet.</p>
-            </t>
-            <t t-if="projects">
-                <div class="list-group">
-                    <t t-foreach="projects" t-as="project">
-                        <div class="list-group-item d-flex justify-content-between align-items-center">
-                            <div>
-                                <h4 t-field="project.name"/>
-                                <p t-field="project.description"/>
-                                <span class="badge text-bg-info" t-field="project.current_stage"/>
-                            </div>
-                            <a t-attf-href="/rfp/interface/#{project.id}" class="btn btn-secondary">Resume</a>
+            <div class="container rfp-portal-wrapper py-4">
+                <!-- Hero Section -->
+                <div class="rfp-hero mb-4">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h2 class="mb-2">My RFP Projects</h2>
+                            <p class="mb-0">Create and manage your AI-powered Request for Proposals</p>
                         </div>
-                    </t>
+                        <div class="col-md-4 text-md-end mt-3 mt-md-0">
+                            <a href="/rfp/start" class="btn btn-rfp-gold btn-lg">
+                                <i class="fa fa-plus me-2"/> Start New Project
+                            </a>
+                        </div>
+                    </div>
                 </div>
-            </t>
+
+                <t t-if="not projects">
+                    <div class="text-center py-5">
+                        <i class="fa fa-folder-open-o fa-4x text-muted mb-3" style="opacity: 0.3;"/>
+                        <h4 class="text-muted">No projects yet</h4>
+                        <p class="text-muted">Start your first AI-powered RFP project</p>
+                        <a href="/rfp/start" class="btn btn-rfp-gold mt-2">
+                            <i class="fa fa-rocket me-2"/> Create First Project
+                        </a>
+                    </div>
+                </t>
+                <t t-if="projects">
+                    <div class="row g-4">
+                        <t t-foreach="projects" t-as="project">
+                            <div class="col-md-6 col-lg-4">
+                                <div class="rfp-project-card h-100">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <h5 class="mb-0 text-rfp-gold" t-field="project.name"/>
+                                        <span class="badge bg-rfp-gold rounded-pill" t-field="project.current_stage"/>
+                                    </div>
+                                    <p class="text-muted small mb-3 text-truncate" style="max-height: 40px;" t-field="project.description"/>
+                                    <a t-attf-href="/rfp/interface/#{project.id}" class="btn btn-rfp-gold-outline btn-sm w-100">
+                                        <i class="fa fa-arrow-right me-1"/> Continue
+                                    </a>
+                                </div>
+                            </div>
+                        </t>
+                    </div>
+                </t>
+            </div>
         </t>
     </template>
 
     <template id="portal_rfp_start" name="Start RFP Wizard">
         <t t-call="portal.portal_layout">
-            <div id="rfp_wizard_container" class="container rfp-portal-wrapper">
+            <t t-call="project_rfp_ai.rfp_theme_styles"/>
+            <div class="container rfp-portal-wrapper py-5">
                 <t t-call="project_rfp_ai.rfp_loading_overlay_component"/>
-                <h1>Start New Project Specification</h1>
-                <p>Describe your idea to start the AI Interview.</p>
-                <form action="/rfp/init" method="post">
-                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
-                    <div class="mb-3">
-                        <label>Project Name</label>
-                        <input type="text" name="name" class="form-control" required="required"/>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label>Initial Description</label>
-                        <textarea name="description" class="form-control" rows="4" placeholder="Describe your high-level goal used for the RFP generation..." required="required"></textarea>
-                    </div>
+                
+                <div class="row justify-content-center">
+                    <div class="col-md-8 col-lg-6">
+                        <div class="card shadow-lg border-0">
+                            <div class="card-body p-4 p-md-5">
+                                <!-- Header -->
+                                <div class="text-center mb-4">
+                                    <div class="mb-3">
+                                        <i class="fa fa-rocket fa-3x text-rfp-gold"/>
+                                    </div>
+                                    <h2 class="mb-2">Start New Project</h2>
+                                    <p class="text-muted">Describe your idea and let AI guide you through the requirements gathering</p>
+                                </div>
+                                
+                                <hr class="my-4" style="border-color: var(--rfp-gold-light);"/>
+                                
+                                <form action="/rfp/init" method="post">
+                                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                                    
+                                    <div class="mb-4">
+                                        <label class="form-label fw-semibold">Project Name <span class="text-danger">*</span></label>
+                                        <input type="text" name="name" class="form-control form-control-lg" placeholder="e.g., E-Commerce Platform RFP" required="required"/>
+                                    </div>
+                                    
+                                    <div class="mb-4">
+                                        <label class="form-label fw-semibold">Initial Description <span class="text-danger">*</span></label>
+                                        <textarea name="description" class="form-control" rows="5" placeholder="Describe your project goals, key features, and any specific requirements..." required="required"/>
+                                        <small class="text-muted">Our AI will analyze this and guide you through detailed questions</small>
+                                    </div>
 
-                    <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-primary">Start Analysis</button>
+                                    <div class="d-grid">
+                                        <button type="submit" class="btn btn-rfp-gold btn-lg">
+                                            <i class="fa fa-magic me-2"/> Start AI Analysis
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
                     </div>
-                </form>
+                </div>
             </div>
         </t>
     </template>
@@ -242,26 +535,39 @@
 
     <template id="portal_rfp_interface" name="AI Interviewer Interface">
         <t t-call="portal.portal_layout">
-            <div class="container mt-4 rfp-portal-wrapper">
+            <t t-call="project_rfp_ai.rfp_theme_styles"/>
+            <div class="container py-4 rfp-portal-wrapper">
                 
                 <!-- USE COMPONENT -->
                 <t t-call="project_rfp_ai.rfp_loading_overlay_component"/>
 
-                <div class="row">
-                    <div class="col-md-8 offset-md-2">
-                        <div class="card shadow-sm">
-                            <div class="card-header bg-white">
-                                <h3 t-field="rfp_project.name"/>
-                                <span class="text-muted">AI Analyst is gathering requirements...</span>
+                <div class="row justify-content-center">
+                    <div class="col-lg-8">
+                        <div class="card shadow-lg border-0">
+                            <!-- Header with gold accent -->
+                            <div class="card-header bg-white py-4" style="border-bottom: 3px solid var(--rfp-gold);">
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="bg-rfp-gold-light rounded-circle p-3">
+                                        <i class="fa fa-comments fa-lg text-rfp-gold"/>
+                                    </div>
+                                    <div>
+                                        <h3 class="mb-1" t-field="rfp_project.name"/>
+                                        <span class="text-muted small">AI Analyst is gathering requirements...</span>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="card-body">
+                            <div class="card-body p-4">
 
                                 <!-- Progress Bar -->
                                 <t t-set="raw_score" t-value="rfp_project.get_context_data().get('analysis_meta', {}).get('completeness_score', 0)"/>
                                 <t t-set="completeness" t-value="raw_score if raw_score > 1 else raw_score * 100"/>
-                                <div t-if="rfp_project.current_stage == 'initialized' and rfp_project.ai_context_blob" class="progress mb-4" style="height: 25px;">
-                                    <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar" t-att-style="'width: ' + str(int(completeness)) + '%'" t-att-aria-valuenow="int(completeness)" aria-valuemin="0" aria-valuemax="100">
-                                        <t t-esc="int(completeness)"/>% Analysis Complete
+                                <div t-if="rfp_project.current_stage == 'initialized' and rfp_project.ai_context_blob" class="mb-4">
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <small class="text-muted">Analysis Progress</small>
+                                        <small class="fw-semibold text-rfp-gold"><t t-esc="int(completeness)"/>%</small>
+                                    </div>
+                                    <div class="progress" style="height: 12px;">
+                                        <div class="progress-bar" role="progressbar" t-att-style="'width: ' + str(int(completeness)) + '%'" t-att-aria-valuenow="int(completeness)" aria-valuemin="0" aria-valuemax="100"/>
                                     </div>
                                 </div>
 
@@ -283,33 +589,37 @@
                                     <a t-attf-href="/rfp/interface/#{rfp_project.id}" class="btn btn-sm btn-outline-danger">Retry Analysis</a>
                                 </div>
 
-                                <!-- Questions Form (Data Driven from Controller 'questions_to_answer') -->
+                                <!-- Questions Form -->
                                 <form t-attf-action="/rfp/next_step/#{rfp_project.id}" method="post">
                                     <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
 
                                     <t t-if="questions_to_answer and ai_status != 'rate_limit'">
-                                        <div class="alert alert-info">
-                                            <i class="fa fa-info-circle"/> The AI has analyzed your project and needs details.
+                                        <div class="alert alert-info border-0 mb-4">
+                                            <i class="fa fa-info-circle me-2"/> The AI has analyzed your project and needs a few more details.
                                         </div>
                                         
                                         <t t-foreach="questions_to_answer" t-as="input_field">
                                             <t t-call="project_rfp_ai.portal_rfp_input_field"/>
                                         </t>
 
-                                        <div class="d-grid gap-2 mb-3">
-                                            <button type="submit" class="btn btn-primary btn-lg">Submit Answers &amp; Continue</button>
+                                        <div class="d-grid mt-4">
+                                            <button type="submit" class="btn btn-rfp-gold btn-lg">
+                                                <i class="fa fa-arrow-right me-2"/> Submit Answers &amp; Continue
+                                            </button>
                                         </div>
                                     </t>
                                     
-                                    <!-- Checkpoint / Proceed (No Questions but not finished) -->
+                                    <!-- Checkpoint -->
                                     <t t-elif="not questions_to_answer and ai_status != 'rate_limit' and not is_generating">
-                                         <div class="alert alert-warning text-center">
-                                            <h4><i class="fa fa-refresh"/> Analysis Checkpoint</h4>
-                                            <p>All current questions have been answered.</p>
-                                            <p>Proceed to the next phase.</p>
-                                        </div>
-                                        <div class="d-grid gap-2 mb-3">
-                                            <button type="submit" class="btn btn-success btn-lg">Generate Next Round</button>
+                                        <div class="text-center py-4">
+                                            <div class="mb-3">
+                                                <i class="fa fa-check-circle fa-4x text-rfp-gold"/>
+                                            </div>
+                                            <h4>Analysis Checkpoint</h4>
+                                            <p class="text-muted">All current questions have been answered. Proceed to the next phase.</p>
+                                            <button type="submit" class="btn btn-rfp-gold btn-lg mt-2">
+                                                <i class="fa fa-magic me-2"/> Generate Next Round
+                                            </button>
                                         </div>
                                     </t>
                                 </form>
@@ -325,37 +635,48 @@
     <!-- PHASE 2: UNIFIED PROCESSING STATUS -->
     <template id="portal_rfp_processing" name="RFP Processing Status">
         <t t-call="portal.portal_layout">
-            <div class="container mt-5 text-center rfp-portal-wrapper">
-                <div class="card shadow p-5">
-                    <h2 class="mb-4">AI Architect is Working...</h2>
-                    <p class="lead text-muted mb-4">We are autonomously building your RFP document. This involves structurizing, writing, and designing.</p>
+            <t t-call="project_rfp_ai.rfp_theme_styles"/>
+            <div class="container py-5 rfp-portal-wrapper">
+                <div class="row justify-content-center">
+                    <div class="col-lg-8">
+                        <div class="card shadow-lg border-0 text-center">
+                            <div class="card-body p-5">
+                                <!-- Header with spinning icon -->
+                                <div class="mb-4">
+                                    <div class="d-inline-block position-relative">
+                                        <i class="fa fa-cog fa-4x text-rfp-gold fa-spin"/>
+                                    </div>
+                                </div>
+                                <h2 class="mb-3">AI Architect is Working...</h2>
+                                <p class="text-muted mb-5">We're autonomously building your RFP document. This involves structuring, writing, and designing.</p>
 
-                    <!-- Steps Visual -->
-                    <div class="row justify-content-center mb-5">
-                        <div class="col-md-8">
-                            <ul class="list-group list-group-flush text-start" id="rfp_step_list">
-                                <li class="list-group-item d-flex justify-content-between align-items-center" id="step_structure">
-                                    <span><i class="fa fa-sitemap me-2"/> 1. Designing Structure</span>
-                                    <span class="badge rounded-pill bg-secondary status-badge">Pending</span>
-                                </li>
-                                <li class="list-group-item d-flex justify-content-between align-items-center" id="step_content">
-                                    <span><i class="fa fa-pencil me-2"/> 2. Writing Content</span>
-                                    <span class="badge rounded-pill bg-secondary status-badge">Pending</span>
-                                </li>
-                                <li class="list-group-item d-flex justify-content-between align-items-center" id="step_images">
-                                    <span><i class="fa fa-image me-2"/> 3. Drawing Diagrams</span>
-                                    <span class="badge rounded-pill bg-secondary status-badge">Pending</span>
-                                </li>
-                            </ul>
+                                <!-- Steps Visual -->
+                                <div class="mb-5">
+                                    <ul class="list-group list-group-flush text-start" id="rfp_step_list">
+                                        <li class="list-group-item d-flex justify-content-between align-items-center border-0 py-3" id="step_structure">
+                                            <span><i class="fa fa-sitemap me-3 text-rfp-gold"/> 1. Designing Structure</span>
+                                            <span class="badge rounded-pill bg-secondary status-badge">Pending</span>
+                                        </li>
+                                        <li class="list-group-item d-flex justify-content-between align-items-center border-0 py-3" id="step_content">
+                                            <span><i class="fa fa-pencil me-3 text-rfp-gold"/> 2. Writing Content</span>
+                                            <span class="badge rounded-pill bg-secondary status-badge">Pending</span>
+                                        </li>
+                                        <li class="list-group-item d-flex justify-content-between align-items-center border-0 py-3" id="step_images">
+                                            <span><i class="fa fa-image me-3 text-rfp-gold"/> 3. Drawing Diagrams</span>
+                                            <span class="badge rounded-pill bg-secondary status-badge">Pending</span>
+                                        </li>
+                                    </ul>
+                                </div>
+
+                                <div class="progress mb-3" style="height: 16px;">
+                                    <div id="rfp_generation_progress" class="progress-bar" role="progressbar" style="width: 0%" t-att-data-project-id="rfp_project.id">
+                                        0%
+                                    </div>
+                                </div>
+                                <p id="rfp_status_text" class="small text-muted mb-0">Initializing...</p>
+                            </div>
                         </div>
                     </div>
-
-                    <div class="progress mt-2 mb-3" style="height: 30px;">
-                        <div id="rfp_generation_progress" class="progress-bar progress-bar-striped progress-bar-animated bg-primary" role="progressbar" style="width: 0%" t-att-data-project-id="rfp_project.id">
-                            0%
-                        </div>
-                    </div>
-                    <p id="rfp_status_text" class="small text-muted">Initializing...</p>
                 </div>
             </div>
         </t>
@@ -364,41 +685,43 @@
     <!-- PHASE 3: UNIFIED EDITOR (SPA) -->
     <template id="portal_rfp_unified_editor" name="RFP Unified Editor">
         <t t-call="portal.portal_layout">
+            <t t-call="project_rfp_ai.rfp_theme_styles"/>
             <!-- Load Quill.js -->
             <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet"/>
             <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
 
-            <div class="container-fluid mt-4 mb-5 rfp-portal-wrapper">
+            <div class="container-fluid py-4 rfp-portal-wrapper">
                 
-                <!-- Toolbar -->
-                <div class="d-flex justify-content-between align-items-center mb-4 sticky-top bg-white p-3 shadow-sm rounded border z-index-1000">
+                <!-- Toolbar with gold accent -->
+                <div class="rfp-toolbar d-flex justify-content-between align-items-center mb-4 sticky-top p-3" style="z-index: 1000; top: 60px;">
                     <div class="d-flex align-items-center gap-3">
-                        <h3 class="mb-0" t-field="rfp_project.name"/>
-                        <span t-if="rfp_project.current_stage == 'completed'" class="badge bg-success">Ready</span>
-                        <span t-if="rfp_project.current_stage == 'document_locked'" class="badge bg-dark"><i class="fa fa-lock"/> Locked</span>
+                        <i class="fa fa-file-text-o fa-lg text-rfp-gold"/>
+                        <h4 class="mb-0" t-field="rfp_project.name"/>
+                        <span t-if="rfp_project.current_stage == 'completed'" class="badge bg-rfp-gold">Ready</span>
+                        <span t-if="rfp_project.current_stage == 'document_locked'" class="badge bg-dark"><i class="fa fa-lock me-1"/> Locked</span>
                     </div>
                     
                     <div class="d-flex gap-2">
-                         <a t-attf-href="/rfp/download/word/#{rfp_project.id}" class="btn btn-outline-primary">
-                            <i class="fa fa-file-word-o"/> Word
+                         <a t-attf-href="/rfp/download/word/#{rfp_project.id}" class="btn btn-rfp-gold-outline">
+                            <i class="fa fa-file-word-o me-1"/> Word
                         </a>
-                        <button onclick="window.print()" class="btn btn-outline-dark">
-                            <i class="fa fa-print"/> Print
+                        <button onclick="window.print()" class="btn btn-outline-secondary">
+                            <i class="fa fa-print me-1"/> Print
                         </button>
                         
-                        <div class="vr mx-2"></div>
+                        <div class="vr mx-1"></div>
 
                         <t t-if="rfp_project.current_stage != 'document_locked'">
-                            <button id="btn_unified_save" class="btn btn-primary" t-att-data-project-id="rfp_project.id">
-                                <i class="fa fa-save"/> Save Changes
+                            <button id="btn_unified_save" class="btn btn-rfp-gold" t-att-data-project-id="rfp_project.id">
+                                <i class="fa fa-save me-1"/> Save
                             </button>
-                            <button id="btn_toggle_lock" class="btn btn-warning" t-att-data-project-id="rfp_project.id" data-locked="true">
-                                <i class="fa fa-lock"/> Lock Document
+                            <button id="btn_toggle_lock" class="btn btn-outline-secondary" t-att-data-project-id="rfp_project.id" data-locked="true">
+                                <i class="fa fa-lock me-1"/> Lock
                             </button>
                         </t>
                         <t t-else="">
-                            <button id="btn_toggle_lock" class="btn btn-secondary" t-att-data-project-id="rfp_project.id" data-locked="false">
-                                <i class="fa fa-unlock"/> Unlock to Edit
+                            <button id="btn_toggle_lock" class="btn btn-rfp-gold-outline" t-att-data-project-id="rfp_project.id" data-locked="false">
+                                <i class="fa fa-unlock me-1"/> Unlock
                             </button>
                         </t>
                     </div>
@@ -678,14 +1001,30 @@
 
     <template id="portal_rfp_document" name="Generated RFP Document">
         <t t-call="portal.portal_layout">
+            <t t-call="project_rfp_ai.rfp_theme_styles"/>
             <style>
                 .rfp-section-content h3 {
-                    font-size: 1.25rem !important; /* Smaller than h2 (usually 2rem) */
-                    color: #444;
+                    font-size: 1.25rem !important;
+                    color: var(--rfp-dark);
                     margin-top: 1.5rem;
                 }
+                .rfp-document-title {
+                    position: relative;
+                    display: inline-block;
+                }
+                .rfp-document-title::after {
+                    content: '';
+                    position: absolute;
+                    bottom: -10px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    width: 80px;
+                    height: 4px;
+                    background: var(--rfp-gold-gradient);
+                    border-radius: 2px;
+                }
                 @media print {
-                    header, footer, #top_menu, .o_footer, .breadcrumb, .btn-group, .text-end, .btn {
+                    header, footer, #top_menu, .o_footer, .breadcrumb, .btn-group, .text-end, .btn, .rfp-doc-actions {
                         display: none !important;
                     }
                     body {
@@ -704,42 +1043,43 @@
                     }
                 }
             </style>
-            <div class="container mt-4 mb-5">
+            <div class="container py-5 rfp-portal-wrapper">
                 <div class="row">
-                    <div class="col-12 text-end mb-3">
-                        <div class="btn-group">
-
-                            <button onclick="window.print()" class="btn btn-outline-dark">
-                                <i class="fa fa-print"/>
-                                Print PDF
+                    <!-- Action Buttons -->
+                    <div class="col-12 mb-4 rfp-doc-actions">
+                        <div class="d-flex justify-content-end gap-2">
+                            <button onclick="window.print()" class="btn btn-outline-secondary">
+                                <i class="fa fa-print me-1"/> Print PDF
                             </button>
-                            <a t-attf-href="/rfp/download/word/#{rfp_project.id}" class="btn btn-outline-primary">
-                                <i class="fa fa-file-word-o"/>
-                                Word (.doc)
+                            <a t-attf-href="/rfp/download/word/#{rfp_project.id}" class="btn btn-rfp-gold-outline">
+                                <i class="fa fa-file-word-o me-1"/> Word
+                            </a>
+                            <a t-attf-href="/rfp/revert_to_edit/#{rfp_project.id}" class="btn btn-rfp-gold">
+                                <i class="fa fa-pencil me-1"/> Edit
                             </a>
                         </div>
-                        <a t-attf-href="/rfp/revert_to_edit/#{rfp_project.id}" class="btn btn-secondary ms-2">
-                            <i class="fa fa-pencil"/>
-                            Edit
-                        </a>
                     </div>
+                    
+                    <!-- Document Card -->
                     <div class="col-12">
-                        <div class="card shadow-lg">
+                        <div class="card shadow-lg border-0">
                             <div class="card-body p-5">
-                                <h1 class="display-4 text-center mb-5" t-field="rfp_project.name"/>
-                                <hr/>
+                                <div class="text-center mb-5">
+                                    <h1 class="display-5 rfp-document-title" t-field="rfp_project.name"/>
+                                </div>
+                                <hr class="my-4" style="border-color: var(--rfp-gold-light);"/>
 
                                 <t t-foreach="rfp_project.document_section_ids.sorted(lambda s: s.sequence)" t-as="section">
                                     <div class="mb-5">
-                                        <h2 t-field="section.section_title" class="mb-3"/>
-                                        <div class="rfp-section-content" t-field="section.content_html"/>
+                                        <h2 class="mb-3" style="color: var(--rfp-dark); border-left: 4px solid var(--rfp-gold); padding-left: 1rem;" t-field="section.section_title"/>
+                                        <div class="rfp-section-content ps-4" t-field="section.content_html"/>
                                         
                                         <!-- Attached Diagrams -->
                                         <t t-if="section.diagram_ids">
-                                            <div class="mt-4">
+                                            <div class="mt-4 ps-4">
                                                 <t t-foreach="section.diagram_ids" t-as="diagram">
                                                     <figure class="text-center mb-4" t-if="diagram.image_file">
-                                                        <img t-att-src="'/web/image/rfp.section.diagram/%s/image_file' % diagram.id" class="img-fluid rounded shadow-sm border" style="max-height: 600px;"/>
+                                                        <img t-att-src="'/web/image/rfp.section.diagram/%s/image_file' % diagram.id" class="img-fluid rounded shadow-sm" style="max-height: 500px; border: 2px solid var(--rfp-gold-light);"/>
                                                         <figcaption class="mt-2 text-muted fst-italic">
                                                             <strong t-esc="diagram.title"/>
                                                         </figcaption>
@@ -748,7 +1088,7 @@
                                             </div>
                                         </t>
                                     </div>
-                                    <hr t-if="not section_last"/>
+                                    <hr t-if="not section_last" style="border-color: var(--rfp-gold-light);"/>
                                 </t>
                             </div>
                         </div>

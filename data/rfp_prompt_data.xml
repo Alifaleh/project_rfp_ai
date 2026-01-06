@@ -45,7 +45,7 @@
         <record id="prompt_research_initial" model="rfp.prompt">
             <field name="name">Phase 2: Initial Research Assistant</field>
             <field name="code">research_initial</field>
-            <field name="ai_model_id" ref="model_gemini_flash_latest"/>
+            <field name="ai_model_id" ref="model_gemini_3_pro_preview"/>
             <field name="description">Conducts initial broad research on domain best practices.</field>
             <field name="template_text">
 <![CDATA[
@@ -69,7 +69,7 @@ Instructions:
         <record id="prompt_interviewer_main" model="rfp.prompt">
             <field name="name">Phase 3: Information Gathering (Project Specifics)</field>
             <field name="code">interviewer_project</field>
-            <field name="ai_model_id" ref="model_gemini_flash_latest"/>
+            <field name="ai_model_id" ref="model_gemini_3_pro_preview"/>
             <field name="template_text">
 <![CDATA[
 # System Prompt: Phase 3 (Information Gathering - Project Specifics)
@@ -134,7 +134,7 @@ Return ONLY the JSON object.
         <record id="prompt_research_refinement" model="rfp.prompt">
             <field name="name">Phase 4: Best Practices Refinement</field>
             <field name="code">research_refinement</field>
-            <field name="ai_model_id" ref="model_gemini_flash_latest"/>
+            <field name="ai_model_id" ref="model_gemini_3_pro_preview"/>
             <field name="description">Refines best practices based on gathered user data.</field>
             <field name="template_text">
 <![CDATA[
@@ -159,7 +159,7 @@ Output a Final Best Practices Guide for the RFP Writer.
         <record id="prompt_interviewer_practices" model="rfp.prompt">
             <field name="name">Phase 5: Information Gathering (Best Practices)</field>
             <field name="code">interviewer_practices</field>
-            <field name="ai_model_id" ref="model_gemini_flash_latest"/>
+            <field name="ai_model_id" ref="model_gemini_3_pro_preview"/>
             <field name="template_text">
 <![CDATA[
 # System Prompt: Phase 5 (Best Practices Gap Analysis)
@@ -377,7 +377,7 @@ Return a JSON object matching the provided schema.
         <record id="prompt_edit_with_ai_text" model="rfp.prompt">
             <field name="name">Edit with AI: Text Content</field>
             <field name="code">edit_with_ai_text</field>
-            <field name="ai_model_id" ref="model_gemini_flash_latest"/>
+            <field name="ai_model_id" ref="model_gemini_3_pro_preview"/>
             <field name="description">Edits section content based on user instructions.</field>
             <field name="template_text">
 <![CDATA[

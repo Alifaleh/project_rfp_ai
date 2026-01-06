@@ -891,6 +891,120 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         $message.text(message);
 
         $('#modal_notification').modal('show');
+    },
+
+    // --- FORM SUBMIT (show loading overlay) ---
+
+    _onSubmit: function (ev) {
+        // Show loading overlay on any form submit within the portal
+        const $overlay = this.$('#rfp_loading_overlay');
+        if ($overlay.length) {
+            $overlay.removeClass('d-none');
+        }
+        // Let form submit normally
+    },
+
+    // --- SUGGESTION CLICK ---
+
+    _onSuggestionClick: function (ev) {
+        ev.preventDefault();
+        const $suggestion = $(ev.currentTarget);
+        const value = $suggestion.data('value');
+        const targetKey = $suggestion.data('target');
+
+        // Find the target input or textarea
+        const $input = this.$(`[name="${targetKey}"]`);
+
+        if ($input.length) {
+            const currentVal = $input.val().trim();
+            if (currentVal) {
+                // Append with comma separator
+                $input.val(currentVal + ', ' + value);
+            } else {
+                // Set value
+                $input.val(value);
+            }
+            // Trigger change event
+            $input.trigger('change');
+        }
+    },
+
+    // --- IRRELEVANT TOGGLE ---
+
+    _onIrrelevantToggle: function (ev) {
+        ev.preventDefault();
+        const $btn = $(ev.currentTarget);
+        const targetId = $btn.data('target');
+        const $box = this.$(`#${targetId}`);
+        const $group = $box.closest('.rfp-input-group');
+        const $flag = $box.find('.irrelevant-flag');
+
+        if ($box.hasClass('d-none')) {
+            // Show the irrelevant box
+            $box.removeClass('d-none');
+            $flag.val('true');
+            // Disable other inputs in the group
+            $group.find('input:not(.irrelevant-flag), select, textarea').not($box.find('input')).prop('disabled', true);
+        } else {
+            // Hide the irrelevant box
+            $box.addClass('d-none');
+            $flag.val('false');
+            // Re-enable inputs
+            $group.find('input, select, textarea').prop('disabled', false);
+        }
+    },
+
+    // --- CUSTOM ANSWER TOGGLE ---
+
+    _onCustomAnswerToggle: function (ev) {
+        ev.preventDefault();
+        const $btn = $(ev.currentTarget);
+        const targetId = $btn.data('target');
+        const $box = this.$(`#${targetId}`);
+        const $group = $box.closest('.rfp-input-group');
+        const $flag = $box.find('.custom-answer-flag');
+
+        if ($box.hasClass('d-none')) {
+            // Show the custom answer box
+            $box.removeClass('d-none');
+            $flag.val('true');
+            // Disable other inputs in the group (except the custom answer input)
+            $group.find('input:not(.custom-answer-flag), select, textarea').not($box.find('input')).prop('disabled', true);
+        } else {
+            // Hide the custom answer box
+            $box.addClass('d-none');
+            $flag.val('false');
+            // Re-enable inputs
+            $group.find('input, select, textarea').prop('disabled', false);
+        }
+    },
+
+    // --- INPUT CHANGE (for dependency logic) ---
+
+    _onInputChange: function (ev) {
+        // Trigger dependency re-evaluation if needed
+        const $input = $(ev.currentTarget);
+        const $group = $input.closest('.rfp-input-group');
+        const fieldKey = $group.data('field-key');
+        const value = $input.val();
+
+        // Check if any specify input needs to be shown
+        const rawTriggers = $group.data('specify-triggers');
+        let specifyTriggers = [];
+        try {
+            specifyTriggers = typeof rawTriggers === 'string' ? JSON.parse(rawTriggers) : (rawTriggers || []);
+        } catch (e) {
+            specifyTriggers = [];
+        }
+
+        const $specifyInput = $group.find('.rfp-specify-input');
+        if (specifyTriggers.length && $specifyInput.length) {
+            if (specifyTriggers.includes(value)) {
+                $specifyInput.removeClass('d-none');
+            } else {
+                $specifyInput.addClass('d-none').val('');
+            }
+        }
     }
 
 });
