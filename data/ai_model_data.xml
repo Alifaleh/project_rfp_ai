@@ -45,7 +45,7 @@
             <field name="technical_name">gemini-3-flash-preview</field>
             <field name="provider">google</field>
             <field name="tag_ids" eval="[(4, ref('tag_high_speed')), (4, ref('tag_english'))]"/>
-            <field name="description">Google's hybrid reasoning model, with a 1M token context window and thinking budgets.</field>
+            <field name="description">Our most intelligent model built for speed, combining frontier intelligence with superior search and grounding.</field>
         </record>
 
         <record id="model_gemini_flash_latest" model="rfp.ai.model">
