@@ -27,3 +27,15 @@ access_rfp_project_domain_user,rfp.project.domain,model_rfp_project_domain,base.
 access_rfp_project_domain_portal,rfp.project.domain,model_rfp_project_domain,base.group_portal,1,0,0,0
 access_rfp_practice_input_user,rfp.practice.input,model_rfp_practice_input,base.group_user,1,1,1,1
 access_rfp_practice_input_portal,rfp.practice.input,model_rfp_practice_input,base.group_portal,1,0,0,0
+access_rfp_published_user,rfp.published,model_rfp_published,base.group_user,1,1,1,1
+access_rfp_published_portal,rfp.published,model_rfp_published,base.group_portal,1,1,1,0
+access_rfp_published_public,rfp.published,model_rfp_published,base.group_public,1,0,0,0
+access_rfp_published_section_user,rfp.published.section,model_rfp_published_section,base.group_user,1,1,1,1
+access_rfp_published_section_portal,rfp.published.section,model_rfp_published_section,base.group_portal,1,1,1,0
+access_rfp_published_section_public,rfp.published.section,model_rfp_published_section,base.group_public,1,0,0,0
+access_rfp_published_diagram_user,rfp.published.diagram,model_rfp_published_diagram,base.group_user,1,1,1,1
+access_rfp_published_diagram_portal,rfp.published.diagram,model_rfp_published_diagram,base.group_portal,1,1,1,0
+access_rfp_published_diagram_public,rfp.published.diagram,model_rfp_published_diagram,base.group_public,1,0,0,0
+access_rfp_proposal_user,rfp.proposal,model_rfp_proposal,base.group_user,1,1,1,1
+access_rfp_proposal_portal,rfp.proposal,model_rfp_proposal,base.group_portal,1,1,1,0
+access_rfp_proposal_public,rfp.proposal,model_rfp_proposal,base.group_public,0,0,1,0

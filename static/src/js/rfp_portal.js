@@ -38,6 +38,14 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         'click .btn-ai-edit-section': '_onAiEditSection',
         'click .btn-ai-edit-diagram': '_onAiEditDiagram',
         'click #btn_submit_ai_edit': '_onSubmitAiEdit',
+
+        // Publish Actions
+        'click #btn_publish': '_onPublish',
+        'click #btn_unpublish': '_onUnpublish',
+        'click #btn_confirm_unpublish': '_onConfirmUnpublish',
+        'click #btn_copy_publish_url': '_onCopyPublishUrl',
+        'click #btn_copy_editor_url': '_onCopyEditorUrl',
+        'click #btn_copy_proposals_url': '_onCopyProposalsUrl',
     },
 
     // Custom RPC implementation to avoid module dependency issues in frontend
@@ -1004,6 +1012,173 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
             } else {
                 $specifyInput.addClass('d-none').val('');
             }
+        }
+    },
+
+    // --- PUBLISH/UNPUBLISH ---
+
+    _onPublish: async function (ev) {
+        ev.preventDefault();
+        const $btn = $(ev.currentTarget);
+        const projectId = $btn.data('project-id');
+        const isUpdate = $btn.data('is-update') === 'true';
+        const originalText = $btn.html();
+
+        $btn.html('<i class="fa fa-spinner fa-spin me-1"></i> Publishing...').prop('disabled', true);
+
+        try {
+            const result = await this._rpc({
+                route: `/rfp/publish/${projectId}`,
+                params: {}
+            });
+
+            if (result.success) {
+                // Show success with URL
+                this._showNotification('success', isUpdate ? 'Updated!' : 'Published!',
+                    'Your RFP is now public. URL: ' + result.url);
+                // Reload to update buttons
+                setTimeout(() => window.location.reload(), 1500);
+            } else {
+                this._showNotification('error', 'Error', result.error || 'Failed to publish');
+            }
+        } catch (e) {
+            this._showNotification('error', 'Error', 'Failed to publish: ' + e.message);
+        } finally {
+            $btn.html(originalText).prop('disabled', false);
+        }
+    },
+
+    _onPublish: async function (ev) {
+        ev.preventDefault();
+        const $btn = $(ev.currentTarget);
+        const projectId = $btn.data('project-id');
+        const isUpdate = $btn.data('is-update') === 'true';
+        const originalText = $btn.html();
+
+        $btn.html('<i class="fa fa-spinner fa-spin me-1"></i> Publishing...').prop('disabled', true);
+
+        try {
+            const result = await this._rpc({
+                route: `/rfp/publish/${projectId}`,
+                params: {}
+            });
+
+            if (result.success) {
+                // Show publish success modal with URL and copy button
+                this._showPublishSuccessModal(isUpdate ? 'Updated!' : 'Published!', result.url);
+            } else {
+                this._showNotification('error', 'Error', result.error || 'Failed to publish');
+            }
+        } catch (e) {
+            this._showNotification('error', 'Error', 'Failed to publish: ' + e.message);
+        } finally {
+            $btn.html(originalText).prop('disabled', false);
+        }
+    },
+
+    _showPublishSuccessModal: function (title, url) {
+        // Update existing notification modal to show publish success
+        const $modal = this.$('#modal_publish_success');
+        $modal.find('#publish_success_title').text(title);
+        $modal.find('#publish_success_url').val(url).attr('data-url', url);
+        $modal.find('#link_open_public').attr('href', url);
+        $('#modal_publish_success').modal('show');
+    },
+
+    _onUnpublish: function (ev) {
+        ev.preventDefault();
+        const $btn = $(ev.currentTarget);
+        const projectId = $btn.data('project-id');
+
+        // Store project ID for confirmation handler
+        this.$('#modal_unpublish_confirm').data('project-id', projectId);
+        $('#modal_unpublish_confirm').modal('show');
+    },
+
+    _onConfirmUnpublish: async function (ev) {
+        ev.preventDefault();
+        const $modal = this.$('#modal_unpublish_confirm');
+        const projectId = $modal.data('project-id');
+        const $btn = $(ev.currentTarget);
+        const originalText = $btn.html();
+
+        $btn.html('<i class="fa fa-spinner fa-spin me-1"></i> Unpublishing...').prop('disabled', true);
+
+        try {
+            const result = await this._rpc({
+                route: `/rfp/unpublish/${projectId}`,
+                params: {}
+            });
+
+            if (result.success) {
+                $('#modal_unpublish_confirm').modal('hide');
+                this._showNotification('success', 'Unpublished', 'Your RFP has been taken down.');
+                setTimeout(() => window.location.reload(), 1500);
+            } else {
+                this._showNotification('error', 'Error', result.error || 'Failed to unpublish');
+            }
+        } catch (e) {
+            this._showNotification('error', 'Error', 'Failed to unpublish: ' + e.message);
+        } finally {
+            $btn.html(originalText).prop('disabled', false);
+        }
+    },
+
+    _onCopyPublishUrl: function (ev) {
+        const $input = this.$('#publish_success_url');
+        const inputEl = $input[0];
+        const $btn = $(ev.currentTarget);
+
+        // Select and copy directly from the input
+        inputEl.select();
+        inputEl.setSelectionRange(0, 99999); // For mobile
+
+        try {
+            document.execCommand('copy');
+            $btn.html('<i class="fa fa-check me-1"></i> Copied!');
+            setTimeout(() => {
+                $btn.html('<i class="fa fa-copy me-1"></i> Copy URL');
+            }, 2000);
+        } catch (err) {
+            console.error('Copy failed:', err);
+        }
+    },
+
+    _onCopyEditorUrl: function (ev) {
+        const $input = this.$('#editor_public_url');
+        const inputEl = $input[0];
+        const $btn = $(ev.currentTarget);
+
+        inputEl.select();
+        inputEl.setSelectionRange(0, 99999);
+
+        try {
+            document.execCommand('copy');
+            $btn.html('<i class="fa fa-check me-1"></i> Copied!');
+            setTimeout(() => {
+                $btn.html('<i class="fa fa-copy me-1"></i> Copy');
+            }, 2000);
+        } catch (err) {
+            console.error('Copy failed:', err);
+        }
+    },
+
+    _onCopyProposalsUrl: function (ev) {
+        const $input = this.$('#proposals_public_url');
+        const inputEl = $input[0];
+        const $btn = $(ev.currentTarget);
+
+        inputEl.select();
+        inputEl.setSelectionRange(0, 99999);
+
+        try {
+            document.execCommand('copy');
+            $btn.html('<i class="fa fa-check me-1"></i> Copied!');
+            setTimeout(() => {
+                $btn.html('<i class="fa fa-copy me-1"></i> Copy');
+            }, 2000);
+        } catch (err) {
+            console.error('Copy failed:', err);
         }
     }
 

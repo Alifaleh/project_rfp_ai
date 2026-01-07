@@ -514,3 +514,106 @@ class RfpCustomerPortal(CustomerPortal):
             ('Content-Disposition', f'attachment; filename="RFP - {Project.name}.docx"')
         ]
         return request.make_response(file_content, headers=headers)
+
+    # ============ PUBLISH ROUTES ============
+
+    @http.route(['/rfp/publish/<int:project_id>'], type='json', auth="user", methods=['POST'])
+    def portal_rfp_publish(self, project_id, **kw):
+        """Publish or update an RFP for public viewing."""
+        Project = request.env['rfp.project'].sudo().browse(project_id)
+        
+        # Verify ownership
+        if not Project.exists() or Project.user_id.id != request.env.user.id:
+            return {'success': False, 'error': 'Access denied'}
+        
+        try:
+            public_url = Project.action_publish()
+            return {'success': True, 'url': public_url, 'is_update': bool(Project.published_id.last_updated)}
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
+
+    @http.route(['/rfp/unpublish/<int:project_id>'], type='json', auth="user", methods=['POST'])
+    def portal_rfp_unpublish(self, project_id, **kw):
+        """Take down a published RFP."""
+        Project = request.env['rfp.project'].sudo().browse(project_id)
+        
+        # Verify ownership
+        if not Project.exists() or Project.user_id.id != request.env.user.id:
+            return {'success': False, 'error': 'Access denied'}
+        
+        try:
+            Project.action_unpublish()
+            return {'success': True}
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
+
+    @http.route(['/rfp/public/<string:uuid>'], type='http', auth="public", website=True)
+    def portal_rfp_public_view(self, uuid, **kw):
+        """Public view of a published RFP."""
+        Published = request.env['rfp.published'].sudo().search([('uuid', '=', uuid), ('active', '=', True)], limit=1)
+        
+        if not Published:
+            return request.redirect('/')
+        
+        values = {
+            'published': Published,
+            'sections': Published.section_ids.sorted(lambda s: s.sequence),
+        }
+        return request.render("project_rfp_ai.portal_rfp_public_view", values)
+
+    @http.route(['/rfp/public/<string:uuid>/submit'], type='http', auth="public", website=True, methods=['GET', 'POST'], csrf=True)
+    def portal_rfp_proposal_submit(self, uuid, **post):
+        """Proposal submission form and handler."""
+        Published = request.env['rfp.published'].sudo().search([('uuid', '=', uuid), ('active', '=', True)], limit=1)
+        
+        if not Published:
+            return request.redirect('/')
+        
+        if request.httprequest.method == 'POST':
+            # Handle file upload
+            proposal_file = None
+            proposal_filename = None
+            if 'proposal_file' in request.httprequest.files:
+                file = request.httprequest.files['proposal_file']
+                if file.filename:
+                    proposal_file = base64.b64encode(file.read())
+                    proposal_filename = file.filename
+            
+            # Create proposal
+            request.env['rfp.proposal'].sudo().create({
+                'published_id': Published.id,
+                'company_name': post.get('company_name'),
+                'contact_person': post.get('contact_person'),
+                'email': post.get('email'),
+                'phone': post.get('phone'),
+                'website': post.get('website'),
+                'linkedin': post.get('linkedin'),
+                'proposal_file': proposal_file,
+                'proposal_filename': proposal_filename,
+                'notes': post.get('notes'),
+            })
+            
+            return request.render("project_rfp_ai.portal_rfp_proposal_success", {'published': Published})
+        
+        values = {
+            'published': Published,
+        }
+        return request.render("project_rfp_ai.portal_rfp_proposal_form", values)
+
+    @http.route(['/rfp/proposals/<int:project_id>'], type='http', auth="user", website=True)
+    def portal_rfp_view_proposals(self, project_id, **kw):
+        """View proposals for a project."""
+        Project = request.env['rfp.project'].sudo().browse(project_id)
+        
+        if not Project.exists() or Project.user_id.id != request.env.user.id:
+            return request.redirect('/my')
+        
+        if not Project.published_id:
+            return request.redirect(f'/rfp/editor/{project_id}')
+        
+        values = {
+            'project': Project,
+            'published': Project.published_id,
+            'proposals': Project.published_id.proposal_ids.sorted(lambda p: p.submitted_date, reverse=True),
+        }
+        return request.render("project_rfp_ai.portal_rfp_proposals_list", values)

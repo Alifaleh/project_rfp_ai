@@ -724,8 +724,47 @@
                                 <i class="fa fa-unlock me-1"/> Unlock
                             </button>
                         </t>
+                        
+                        <div class="vr mx-1"></div>
+                        
+                        <!-- Publish Buttons -->
+                        <t t-if="rfp_project.is_published">
+                            <a t-attf-href="/rfp/proposals/#{rfp_project.id}" class="btn btn-outline-info">
+                                <i class="fa fa-inbox me-1"/> Proposals
+                                <t t-if="rfp_project.published_id.proposal_count > 0">
+                                    <span class="badge bg-info ms-1" t-esc="rfp_project.published_id.proposal_count"/>
+                                </t>
+                            </a>
+                            <button id="btn_publish" class="btn btn-success" t-att-data-project-id="rfp_project.id" t-att-data-is-update="'true'">
+                                <i class="fa fa-refresh me-1"/> Update
+                            </button>
+                            <button id="btn_unpublish" class="btn btn-outline-danger" t-att-data-project-id="rfp_project.id">
+                                <i class="fa fa-eye-slash me-1"/> Unpublish
+                            </button>
+                        </t>
+                        <t t-else="">
+                            <button id="btn_publish" class="btn btn-success" t-att-data-project-id="rfp_project.id">
+                                <i class="fa fa-globe me-1"/> Publish
+                            </button>
+                        </t>
                     </div>
                 </div>
+
+                <!-- Public URL Bar (when published) -->
+                <t t-if="rfp_project.is_published">
+                    <div class="alert alert-success d-flex align-items-center mb-4 py-2">
+                        <i class="fa fa-link me-2"></i>
+                        <span class="me-2"><strong>Public URL:</strong></span>
+                        <input type="text" id="editor_public_url" class="form-control form-control-sm me-2" style="max-width: 400px;"
+                            t-att-value="rfp_project.published_id.get_public_url()" readonly="readonly"/>
+                        <button type="button" class="btn btn-sm btn-success me-2" id="btn_copy_editor_url">
+                            <i class="fa fa-copy me-1"></i> Copy
+                        </button>
+                        <a t-att-href="rfp_project.published_id.get_public_url()" target="_blank" class="btn btn-sm btn-outline-success">
+                            <i class="fa fa-external-link me-1"></i> Open
+                        </a>
+                    </div>
+                </t>
 
                 <div class="row">
                     <!-- Main Editor Area -->
@@ -991,6 +1030,50 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Publish Success Modal -->
+                <div class="modal fade" id="modal_publish_success" tabindex="-1" role="dialog">
+                    <div class="modal-dialog modal-dialog-centered" role="document">
+                        <div class="modal-content">
+                            <div class="modal-body text-center py-5">
+                                <i class="fa fa-check-circle fa-4x text-success mb-4"></i>
+                                <h4 id="publish_success_title">Published!</h4>
+                                <p class="text-muted mb-4">Your RFP is now available at the following URL:</p>
+                                <div class="input-group mb-3">
+                                    <input type="text" id="publish_success_url" class="form-control text-center" readonly="readonly"/>
+                                    <button class="btn btn-rfp-gold" type="button" id="btn_copy_publish_url">
+                                        <i class="fa fa-copy me-1"/> Copy URL
+                                    </button>
+                                </div>
+                                <a id="link_open_public" href="#" target="_blank" class="text-primary small">
+                                    <i class="fa fa-external-link me-1"/> Open in new tab
+                                </a>
+                            </div>
+                            <div class="modal-footer justify-content-center border-0 pt-0">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" onclick="window.location.reload()">Close &amp; Refresh</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Unpublish Confirm Modal -->
+                <div class="modal fade" id="modal_unpublish_confirm" tabindex="-1" role="dialog">
+                    <div class="modal-dialog modal-dialog-centered" role="document">
+                        <div class="modal-content">
+                            <div class="modal-body text-center py-5">
+                                <i class="fa fa-eye-slash fa-4x text-warning mb-4"></i>
+                                <h4>Take Down RFP?</h4>
+                                <p class="text-muted">The public URL will no longer be accessible.<br/>Existing proposals will be preserved.</p>
+                            </div>
+                            <div class="modal-footer justify-content-center border-0">
+                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="button" class="btn btn-danger" id="btn_confirm_unpublish">
+                                    <i class="fa fa-eye-slash me-1"/> Yes, Unpublish
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </t>
 
@@ -1102,4 +1185,256 @@
             </script>
         </t>
     </template>
+
+    <!-- ============ PUBLISHED RFP PUBLIC VIEW ============ -->
+    <template id="portal_rfp_public_view" name="Public RFP View">
+        <t t-call="website.layout">
+            <t t-call="project_rfp_ai.rfp_theme_styles"/>
+            <div class="container py-5 rfp-portal-wrapper">
+                <!-- Header -->
+                <div class="text-center mb-5">
+                    <h1 class="display-5 rfp-document-title" t-esc="published.title"/>
+                    <p class="text-muted mt-4" t-if="published.description" t-esc="published.description"/>
+                    <div class="mt-4">
+                        <a t-attf-href="/rfp/public/#{published.uuid}/submit" class="btn btn-rfp-gold btn-lg">
+                            <i class="fa fa-paper-plane me-2"/> Submit Your Proposal
+                        </a>
+                    </div>
+                </div>
+                
+                <hr class="my-4" style="border-color: var(--rfp-gold-light);"/>
+                
+                <!-- Content Sections -->
+                <div class="card shadow-lg border-0">
+                    <div class="card-body p-5">
+                        <t t-foreach="sections" t-as="section">
+                            <div class="mb-5">
+                                <h2 class="mb-3" style="color: var(--rfp-dark); border-left: 4px solid var(--rfp-gold); padding-left: 1rem;" t-esc="section.title"/>
+                                <div class="rfp-section-content ps-4" t-raw="section.content_html"/>
+                                
+                                <!-- Diagrams -->
+                                <t t-if="section.diagram_ids">
+                                    <div class="mt-4 ps-4">
+                                        <t t-foreach="section.diagram_ids" t-as="diagram">
+                                            <figure class="text-center mb-4" t-if="diagram.image_file">
+                                                <img t-att-src="'/web/image/rfp.published.diagram/%s/image_file' % diagram.id" class="img-fluid rounded shadow-sm" style="max-height: 500px; border: 2px solid var(--rfp-gold-light);"/>
+                                                <figcaption class="mt-2 text-muted fst-italic" t-esc="diagram.title"/>
+                                            </figure>
+                                        </t>
+                                    </div>
+                                </t>
+                            </div>
+                            <hr t-if="not section_last" style="border-color: var(--rfp-gold-light);"/>
+                        </t>
+                    </div>
+                </div>
+                
+                <!-- CTA -->
+                <div class="text-center mt-5">
+                    <a t-attf-href="/rfp/public/#{published.uuid}/submit" class="btn btn-rfp-gold btn-lg">
+                        <i class="fa fa-paper-plane me-2"/> Submit Your Proposal
+                    </a>
+                </div>
+            </div>
+        </t>
+    </template>
+
+    <!-- ============ PROPOSAL SUBMISSION FORM ============ -->
+    <template id="portal_rfp_proposal_form" name="Proposal Submission Form">
+        <t t-call="website.layout">
+            <t t-call="project_rfp_ai.rfp_theme_styles"/>
+            <div class="container py-5 rfp-portal-wrapper">
+                <div class="row justify-content-center">
+                    <div class="col-lg-8">
+                        <div class="card shadow-lg border-0">
+                            <div class="card-body p-5">
+                                <div class="text-center mb-4">
+                                    <i class="fa fa-paper-plane fa-3x text-rfp-gold mb-3"/>
+                                    <h2>Submit Your Proposal</h2>
+                                    <p class="text-muted">For: <strong t-esc="published.title"/></p>
+                                </div>
+                                
+                                <hr class="my-4" style="border-color: var(--rfp-gold-light);"/>
+                                
+                                <form t-attf-action="/rfp/public/#{published.uuid}/submit" method="post" enctype="multipart/form-data">
+                                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                                    
+                                    <h5 class="mb-3"><i class="fa fa-building me-2 text-rfp-gold"/> Company Information</h5>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Company Name <span class="text-danger">*</span></label>
+                                            <input type="text" name="company_name" class="form-control" required="required"/>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Website</label>
+                                            <input type="url" name="website" class="form-control" placeholder="https://..."/>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">LinkedIn URL</label>
+                                        <input type="url" name="linkedin" class="form-control" placeholder="https://linkedin.com/company/..."/>
+                                    </div>
+                                    
+                                    <hr class="my-4"/>
+                                    
+                                    <h5 class="mb-3"><i class="fa fa-user me-2 text-rfp-gold"/> Contact Person</h5>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Contact Name <span class="text-danger">*</span></label>
+                                            <input type="text" name="contact_person" class="form-control" required="required"/>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Email <span class="text-danger">*</span></label>
+                                            <input type="email" name="email" class="form-control" required="required"/>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Phone</label>
+                                        <input type="tel" name="phone" class="form-control"/>
+                                    </div>
+                                    
+                                    <hr class="my-4"/>
+                                    
+                                    <h5 class="mb-3"><i class="fa fa-file-pdf-o me-2 text-rfp-gold"/> Proposal Document</h5>
+                                    <div class="mb-3">
+                                        <label class="form-label">Upload Proposal (PDF)</label>
+                                        <input type="file" name="proposal_file" class="form-control" accept=".pdf,.doc,.docx"/>
+                                    </div>
+                                    <div class="mb-4">
+                                        <label class="form-label">Additional Notes</label>
+                                        <textarea name="notes" class="form-control" rows="4" placeholder="Any additional information..."/>
+                                    </div>
+                                    
+                                    <div class="d-grid">
+                                        <button type="submit" class="btn btn-rfp-gold btn-lg">
+                                            <i class="fa fa-send me-2"/> Submit Proposal
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </t>
+    </template>
+
+    <!-- ============ PROPOSAL SUCCESS ============ -->
+    <template id="portal_rfp_proposal_success" name="Proposal Submitted">
+        <t t-call="website.layout">
+            <t t-call="project_rfp_ai.rfp_theme_styles"/>
+            <div class="container py-5 rfp-portal-wrapper">
+                <div class="row justify-content-center">
+                    <div class="col-lg-6 text-center">
+                        <div class="card shadow-lg border-0">
+                            <div class="card-body p-5">
+                                <i class="fa fa-check-circle fa-5x text-success mb-4"/>
+                                <h2 class="mb-3">Proposal Submitted!</h2>
+                                <p class="text-muted">Thank you for your interest. Your proposal has been received and will be reviewed by the team.</p>
+                                <hr class="my-4"/>
+                                <a t-attf-href="/rfp/public/#{published.uuid}" class="btn btn-rfp-gold-outline">
+                                    <i class="fa fa-arrow-left me-2"/> Back to RFP
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </t>
+    </template>
+
+    <!-- ============ PROPOSALS LIST (Owner View) ============ -->
+    <template id="portal_rfp_proposals_list" name="View Proposals">
+        <t t-call="portal.portal_layout">
+            <t t-call="project_rfp_ai.rfp_theme_styles"/>
+            <div class="container py-4 rfp-portal-wrapper">
+                <!-- Header -->
+                <div class="rfp-hero mb-4">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h2 class="mb-2">Proposals for <t t-esc="project.name"/></h2>
+                            <p class="mb-0">
+                                <t t-esc="len(proposals)"/> proposal(s) received
+                                <span class="mx-2">|</span>
+                                Published: <t t-esc="published.published_date" t-options="{'widget': 'date'}"/>
+                            </p>
+                        </div>
+                        <div class="col-md-4 text-md-end mt-3 mt-md-0">
+                            <a t-attf-href="/rfp/edit/#{project.id}" class="btn btn-rfp-gold">
+                                <i class="fa fa-arrow-left me-2"/> Back to Editor
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Public URL -->
+                <div class="alert alert-info mb-4 d-flex align-items-center">
+                    <strong class="me-2">Public URL:</strong>
+                    <input type="text" id="proposals_public_url" class="form-control form-control-sm me-2" style="max-width: 400px;"
+                        t-att-value="published.get_public_url()" readonly="readonly"/>
+                    <button type="button" class="btn btn-sm btn-outline-primary me-2" id="btn_copy_proposals_url">
+                        <i class="fa fa-copy me-1"></i> Copy
+                    </button>
+                    <a t-att-href="published.get_public_url()" target="_blank" class="btn btn-sm btn-primary">
+                        <i class="fa fa-external-link me-1"></i> Open
+                    </a>
+                </div>
+                
+                <!-- Proposals Table -->
+                <t t-if="proposals">
+                    <div class="card shadow-lg border-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Company</th>
+                                        <th>Contact</th>
+                                        <th>Submitted</th>
+                                        <th>Status</th>
+                                        <th>Proposal</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="proposals" t-as="proposal">
+                                        <tr>
+                                            <td>
+                                                <strong t-esc="proposal.company_name"/>
+                                                <br/>
+                                                <small t-if="proposal.website">
+                                                    <a t-att-href="proposal.website" target="_blank" class="text-muted"><i class="fa fa-globe"/> Website</a>
+                                                </small>
+                                            </td>
+                                            <td>
+                                                <t t-esc="proposal.contact_person"/>
+                                                <br/>
+                                                <small class="text-muted" t-esc="proposal.email"/>
+                                            </td>
+                                            <td t-esc="proposal.submitted_date" t-options="{'widget': 'datetime'}"/>
+                                            <td>
+                                                <span t-attf-class="badge bg-{{ 'success' if proposal.status == 'accepted' else ('warning' if proposal.status in ['reviewing', 'shortlisted'] else ('danger' if proposal.status == 'rejected' else 'secondary')) }}" t-esc="proposal.status"/>
+                                            </td>
+                                            <td>
+                                                <a t-if="proposal.proposal_file" t-attf-href="/web/content/rfp.proposal/#{proposal.id}/proposal_file/#{proposal.proposal_filename}" class="btn btn-sm btn-outline-primary" download="">
+                                                    <i class="fa fa-download"/> Download
+                                                </a>
+                                                <span t-else="" class="text-muted">No file</span>
+                                            </td>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </t>
+                <t t-else="">
+                    <div class="text-center py-5">
+                        <i class="fa fa-inbox fa-4x text-muted mb-3" style="opacity: 0.3;"/>
+                        <h4 class="text-muted">No proposals yet</h4>
+                        <p class="text-muted">Share the public URL to start receiving proposals</p>
+                    </div>
+                </t>
+            </div>
+        </t>
+    </template>
+
 </odoo>

@@ -54,6 +54,10 @@ class RfpProject(models.Model):
     initial_research = fields.Text(string="Initial Best Practices", readonly=True, help="Broad research before gathering.")
     refined_practices = fields.Text(string="Refined Best Practices", readonly=True, help="Specific research after gathering.")
 
+    # Publishing Fields
+    published_id = fields.Many2one('rfp.published', string="Published RFP", readonly=True, copy=False)
+    is_published = fields.Boolean(string="Is Published", compute='_compute_is_published')
+
 
 
     def action_initialize_project(self):
@@ -796,3 +800,35 @@ class RfpProject(models.Model):
             
         return {'status': status, 'progress': int(progress), 'completed': completed_count, 'total': total}
 
+    @api.depends('published_id', 'published_id.active')
+    def _compute_is_published(self):
+        for rec in self:
+            rec.is_published = bool(rec.published_id and rec.published_id.active)
+
+    def action_publish(self):
+        """Publish or update the RFP for public viewing."""
+        self.ensure_one()
+        
+        if self.published_id:
+            # Update existing published record
+            self.published_id.copy_content_from_project()
+            self.published_id.active = True
+        else:
+            # Create new published record
+            published = self.env['rfp.published'].sudo().create({
+                'project_id': self.id,
+                'title': self.name,
+                'description': self.description,
+                'owner_id': self.user_id.id,
+            })
+            published.copy_content_from_project()
+            self.published_id = published.id
+        
+        return self.published_id.get_public_url()
+
+    def action_unpublish(self):
+        """Take down the published RFP."""
+        self.ensure_one()
+        if self.published_id:
+            self.published_id.active = False
+        return True
