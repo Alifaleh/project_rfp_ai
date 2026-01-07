@@ -1414,10 +1414,12 @@
                                                 <span t-attf-class="badge bg-{{ 'success' if proposal.status == 'accepted' else ('warning' if proposal.status in ['reviewing', 'shortlisted'] else ('danger' if proposal.status == 'rejected' else 'secondary')) }}" t-esc="proposal.status"/>
                                             </td>
                                             <td>
-                                                <a t-if="proposal.proposal_file" t-attf-href="/web/content/rfp.proposal/#{proposal.id}/proposal_file/#{proposal.proposal_filename}" class="btn btn-sm btn-outline-primary" download="">
-                                                    <i class="fa fa-download"/> Download
+                                                <a t-attf-href="/rfp/proposal/#{proposal.id}" class="btn btn-sm btn-rfp-gold me-1">
+                                                    <i class="fa fa-eye"></i> View
                                                 </a>
-                                                <span t-else="" class="text-muted">No file</span>
+                                                <a t-if="proposal.proposal_file" t-attf-href="/web/content/rfp.proposal/#{proposal.id}/proposal_file/#{proposal.proposal_filename}" class="btn btn-sm btn-outline-primary" download="">
+                                                    <i class="fa fa-download"></i>
+                                                </a>
                                             </td>
                                         </tr>
                                     </t>
@@ -1433,6 +1435,158 @@
                         <p class="text-muted">Share the public URL to start receiving proposals</p>
                     </div>
                 </t>
+            </div>
+        </t>
+    </template>
+
+    <!-- ============ PROPOSAL DETAIL VIEW ============ -->
+    <template id="portal_rfp_proposal_detail" name="Proposal Detail">
+        <t t-call="portal.portal_layout">
+            <t t-call="project_rfp_ai.rfp_theme_styles"/>
+            <div class="container py-4 rfp-portal-wrapper">
+                <!-- Header -->
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <h2 class="mb-1">
+                            <i class="fa fa-file-text-o text-rfp-gold me-2"></i>
+                            Proposal from <t t-esc="proposal.company_name"/>
+                        </h2>
+                        <p class="text-muted mb-0">
+                            For: <strong t-esc="project.name"/>
+                            <span class="mx-2">|</span>
+                            Submitted: <t t-esc="proposal.submitted_date" t-options="{'widget': 'datetime'}"/>
+                        </p>
+                    </div>
+                    <div>
+                        <a t-attf-href="/rfp/proposals/#{project.id}" class="btn btn-outline-secondary">
+                            <i class="fa fa-arrow-left me-1"></i> Back to Proposals
+                        </a>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <!-- Left Column: Info -->
+                    <div class="col-lg-4 mb-4">
+                        <!-- Status Card -->
+                        <div class="card shadow-sm border-0 mb-4">
+                            <div class="card-header bg-rfp-gold text-white">
+                                <h6 class="mb-0"><i class="fa fa-info-circle me-2"></i> Status</h6>
+                            </div>
+                            <div class="card-body text-center py-4">
+                                <span t-attf-class="badge fs-5 bg-{{ 'success' if proposal.status == 'accepted' else ('warning' if proposal.status in ['reviewing', 'shortlisted'] else ('danger' if proposal.status == 'rejected' else 'secondary')) }}" 
+                                      style="text-transform: capitalize;" t-esc="proposal.status"/>
+                            </div>
+                        </div>
+
+                        <!-- Company Info -->
+                        <div class="card shadow-sm border-0 mb-4">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="fa fa-building me-2"></i> Company</h6>
+                            </div>
+                            <div class="card-body">
+                                <h5 t-esc="proposal.company_name"/>
+                                <t t-if="proposal.website">
+                                    <p class="mb-2">
+                                        <a t-att-href="proposal.website" target="_blank" class="text-primary">
+                                            <i class="fa fa-globe me-1"></i> <t t-esc="proposal.website"/>
+                                        </a>
+                                    </p>
+                                </t>
+                                <t t-if="proposal.linkedin">
+                                    <p class="mb-0">
+                                        <a t-att-href="proposal.linkedin" target="_blank" class="text-primary">
+                                            <i class="fa fa-linkedin me-1"></i> LinkedIn Profile
+                                        </a>
+                                    </p>
+                                </t>
+                            </div>
+                        </div>
+
+                        <!-- Contact Info -->
+                        <div class="card shadow-sm border-0 mb-4">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="fa fa-user me-2"></i> Contact Person</h6>
+                            </div>
+                            <div class="card-body">
+                                <h6 t-esc="proposal.contact_person"/>
+                                <p class="mb-2">
+                                    <a t-att-href="'mailto:' + proposal.email" class="text-primary">
+                                        <i class="fa fa-envelope me-1"></i> <t t-esc="proposal.email"/>
+                                    </a>
+                                </p>
+                                <t t-if="proposal.phone">
+                                    <p class="mb-0">
+                                        <a t-att-href="'tel:' + proposal.phone" class="text-primary">
+                                            <i class="fa fa-phone me-1"></i> <t t-esc="proposal.phone"/>
+                                        </a>
+                                    </p>
+                                </t>
+                            </div>
+                        </div>
+
+                        <!-- Notes -->
+                        <t t-if="proposal.notes">
+                            <div class="card shadow-sm border-0">
+                                <div class="card-header">
+                                    <h6 class="mb-0"><i class="fa fa-sticky-note me-2"></i> Additional Notes</h6>
+                                </div>
+                                <div class="card-body">
+                                    <p class="mb-0" style="white-space: pre-wrap;" t-esc="proposal.notes"/>
+                                </div>
+                            </div>
+                        </t>
+                    </div>
+
+                    <!-- Right Column: Document Viewer -->
+                    <div class="col-lg-8">
+                        <div class="card shadow-sm border-0">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0"><i class="fa fa-file-pdf-o me-2"></i> Proposal Document</h6>
+                                <t t-if="proposal.proposal_file">
+                                    <a t-attf-href="/web/content/rfp.proposal/#{proposal.id}/proposal_file/#{proposal.proposal_filename}" 
+                                       class="btn btn-sm btn-rfp-gold" download="">
+                                        <i class="fa fa-download me-1"></i> Download
+                                    </a>
+                                </t>
+                            </div>
+                            <div class="card-body p-0">
+                                <t t-if="proposal.proposal_file">
+                                    <!-- PDF Viewer -->
+                                    <t t-if="file_type == 'pdf'">
+                                        <iframe t-attf-src="/web/content/rfp.proposal/#{proposal.id}/proposal_file/#{proposal.proposal_filename}#toolbar=1" 
+                                                style="width: 100%; height: 80vh; border: none;"/>
+                                    </t>
+                                    <!-- Image Viewer -->
+                                    <t t-elif="file_type == 'image'">
+                                        <div class="text-center p-4">
+                                            <img t-attf-src="/web/content/rfp.proposal/#{proposal.id}/proposal_file/#{proposal.proposal_filename}" 
+                                                 class="img-fluid rounded shadow" style="max-height: 70vh;"/>
+                                        </div>
+                                    </t>
+                                    <!-- Other File Types -->
+                                    <t t-else="">
+                                        <div class="text-center py-5">
+                                            <i class="fa fa-file fa-4x text-muted mb-3" style="opacity: 0.5;"></i>
+                                            <h5>Preview not available</h5>
+                                            <p class="text-muted" t-esc="proposal.proposal_filename"/>
+                                            <a t-attf-href="/web/content/rfp.proposal/#{proposal.id}/proposal_file/#{proposal.proposal_filename}" 
+                                               class="btn btn-rfp-gold" download="">
+                                                <i class="fa fa-download me-1"></i> Download to View
+                                            </a>
+                                        </div>
+                                    </t>
+                                </t>
+                                <t t-else="">
+                                    <div class="text-center py-5">
+                                        <i class="fa fa-file-o fa-4x text-muted mb-3" style="opacity: 0.3;"></i>
+                                        <h5 class="text-muted">No document attached</h5>
+                                        <p class="text-muted">This proposal was submitted without a file.</p>
+                                    </div>
+                                </t>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </t>
     </template>

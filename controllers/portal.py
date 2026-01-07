@@ -617,3 +617,32 @@ class RfpCustomerPortal(CustomerPortal):
             'proposals': Project.published_id.proposal_ids.sorted(lambda p: p.submitted_date, reverse=True),
         }
         return request.render("project_rfp_ai.portal_rfp_proposals_list", values)
+
+    @http.route(['/rfp/proposal/<int:proposal_id>'], type='http', auth="user", website=True)
+    def portal_rfp_proposal_detail(self, proposal_id, **kw):
+        """View individual proposal details."""
+        Proposal = request.env['rfp.proposal'].sudo().browse(proposal_id)
+        
+        if not Proposal.exists():
+            return request.redirect('/my')
+        
+        # Check ownership - the proposal's RFP must belong to current user
+        Project = Proposal.published_id.project_id
+        if not Project.exists() or Project.user_id.id != request.env.user.id:
+            return request.redirect('/my')
+        
+        # Determine file type for viewer
+        file_type = None
+        if Proposal.proposal_filename:
+            ext = Proposal.proposal_filename.lower().split('.')[-1] if '.' in Proposal.proposal_filename else ''
+            if ext == 'pdf':
+                file_type = 'pdf'
+            elif ext in ['png', 'jpg', 'jpeg', 'gif', 'webp']:
+                file_type = 'image'
+        
+        values = {
+            'proposal': Proposal,
+            'project': Project,
+            'file_type': file_type,
+        }
+        return request.render("project_rfp_ai.portal_rfp_proposal_detail", values)
