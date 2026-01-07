@@ -247,7 +247,7 @@ Return ONLY the JSON object.
         <record id="prompt_writer_section_content" model="rfp.prompt">
             <field name="name">Phase 7: Section Writer</field>
             <field name="code">writer_section_content</field>
-            <field name="ai_model_id" ref="model_gemini_flash_latest"/>
+            <field name="ai_model_id" ref="model_gemini_3_flash_preview"/>
             <field name="template_text">
                 <![CDATA[
 # System Prompt: Phase 7 (Content Generation)
@@ -430,6 +430,67 @@ Goal: Create or modify a diagram based on the user's instructions.
 - NO CODE, Mermaid.js, or script text.
 - Represent components as geometric shapes with clear labels.
 - Apply the user's modification request to the original description.
+]]>
+            </field>
+        </record>
+
+        <!-- Analyze Proposal AI -->
+        <record id="prompt_analyze_proposal" model="rfp.prompt">
+            <field name="name">Analyze Proposal Against RFP</field>
+            <field name="code">prompt_analyze_proposal</field>
+            <field name="ai_model_id" ref="model_gemini_3_pro_preview"/>
+            <field name="description">Analyzes a vendor proposal against RFP requirements to provide coverage score, strengths, weaknesses, and recommendations.</field>
+            <field name="template_text">
+<![CDATA[
+# Proposal Analysis Request
+
+You are evaluating a vendor proposal submitted in response to an RFP (Request for Proposal).
+
+## RFP DOCUMENT (Requirements):
+{rfp_content}
+
+## VENDOR PROPOSAL FROM: {company_name}
+{proposal_content}
+
+## YOUR TASK:
+Analyze how well this proposal addresses the RFP requirements. Provide:
+
+1. **Coverage Score (0-100)**: What percentage of RFP requirements are addressed?
+   - 90-100: Excellent coverage, all major requirements addressed
+   - 70-89: Good coverage, most requirements addressed
+   - 50-69: Fair coverage, significant gaps exist
+   - 0-49: Poor coverage, major requirements missing
+
+2. **Overall Rating**: Excellent, Good, Fair, or Poor
+
+3. **Summary**: 2-3 sentence executive summary
+
+4. **Strengths**: What does this proposal do well? Include impact level.
+
+5. **Weaknesses**: What's missing or concerning? Include severity.
+
+6. **Insights**: Key observations by category (Technical, Commercial, Risk, Compliance, Experience, Timeline)
+
+7. **Requirements Coverage**: For each major RFP requirement, indicate if it's Fully Addressed, Partially Addressed, or Not Addressed
+
+8. **Risk Assessment**: 
+   - Overall risk level (Low/Medium/High)
+   - Specific risk factors
+
+9. **Recommendation**: Should this proposal be:
+   - **Shortlist**: Strong candidate, proceed to next round
+   - **Review**: Has potential but needs clarification
+   - **Reject**: Does not meet requirements
+
+10. **Questions for Vendor**: Suggest clarification questions to ask
+
+## ANALYSIS GUIDELINES:
+- Be objective and evidence-based
+- Reference specific parts of the proposal and RFP
+- Consider both explicit and implicit requirements
+- Flag any red flags or concerns
+- Note any innovative approaches or added value
+- Consider pricing/commercial terms if mentioned
 ]]>
             </field>
         </record>

@@ -128,3 +128,134 @@ class RfpProposal(models.Model):
         ('rejected', 'Rejected'),
         ('accepted', 'Accepted'),
     ], string="Status", default='new')
+    
+    # AI Analysis Fields
+    analysis_status = fields.Selection([
+        ('pending', 'Pending'),
+        ('processing', 'Processing'),
+        ('done', 'Done'),
+        ('failed', 'Failed'),
+    ], string="Analysis Status", default='pending')
+    analysis_job_id = fields.Many2one('queue.job', string="Analysis Job", readonly=True)
+    analysis_result = fields.Text(string="Analysis Result (JSON)")
+    coverage_score = fields.Integer(string="Coverage Score")
+    overall_rating = fields.Char(string="Overall Rating")
+    ai_recommendation = fields.Selection([
+        ('shortlist', 'Shortlist'),
+        ('review', 'Review'),
+        ('reject', 'Reject'),
+    ], string="AI Recommendation")
+    
+    @api.model
+    def create(self, vals):
+        record = super().create(vals)
+        # Trigger AI analysis via queue job
+        if record.proposal_file:
+            record._trigger_analysis_job()
+        return record
+    
+    def _trigger_analysis_job(self):
+        """Queue the AI analysis job."""
+        self.ensure_one()
+        self.write({'analysis_status': 'pending'})
+        
+        # Get the prompt record
+        prompt_record = self.env['rfp.prompt'].search([('code', '=', 'prompt_analyze_proposal')], limit=1)
+        prompt_id = prompt_record.id if prompt_record else None
+        
+        # Create queue job
+        job = self.with_delay(
+            channel='root.rfp_ai',
+            description=f"AI Analysis: {self.company_name}"
+        ).analyze_proposal_job(prompt_id)
+        
+        # Store job reference
+        if hasattr(job, 'db_record'):
+            self.write({'analysis_job_id': job.db_record().id})
+    
+    def analyze_proposal_job(self, prompt_record_id=None):
+        """Queue job: Analyze proposal against RFP content using AI."""
+        import json
+        import base64
+        self.ensure_one()
+        self.write({'analysis_status': 'processing'})
+        
+        try:
+            # Get RFP content
+            published = self.published_id
+            rfp_content = f"# {published.title}\n\n{published.description or ''}\n\n"
+            for section in published.section_ids.sorted(lambda s: s.sequence):
+                rfp_content += f"## {section.title}\n{section.content_html or ''}\n\n"
+            
+            # Get proposal content
+            proposal_content = f"Company: {self.company_name}\n"
+            proposal_content += f"Contact: {self.contact_person} ({self.email})\n"
+            if self.notes:
+                proposal_content += f"Notes: {self.notes}\n"
+            
+            # If PDF, extract text (simplified - just use filename as indicator)
+            if self.proposal_file and self.proposal_filename:
+                proposal_content += f"\n[Attached file: {self.proposal_filename}]\n"
+                # For PDF content extraction, we'd need a PDF library
+                # For now, we pass the file info
+            
+            # Build the prompt
+            prompt_record = self.env['rfp.prompt'].browse(prompt_record_id) if prompt_record_id else None
+            
+            if prompt_record and prompt_record.template_text:
+                user_context = prompt_record.template_text.format(
+                    rfp_content=rfp_content,
+                    proposal_content=proposal_content,
+                    company_name=self.company_name
+                )
+            else:
+                user_context = f"""
+Analyze this vendor proposal against the RFP requirements.
+
+## RFP CONTENT:
+{rfp_content}
+
+## PROPOSAL:
+{proposal_content}
+
+Provide a comprehensive analysis in the required JSON format.
+"""
+            
+            # Get schema
+            from odoo.addons.project_rfp_ai.models.ai_schemas import get_proposal_analysis_schema
+            
+            system_prompt = """You are an expert procurement analyst. Analyze vendor proposals against RFP requirements.
+Provide objective, actionable insights to help decision-makers evaluate proposals effectively.
+Be specific about what's covered, what's missing, and what risks exist."""
+            
+            # Call AI
+            response_json_str = self.env['rfp.ai.log'].execute_request(
+                system_prompt=system_prompt,
+                user_context=user_context,
+                env=self.env,
+                mode='json',
+                schema=get_proposal_analysis_schema(),
+                prompt_record=prompt_record
+            )
+            
+            # Parse response
+            try:
+                data = json.loads(response_json_str)
+            except json.JSONDecodeError:
+                data = {}
+            
+            # Store results
+            self.write({
+                'analysis_status': 'done',
+                'analysis_result': response_json_str,
+                'coverage_score': data.get('coverage_score', 0),
+                'overall_rating': data.get('overall_rating', 'Unknown'),
+                'ai_recommendation': data.get('recommendation', '').lower() if data.get('recommendation') else None,
+            })
+            
+        except Exception as e:
+            self.write({
+                'analysis_status': 'failed',
+                'analysis_result': json.dumps({'error': str(e)})
+            })
+            raise e

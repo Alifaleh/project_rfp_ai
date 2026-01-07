@@ -621,6 +621,7 @@ class RfpCustomerPortal(CustomerPortal):
     @http.route(['/rfp/proposal/<int:proposal_id>'], type='http', auth="user", website=True)
     def portal_rfp_proposal_detail(self, proposal_id, **kw):
         """View individual proposal details."""
+        import json
         Proposal = request.env['rfp.proposal'].sudo().browse(proposal_id)
         
         if not Proposal.exists():
@@ -640,9 +641,18 @@ class RfpCustomerPortal(CustomerPortal):
             elif ext in ['png', 'jpg', 'jpeg', 'gif', 'webp']:
                 file_type = 'image'
         
+        # Parse analysis result if available
+        analysis = None
+        if Proposal.analysis_status == 'done' and Proposal.analysis_result:
+            try:
+                analysis = json.loads(Proposal.analysis_result)
+            except json.JSONDecodeError:
+                analysis = None
+        
         values = {
             'proposal': Proposal,
             'project': Project,
             'file_type': file_type,
+            'analysis': analysis,
         }
         return request.render("project_rfp_ai.portal_rfp_proposal_detail", values)

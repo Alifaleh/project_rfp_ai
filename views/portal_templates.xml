@@ -1585,6 +1585,174 @@
                                 </t>
                             </div>
                         </div>
+                        
+                        <!-- AI Analysis Section -->
+                        <div class="card shadow-sm border-0 mt-4">
+                            <div class="card-header d-flex justify-content-between align-items-center bg-gradient" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                                <h6 class="mb-0 text-white"><i class="fa fa-magic me-2"></i> AI Analysis</h6>
+                                <t t-if="proposal.analysis_status == 'done'">
+                                    <span class="badge bg-success">Ready</span>
+                                </t>
+                                <t t-elif="proposal.analysis_status == 'processing'">
+                                    <span class="badge bg-warning"><i class="fa fa-spinner fa-spin me-1"></i> Processing</span>
+                                </t>
+                                <t t-elif="proposal.analysis_status == 'failed'">
+                                    <span class="badge bg-danger">Failed</span>
+                                </t>
+                                <t t-else="">
+                                    <span class="badge bg-secondary">Pending</span>
+                                </t>
+                            </div>
+                            <div class="card-body">
+                                <!-- Processing State -->
+                                <t t-if="proposal.analysis_status in ['pending', 'processing']">
+                                    <div class="text-center py-5">
+                                        <i class="fa fa-cog fa-spin fa-3x text-muted mb-3"></i>
+                                        <h5>AI Analysis in Progress</h5>
+                                        <p class="text-muted">Our AI is analyzing this proposal against your RFP requirements.<br/>This typically takes 1-2 minutes.</p>
+                                        <button class="btn btn-outline-primary btn-sm" onclick="window.location.reload()">
+                                            <i class="fa fa-refresh me-1"></i> Check Status
+                                        </button>
+                                    </div>
+                                </t>
+                                
+                                <!-- Failed State -->
+                                <t t-elif="proposal.analysis_status == 'failed'">
+                                    <div class="text-center py-4">
+                                        <i class="fa fa-exclamation-triangle fa-3x text-danger mb-3"></i>
+                                        <h5>Analysis Failed</h5>
+                                        <p class="text-muted">An error occurred during analysis. Please try again later.</p>
+                                    </div>
+                                </t>
+                                
+                                <!-- Analysis Ready -->
+                                <t t-elif="analysis">
+                                    <!-- Summary & Score Row -->
+                                    <div class="row mb-4">
+                                        <div class="col-md-4 text-center">
+                                            <div class="border rounded p-3">
+                                                <h2 t-attf-class="mb-0 text-{{ 'success' if analysis.get('coverage_score', 0) >= 70 else ('warning' if analysis.get('coverage_score', 0) >= 50 else 'danger') }}">
+                                                    <t t-esc="analysis.get('coverage_score', 0)"/>%
+                                                </h2>
+                                                <small class="text-muted">Coverage Score</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4 text-center">
+                                            <div class="border rounded p-3">
+                                                <h4 t-attf-class="mb-0 text-{{ 'success' if analysis.get('overall_rating') == 'Excellent' else ('primary' if analysis.get('overall_rating') == 'Good' else ('warning' if analysis.get('overall_rating') == 'Fair' else 'danger')) }}" 
+                                                    t-esc="analysis.get('overall_rating', 'N/A')"/>
+                                                <small class="text-muted">Overall Rating</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4 text-center">
+                                            <div class="border rounded p-3">
+                                                <h4 t-attf-class="mb-0 text-{{ 'success' if analysis.get('recommendation') == 'Shortlist' else ('warning' if analysis.get('recommendation') == 'Review' else 'danger') }}" 
+                                                    t-esc="analysis.get('recommendation', 'N/A')"/>
+                                                <small class="text-muted">AI Recommendation</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Summary -->
+                                    <div class="alert alert-light mb-4">
+                                        <strong>Summary:</strong> <t t-esc="analysis.get('summary', '')"/>
+                                    </div>
+                                    
+                                    <!-- Strengths & Weaknesses -->
+                                    <div class="row mb-4">
+                                        <div class="col-md-6">
+                                            <h6 class="text-success"><i class="fa fa-thumbs-up me-2"></i> Strengths</h6>
+                                            <ul class="list-unstyled">
+                                                <t t-foreach="analysis.get('strengths', [])" t-as="item">
+                                                    <li class="mb-2 p-2 bg-success-subtle rounded">
+                                                        <strong t-esc="item.get('title', '')"/>
+                                                        <t t-if="item.get('impact')">
+                                                            <span t-attf-class="badge bg-{{ 'success' if item.get('impact') == 'High' else ('warning' if item.get('impact') == 'Medium' else 'secondary') }} ms-1" t-esc="item.get('impact')"/>
+                                                        </t>
+                                                        <br/><small class="text-muted" t-esc="item.get('description', '')"/>
+                                                    </li>
+                                                </t>
+                                                <t t-if="not analysis.get('strengths')">
+                                                    <li class="text-muted"><em>No strengths identified</em></li>
+                                                </t>
+                                            </ul>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <h6 class="text-danger"><i class="fa fa-thumbs-down me-2"></i> Weaknesses</h6>
+                                            <ul class="list-unstyled">
+                                                <t t-foreach="analysis.get('weaknesses', [])" t-as="item">
+                                                    <li class="mb-2 p-2 bg-danger-subtle rounded">
+                                                        <strong t-esc="item.get('title', '')"/>
+                                                        <t t-if="item.get('severity')">
+                                                            <span t-attf-class="badge bg-{{ 'danger' if item.get('severity') == 'Critical' else ('warning' if item.get('severity') == 'Major' else 'secondary') }} ms-1" t-esc="item.get('severity')"/>
+                                                        </t>
+                                                        <br/><small class="text-muted" t-esc="item.get('description', '')"/>
+                                                    </li>
+                                                </t>
+                                                <t t-if="not analysis.get('weaknesses')">
+                                                    <li class="text-muted"><em>No weaknesses identified</em></li>
+                                                </t>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Insights -->
+                                    <t t-if="analysis.get('insights')">
+                                        <h6><i class="fa fa-lightbulb-o me-2"></i> Key Insights</h6>
+                                        <div class="row mb-4">
+                                            <t t-foreach="analysis.get('insights', [])" t-as="insight">
+                                                <div class="col-md-6 mb-2">
+                                                    <div class="border-start border-3 border-info ps-3 py-1">
+                                                        <small class="badge bg-info mb-1" t-esc="insight.get('category', '')"/>
+                                                        <p class="mb-0 small" t-esc="insight.get('finding', '')"/>
+                                                    </div>
+                                                </div>
+                                            </t>
+                                        </div>
+                                    </t>
+                                    
+                                    <!-- Risk Assessment -->
+                                    <t t-if="analysis.get('risk_assessment')">
+                                        <h6><i class="fa fa-warning me-2"></i> Risk Assessment</h6>
+                                        <div class="alert mb-4" t-attf-class="alert-{{ 'success' if analysis.get('risk_assessment', {}).get('level') == 'Low' else ('warning' if analysis.get('risk_assessment', {}).get('level') == 'Medium' else 'danger') }}">
+                                            <strong>Risk Level: <t t-esc="analysis.get('risk_assessment', {}).get('level', 'Unknown')"/></strong>
+                                            <ul class="mb-0 mt-2">
+                                                <t t-foreach="analysis.get('risk_assessment', {}).get('factors', [])" t-as="factor">
+                                                    <li t-esc="factor"/>
+                                                </t>
+                                            </ul>
+                                        </div>
+                                    </t>
+                                    
+                                    <!-- Recommendation Reason -->
+                                    <t t-if="analysis.get('recommendation_reason')">
+                                        <div class="alert alert-secondary">
+                                            <strong><i class="fa fa-comment me-2"></i> Recommendation Reason:</strong>
+                                            <p class="mb-0 mt-1" t-esc="analysis.get('recommendation_reason')"/>
+                                        </div>
+                                    </t>
+                                    
+                                    <!-- Questions for Vendor -->
+                                    <t t-if="analysis.get('questions_for_vendor')">
+                                        <h6><i class="fa fa-question-circle me-2"></i> Suggested Questions for Vendor</h6>
+                                        <ol class="text-muted">
+                                            <t t-foreach="analysis.get('questions_for_vendor', [])" t-as="question">
+                                                <li t-esc="question"/>
+                                            </t>
+                                        </ol>
+                                    </t>
+                                </t>
+                                
+                                <!-- No File Case -->
+                                <t t-elif="not proposal.proposal_file">
+                                    <div class="text-center py-4">
+                                        <i class="fa fa-file-o fa-3x text-muted mb-3"></i>
+                                        <h5 class="text-muted">No Document to Analyze</h5>
+                                        <p class="text-muted">AI analysis requires a proposal document.</p>
+                                    </div>
+                                </t>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

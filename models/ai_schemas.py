@@ -178,3 +178,108 @@ def get_kb_analysis_schema():
         },
         required=['suggested_domain_name', 'extracted_practices']
     )
+
+def get_proposal_analysis_schema():
+    """
+    Schema for AI Proposal Analysis.
+    Comprehensive evaluation of vendor proposals against RFP requirements.
+    """
+    if not types:
+        return None
+        
+    return types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            "coverage_score": types.Schema(
+                type=types.Type.INTEGER,
+                description="Percentage (0-100) of RFP requirements addressed by the proposal."
+            ),
+            "overall_rating": types.Schema(
+                type=types.Type.STRING,
+                enum=["Excellent", "Good", "Fair", "Poor"],
+                description="Overall quality assessment of the proposal."
+            ),
+            "summary": types.Schema(
+                type=types.Type.STRING,
+                description="Executive summary of the proposal analysis (2-3 sentences)."
+            ),
+            "strengths": types.Schema(
+                type=types.Type.ARRAY,
+                items=types.Schema(
+                    type=types.Type.OBJECT,
+                    properties={
+                        "title": types.Schema(type=types.Type.STRING, description="Strength title"),
+                        "description": types.Schema(type=types.Type.STRING, description="Detailed explanation of why this is a strength"),
+                        "impact": types.Schema(type=types.Type.STRING, enum=["High", "Medium", "Low"])
+                    },
+                    required=["title", "description"]
+                ),
+                description="List of proposal strengths"
+            ),
+            "weaknesses": types.Schema(
+                type=types.Type.ARRAY,
+                items=types.Schema(
+                    type=types.Type.OBJECT,
+                    properties={
+                        "title": types.Schema(type=types.Type.STRING, description="Weakness title"),
+                        "description": types.Schema(type=types.Type.STRING, description="Detailed explanation of the weakness or gap"),
+                        "severity": types.Schema(type=types.Type.STRING, enum=["Critical", "Major", "Minor"])
+                    },
+                    required=["title", "description"]
+                ),
+                description="List of proposal weaknesses or gaps"
+            ),
+            "insights": types.Schema(
+                type=types.Type.ARRAY,
+                items=types.Schema(
+                    type=types.Type.OBJECT,
+                    properties={
+                        "category": types.Schema(type=types.Type.STRING, enum=["Technical", "Commercial", "Risk", "Compliance", "Experience", "Timeline"]),
+                        "finding": types.Schema(type=types.Type.STRING, description="Key insight or observation")
+                    },
+                    required=["category", "finding"]
+                ),
+                description="Key insights categorized by area"
+            ),
+            "requirements_coverage": types.Schema(
+                type=types.Type.ARRAY,
+                items=types.Schema(
+                    type=types.Type.OBJECT,
+                    properties={
+                        "requirement": types.Schema(type=types.Type.STRING, description="RFP requirement being assessed"),
+                        "status": types.Schema(type=types.Type.STRING, enum=["Fully Addressed", "Partially Addressed", "Not Addressed"]),
+                        "notes": types.Schema(type=types.Type.STRING, description="Brief notes on how it was addressed or what's missing")
+                    },
+                    required=["requirement", "status"]
+                ),
+                description="How each major RFP requirement is addressed"
+            ),
+            "risk_assessment": types.Schema(
+                type=types.Type.OBJECT,
+                properties={
+                    "level": types.Schema(type=types.Type.STRING, enum=["Low", "Medium", "High"]),
+                    "factors": types.Schema(
+                        type=types.Type.ARRAY, 
+                        items=types.Schema(type=types.Type.STRING),
+                        description="List of risk factors identified"
+                    )
+                },
+                required=["level", "factors"]
+            ),
+            "recommendation": types.Schema(
+                type=types.Type.STRING,
+                enum=["Shortlist", "Review", "Reject"],
+                description="AI recommendation for this proposal"
+            ),
+            "recommendation_reason": types.Schema(
+                type=types.Type.STRING,
+                description="Explanation for the recommendation"
+            ),
+            "questions_for_vendor": types.Schema(
+                type=types.Type.ARRAY,
+                items=types.Schema(type=types.Type.STRING),
+                description="Suggested clarification questions to ask the vendor"
+            )
+        },
+        required=["coverage_score", "overall_rating", "summary", "strengths", "weaknesses", "recommendation", "recommendation_reason"]
+    )

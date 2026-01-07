@@ -40,6 +40,14 @@
             <field name="description">Google's hybrid reasoning model, with a 1M token context window and thinking budgets.</field>
         </record>
 
+        <record id="model_gemini_3_flash_preview" model="rfp.ai.model">
+            <field name="name">Gemini 3 Flash Preview</field>
+            <field name="technical_name">gemini-3-flash-preview</field>
+            <field name="provider">google</field>
+            <field name="tag_ids" eval="[(4, ref('tag_high_speed')), (4, ref('tag_english'))]"/>
+            <field name="description">Google's hybrid reasoning model, with a 1M token context window and thinking budgets.</field>
+        </record>
+
         <record id="model_gemini_flash_latest" model="rfp.ai.model">
             <field name="name">Gemini Flash Latest</field>
             <field name="technical_name">gemini-flash-latest</field>
