@@ -15,3 +15,5 @@ from . import rfp_practice_input
 from . import rfp_published
 from . import rfp_eval_input
 from . import rfp_evaluation_criterion
+from . import rfp_required_document
+from . import rfp_proposal_document

@@ -59,6 +59,9 @@ class RfpProject(models.Model):
         ('finalized', 'Finalized'),
     ], string="Eval Criteria Status", default='not_started')
 
+    # Required Document Types (for vendor submissions)
+    required_document_ids = fields.One2many('rfp.required.document', 'project_id', string="Required Documents")
+
     # Research Fields
     initial_research = fields.Text(string="Initial Best Practices", readonly=True, help="Broad research before gathering.")
     refined_practices = fields.Text(string="Refined Best Practices", readonly=True, help="Specific research after gathering.")

@@ -565,12 +565,15 @@ class RfpCustomerPortal(CustomerPortal):
     def portal_rfp_proposal_submit(self, uuid, **post):
         """Proposal submission form and handler."""
         Published = request.env['rfp.published'].sudo().search([('uuid', '=', uuid), ('active', '=', True)], limit=1)
-        
+
         if not Published:
             return request.redirect('/')
-        
+
+        # Get required documents from the source project
+        required_docs = Published.project_id.required_document_ids.sorted('sequence')
+
         if request.httprequest.method == 'POST':
-            # Handle file upload
+            # Handle legacy single file upload
             proposal_file = None
             proposal_filename = None
             if 'proposal_file' in request.httprequest.files:
@@ -578,9 +581,9 @@ class RfpCustomerPortal(CustomerPortal):
                 if file.filename:
                     proposal_file = base64.b64encode(file.read())
                     proposal_filename = file.filename
-            
+
             # Create proposal
-            request.env['rfp.proposal'].sudo().create({
+            proposal = request.env['rfp.proposal'].sudo().create({
                 'published_id': Published.id,
                 'company_name': post.get('company_name'),
                 'contact_person': post.get('contact_person'),
@@ -592,11 +595,28 @@ class RfpCustomerPortal(CustomerPortal):
                 'proposal_filename': proposal_filename,
                 'notes': post.get('notes'),
             })
-            
+
+            # Handle multi-document uploads
+            if required_docs:
+                for doc_type in required_docs:
+                    file_key = f'doc_file_{doc_type.id}'
+                    if file_key in request.httprequest.files:
+                        file = request.httprequest.files[file_key]
+                        if file.filename:
+                            request.env['rfp.proposal.document'].sudo().create({
+                                'proposal_id': proposal.id,
+                                'required_document_id': doc_type.id,
+                                'name': doc_type.name,
+                                'file_data': base64.b64encode(file.read()),
+                                'filename': file.filename,
+                                'sequence': doc_type.sequence,
+                            })
+
             return request.render("project_rfp_ai.portal_rfp_proposal_success", {'published': Published})
-        
+
         values = {
             'published': Published,
+            'required_docs': required_docs,
         }
         return request.render("project_rfp_ai.portal_rfp_proposal_form", values)
 
@@ -666,6 +686,22 @@ class RfpCustomerPortal(CustomerPortal):
         values['criteria_scores'] = criteria_scores
         values['weighted_score'] = Proposal.weighted_score
         values['has_must_have_failure'] = Proposal.has_must_have_failure
+
+        # Multi-document support
+        proposal_documents = []
+        for doc in Proposal.document_ids.sorted('sequence'):
+            doc_file_type = None
+            if doc.filename:
+                ext = doc.filename.lower().split('.')[-1] if '.' in doc.filename else ''
+                if ext == 'pdf':
+                    doc_file_type = 'pdf'
+                elif ext in ['png', 'jpg', 'jpeg', 'gif', 'webp']:
+                    doc_file_type = 'image'
+            proposal_documents.append({
+                'doc': doc,
+                'file_type': doc_file_type,
+            })
+        values['proposal_documents'] = proposal_documents
 
         return request.render("project_rfp_ai.portal_rfp_proposal_detail", values)
 
@@ -842,4 +878,66 @@ class RfpCustomerPortal(CustomerPortal):
 
         Project._generate_eval_criteria()
         Project.eval_criteria_status = 'generated'
+        return {'success': True}
+
+    # ========== REQUIRED DOCUMENT ROUTES ==========
+
+    @http.route(['/rfp/required_docs/add/<int:project_id>'], type='json', auth="user", website=True)
+    def portal_rfp_required_doc_add(self, project_id, name=None, **kw):
+        """Add a new required document type."""
+        Project = request.env['rfp.project'].sudo().browse(project_id)
+        if not Project.exists() or Project.user_id.id != request.env.user.id:
+            return {'success': False, 'error': 'Access denied'}
+
+        max_seq = max([d.sequence for d in Project.required_document_ids] or [0])
+        doc = request.env['rfp.required.document'].sudo().create({
+            'project_id': Project.id,
+            'name': name or 'New Document',
+            'description': '',
+            'is_required': True,
+            'sequence': max_seq + 10,
+        })
+        return {'success': True, 'id': doc.id, 'name': doc.name}
+
+    @http.route(['/rfp/required_docs/save/<int:project_id>'], type='json', auth="user", website=True)
+    def portal_rfp_required_docs_save(self, project_id, docs=None, **kw):
+        """Save/update all required document types."""
+        Project = request.env['rfp.project'].sudo().browse(project_id)
+        if not Project.exists() or Project.user_id.id != request.env.user.id:
+            return {'success': False, 'error': 'Access denied'}
+
+        if not docs:
+            return {'success': False, 'error': 'No data provided'}
+
+        for item in docs:
+            doc = request.env['rfp.required.document'].sudo().browse(item.get('id'))
+            if doc.exists() and doc.project_id.id == Project.id:
+                vals = {}
+                if 'name' in item:
+                    vals['name'] = item['name']
+                if 'description' in item:
+                    vals['description'] = item['description']
+                if 'accept_types' in item:
+                    vals['accept_types'] = item['accept_types']
+                if 'is_required' in item:
+                    vals['is_required'] = bool(item['is_required'])
+                if 'sequence' in item:
+                    vals['sequence'] = int(item['sequence'])
+                if vals:
+                    doc.write(vals)
+
+        return {'success': True}
+
+    @http.route(['/rfp/required_docs/delete/<int:doc_id>'], type='json', auth="user", website=True)
+    def portal_rfp_required_doc_delete(self, doc_id, **kw):
+        """Delete a required document type."""
+        doc = request.env['rfp.required.document'].sudo().browse(doc_id)
+        if not doc.exists():
+            return {'success': False, 'error': 'Not found'}
+
+        Project = doc.project_id
+        if Project.user_id.id != request.env.user.id:
+            return {'success': False, 'error': 'Access denied'}
+
+        doc.unlink()
         return {'success': True}

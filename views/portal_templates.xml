@@ -766,6 +766,76 @@
                     </div>
                 </t>
 
+                <!-- Required Documents Configuration Panel -->
+                <div class="card shadow-sm border-0 mb-4" style="border-left: 4px solid var(--rfp-gold) !important;">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center py-3"
+                         style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#required_docs_panel" aria-expanded="false">
+                        <div class="d-flex align-items-center">
+                            <i class="fa fa-file-text me-2 text-rfp-gold"/>
+                            <h6 class="mb-0 fw-bold">Required Documents</h6>
+                            <span class="badge bg-rfp-gold ms-2" id="required_docs_count"><t t-esc="len(rfp_project.required_document_ids)"/></span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <small class="text-muted">Configure what vendors must submit</small>
+                            <i class="fa fa-chevron-down"/>
+                        </div>
+                    </div>
+                    <div class="collapse" id="required_docs_panel">
+                        <div class="card-body p-4">
+                            <p class="text-muted small mb-3">
+                                Define the document types vendors must upload with their proposals.
+                                When no documents are configured, vendors see a single generic file upload.
+                            </p>
+
+                            <div id="required_docs_container" t-att-data-project-id="rfp_project.id">
+                                <t t-foreach="rfp_project.required_document_ids.sorted('sequence')" t-as="rdoc">
+                                    <div class="card border mb-2 required-doc-card" t-att-data-doc-id="rdoc.id">
+                                        <div class="card-body py-2 px-3">
+                                            <div class="row align-items-center">
+                                                <div class="col-md-3">
+                                                    <input type="text" class="form-control form-control-sm fw-bold rdoc-name"
+                                                           t-att-value="rdoc.name" placeholder="Document name"/>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <input type="text" class="form-control form-control-sm rdoc-description"
+                                                           t-att-value="rdoc.description or ''"
+                                                           placeholder="Description / instructions"/>
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <input type="text" class="form-control form-control-sm rdoc-accept-types"
+                                                           t-att-value="rdoc.accept_types or '.pdf,.doc,.docx'"
+                                                           placeholder=".pdf,.doc,.docx"/>
+                                                </div>
+                                                <div class="col-md-2 text-center">
+                                                    <label class="form-label small text-muted mb-0 d-block">Required</label>
+                                                    <div class="form-check form-switch d-inline-block">
+                                                        <input class="form-check-input rdoc-required" type="checkbox"
+                                                               t-att-checked="'checked' if rdoc.is_required else None"/>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-2 text-end">
+                                                    <button class="btn btn-sm btn-outline-danger btn-delete-rdoc" type="button">
+                                                        <i class="fa fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </t>
+                            </div>
+
+                            <div class="d-flex justify-content-between mt-3">
+                                <button type="button" class="btn btn-sm btn-outline-primary" id="btn_add_rdoc">
+                                    <i class="fa fa-plus me-1"></i> Add Document Type
+                                </button>
+                                <button type="button" class="btn btn-sm btn-rfp-gold" id="btn_save_rdocs">
+                                    <i class="fa fa-save me-1"></i> Save
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="row">
                     <!-- Main Editor Area -->
                     <div class="col-12">
@@ -1295,16 +1365,40 @@
                                     
                                     <hr class="my-4"/>
                                     
-                                    <h5 class="mb-3"><i class="fa fa-file-pdf-o me-2 text-rfp-gold"/> Proposal Document</h5>
-                                    <div class="mb-3">
-                                        <label class="form-label">Upload Proposal (PDF)</label>
-                                        <input type="file" name="proposal_file" class="form-control" accept=".pdf,.doc,.docx"/>
-                                    </div>
+                                    <h5 class="mb-3"><i class="fa fa-file-pdf-o me-2 text-rfp-gold"/> Proposal Documents</h5>
+
+                                    <!-- Multi-document mode -->
+                                    <t t-if="required_docs">
+                                        <t t-foreach="required_docs" t-as="rdoc">
+                                            <div class="mb-3">
+                                                <label class="form-label">
+                                                    <t t-esc="rdoc.name"/>
+                                                    <span t-if="rdoc.is_required" class="text-danger">*</span>
+                                                </label>
+                                                <t t-if="rdoc.description">
+                                                    <small class="form-text text-muted d-block mb-1"><t t-esc="rdoc.description"/></small>
+                                                </t>
+                                                <input type="file" t-attf-name="doc_file_#{rdoc.id}" class="form-control"
+                                                       t-att-accept="rdoc.accept_types or '.pdf,.doc,.docx'"
+                                                       t-att-required="'required' if rdoc.is_required else None"/>
+                                            </div>
+                                        </t>
+                                        <div class="mb-3">
+                                            <label class="form-label">Additional Document (optional)</label>
+                                            <input type="file" name="proposal_file" class="form-control" accept=".pdf,.doc,.docx"/>
+                                        </div>
+                                    </t>
+                                    <t t-else="">
+                                        <div class="mb-3">
+                                            <label class="form-label">Upload Proposal (PDF)</label>
+                                            <input type="file" name="proposal_file" class="form-control" accept=".pdf,.doc,.docx"/>
+                                        </div>
+                                    </t>
                                     <div class="mb-4">
                                         <label class="form-label">Additional Notes</label>
-                                        <textarea name="notes" class="form-control" rows="4" placeholder="Any additional information..."/>
+                                        <textarea name="notes" class="form-control" rows="4" placeholder="Any additional information..."><t t-esc="''"/></textarea>
                                     </div>
-                                    
+
                                     <div class="d-grid">
                                         <button type="submit" class="btn btn-rfp-gold btn-lg">
                                             <i class="fa fa-send me-2"/> Submit Proposal
@@ -1627,7 +1721,42 @@
                                 </t>
                             </div>
                         </div>
-                        
+
+                        <!-- Multi-Document Viewer -->
+                        <t t-if="proposal_documents">
+                            <div class="card shadow-sm border-0 mt-4">
+                                <div class="card-header">
+                                    <h6 class="mb-0"><i class="fa fa-files-o me-2"></i> Submitted Documents
+                                        <span class="badge bg-rfp-gold ms-1"><t t-esc="len(proposal_documents)"/></span>
+                                    </h6>
+                                </div>
+                                <div class="card-body p-0">
+                                    <div class="list-group list-group-flush">
+                                        <t t-foreach="proposal_documents" t-as="pdoc">
+                                            <div class="list-group-item d-flex justify-content-between align-items-center py-3">
+                                                <div>
+                                                    <h6 class="mb-1 fw-bold"><t t-esc="pdoc['doc'].name"/></h6>
+                                                    <small class="text-muted"><i class="fa fa-file me-1"></i> <t t-esc="pdoc['doc'].filename or 'No file'"/></small>
+                                                </div>
+                                                <div class="d-flex gap-2" t-if="pdoc['doc'].file_data">
+                                                    <t t-if="pdoc['file_type'] == 'pdf'">
+                                                        <a t-attf-href="/web/content/rfp.proposal.document/#{pdoc['doc'].id}/file_data/#{pdoc['doc'].filename}"
+                                                           target="_blank" class="btn btn-sm btn-outline-primary" title="View">
+                                                            <i class="fa fa-eye"></i>
+                                                        </a>
+                                                    </t>
+                                                    <a t-attf-href="/web/content/rfp.proposal.document/#{pdoc['doc'].id}/file_data/#{pdoc['doc'].filename}"
+                                                       class="btn btn-sm btn-rfp-gold" download="" title="Download">
+                                                        <i class="fa fa-download"></i>
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </t>
+                                    </div>
+                                </div>
+                            </div>
+                        </t>
+
                         <!-- AI Analysis Section -->
                         <div class="card shadow-sm border-0 mt-4">
                             <div class="card-header d-flex justify-content-between align-items-center bg-gradient" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">

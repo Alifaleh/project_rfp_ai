@@ -56,6 +56,11 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         'click #btn_regenerate_criteria': '_onRegenerateCriteria',
         'click #btn_unfinalize_criteria': '_onUnfinalizeCriteria',
         'click #btn_eval_confirm_action': '_onEvalConfirmAction',
+
+        // Required Documents CRUD
+        'click #btn_add_rdoc': '_onAddRequiredDoc',
+        'click .btn-delete-rdoc': '_onDeleteRequiredDoc',
+        'click #btn_save_rdocs': '_onSaveRequiredDocs',
     },
 
     // Custom RPC implementation to avoid module dependency issues in frontend
@@ -1610,6 +1615,143 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
                 }
             }
         });
+    },
+
+    // ==================== Required Documents CRUD ====================
+
+    _getReqDocsProjectId: function () {
+        var $el = this.$('#required_docs_container');
+        return $el.data('projectId') || $el.data('project-id') || $el.attr('data-project-id');
+    },
+
+    _onAddRequiredDoc: async function (ev) {
+        var $btn = $(ev.currentTarget);
+        var originalText = $btn.html();
+        $btn.html('<i class="fa fa-spinner fa-spin me-1"></i> Adding...').prop('disabled', true);
+
+        try {
+            var projectId = this._getReqDocsProjectId();
+            var result = await this._rpc({
+                route: '/rfp/required_docs/add/' + projectId,
+                params: {},
+            });
+            if (result && result.success) {
+                var newId = result.id;
+                var cardHtml =
+                    '<div class="card border mb-2 required-doc-card" data-doc-id="' + newId + '">' +
+                        '<div class="card-body py-2 px-3">' +
+                            '<div class="row align-items-center">' +
+                                '<div class="col-md-3">' +
+                                    '<input type="text" class="form-control form-control-sm fw-bold rdoc-name" value="' + (result.name || 'New Document') + '" placeholder="Document name"/>' +
+                                '</div>' +
+                                '<div class="col-md-3">' +
+                                    '<input type="text" class="form-control form-control-sm rdoc-description" value="" placeholder="Description / instructions"/>' +
+                                '</div>' +
+                                '<div class="col-md-2">' +
+                                    '<input type="text" class="form-control form-control-sm rdoc-accept-types" value=".pdf,.doc,.docx" placeholder=".pdf,.doc,.docx"/>' +
+                                '</div>' +
+                                '<div class="col-md-2 text-center">' +
+                                    '<label class="form-label small text-muted mb-0 d-block">Required</label>' +
+                                    '<div class="form-check form-switch d-inline-block">' +
+                                        '<input class="form-check-input rdoc-required" type="checkbox" checked="checked"/>' +
+                                    '</div>' +
+                                '</div>' +
+                                '<div class="col-md-2 text-end">' +
+                                    '<button class="btn btn-sm btn-outline-danger btn-delete-rdoc" type="button">' +
+                                        '<i class="fa fa-trash"></i>' +
+                                    '</button>' +
+                                '</div>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>';
+
+                var $newCard = $(cardHtml);
+                this.$('#required_docs_container').append($newCard);
+
+                // Update count badge
+                var count = this.$('.required-doc-card').length;
+                this.$('#required_docs_count').text(count);
+
+                // Focus name field
+                setTimeout(function () {
+                    $newCard.find('.rdoc-name').focus().select();
+                }, 100);
+            } else {
+                this._showNotification('error', 'Error', (result && result.error) || 'Failed to add document type');
+            }
+        } catch (e) {
+            this._showNotification('error', 'Error', 'Add failed: ' + e.message);
+        } finally {
+            $btn.html(originalText).prop('disabled', false);
+        }
+    },
+
+    _onDeleteRequiredDoc: async function (ev) {
+        var self = this;
+        var $card = $(ev.currentTarget).closest('.required-doc-card');
+        var docId = $card.data('docId') || $card.data('doc-id') || $card.attr('data-doc-id');
+
+        try {
+            var result = await self._rpc({
+                route: '/rfp/required_docs/delete/' + docId,
+                params: {},
+            });
+            if (result && result.success) {
+                $card.slideUp(300, function () {
+                    $card.remove();
+                    var count = self.$('.required-doc-card').length;
+                    self.$('#required_docs_count').text(count);
+                });
+            } else {
+                self._showNotification('error', 'Error', (result && result.error) || 'Failed to delete');
+            }
+        } catch (e) {
+            self._showNotification('error', 'Error', 'Delete failed: ' + e.message);
+        }
+    },
+
+    _onSaveRequiredDocs: async function (ev) {
+        var $btn = $(ev.currentTarget);
+        var originalText = $btn.html();
+        $btn.html('<i class="fa fa-spinner fa-spin me-1"></i> Saving...').prop('disabled', true);
+
+        try {
+            var projectId = this._getReqDocsProjectId();
+            var docs = [];
+            var seqCounter = 10;
+
+            this.$('.required-doc-card').each(function () {
+                var $card = $(this);
+                var rawId = $card.data('docId') || $card.data('doc-id') || $card.attr('data-doc-id');
+                docs.push({
+                    id: parseInt(rawId, 10),
+                    name: $card.find('.rdoc-name').val(),
+                    description: $card.find('.rdoc-description').val() || '',
+                    accept_types: $card.find('.rdoc-accept-types').val() || '.pdf,.doc,.docx',
+                    is_required: $card.find('.rdoc-required').is(':checked'),
+                    sequence: seqCounter,
+                });
+                seqCounter += 10;
+            });
+
+            var result = await this._rpc({
+                route: '/rfp/required_docs/save/' + projectId,
+                params: { docs: docs },
+            });
+
+            if (result && result.success) {
+                $btn.addClass('btn-success').removeClass('btn-rfp-gold').html('<i class="fa fa-check me-1"></i> Saved');
+                setTimeout(function () {
+                    $btn.removeClass('btn-success').addClass('btn-rfp-gold').html(originalText).prop('disabled', false);
+                }, 1500);
+            } else {
+                this._showNotification('error', 'Save Failed', (result && result.error) || 'Unknown error');
+                $btn.html(originalText).prop('disabled', false);
+            }
+        } catch (e) {
+            this._showNotification('error', 'Save Failed', 'An error occurred: ' + e.message);
+            $btn.html(originalText).prop('disabled', false);
+        }
     }
 
 });

@@ -146,6 +146,9 @@ class RfpProposal(models.Model):
         ('reject', 'Reject'),
     ], string="AI Recommendation")
 
+    # Multi-document support
+    document_ids = fields.One2many('rfp.proposal.document', 'proposal_id', string="Submitted Documents")
+
     # Criteria-based analysis fields
     criteria_scores = fields.Text(string="Per-Criterion Scores (JSON)")
     weighted_score = fields.Float(string="Weighted Score", help="Calculated from criteria weights (0-100)")
@@ -200,6 +203,11 @@ class RfpProposal(models.Model):
 
             if self.proposal_file and self.proposal_filename:
                 proposal_content += f"\n[Attached file: {self.proposal_filename}]\n"
+
+            # Include multi-document filenames
+            for doc in self.document_ids:
+                if doc.file_data and doc.filename:
+                    proposal_content += f"\n[Attached document - {doc.name}: {doc.filename}]\n"
 
             # Check if project has finalized evaluation criteria
             project = published.project_id
