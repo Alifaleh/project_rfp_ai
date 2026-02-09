@@ -987,32 +987,70 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         }
     },
 
+    // --- DEPENDENCY & SPECIFY TRIGGER CHECKS ---
+
+    _checkDependencies: function () {
+        const self = this;
+        this.$('.rfp-input-group').each(function () {
+            const $group = $(this);
+            const raw = $group.data('depends-on');
+            let dep = {};
+            try {
+                dep = typeof raw === 'string' ? JSON.parse(raw) : (raw || {});
+            } catch (e) {
+                dep = {};
+            }
+
+            if (dep.field_key && dep.value) {
+                const $parent = self.$(`[name="${dep.field_key}"]`);
+                const parentVal = $parent.filter(':checked').val() || $parent.val();
+                const $inputs = $group.find('input, select, textarea');
+                if (parentVal !== dep.value) {
+                    $group.addClass('d-none');
+                    // Disable hidden inputs so browser validation skips them
+                    $inputs.prop('disabled', true);
+                } else {
+                    $group.removeClass('d-none');
+                    $inputs.prop('disabled', false);
+                }
+            }
+        });
+    },
+
+    _checkSpecifyTriggers: function () {
+        const self = this;
+        this.$('.rfp-input-group').each(function () {
+            const $group = $(this);
+            const rawTriggers = $group.data('specify-triggers');
+            let specifyTriggers = [];
+            try {
+                specifyTriggers = typeof rawTriggers === 'string' ? JSON.parse(rawTriggers) : (rawTriggers || []);
+            } catch (e) {
+                specifyTriggers = [];
+            }
+
+            if (!specifyTriggers.length) return;
+
+            const fieldKey = $group.data('field-key');
+            const $input = self.$(`[name="${fieldKey}"]`);
+            const value = $input.filter(':checked').val() || $input.val();
+            const $specifyInput = $group.find('.rfp-specify-input');
+
+            if ($specifyInput.length) {
+                if (specifyTriggers.includes(value)) {
+                    $specifyInput.removeClass('d-none');
+                } else {
+                    $specifyInput.addClass('d-none').val('');
+                }
+            }
+        });
+    },
+
     // --- INPUT CHANGE (for dependency logic) ---
 
     _onInputChange: function (ev) {
-        // Trigger dependency re-evaluation if needed
-        const $input = $(ev.currentTarget);
-        const $group = $input.closest('.rfp-input-group');
-        const fieldKey = $group.data('field-key');
-        const value = $input.val();
-
-        // Check if any specify input needs to be shown
-        const rawTriggers = $group.data('specify-triggers');
-        let specifyTriggers = [];
-        try {
-            specifyTriggers = typeof rawTriggers === 'string' ? JSON.parse(rawTriggers) : (rawTriggers || []);
-        } catch (e) {
-            specifyTriggers = [];
-        }
-
-        const $specifyInput = $group.find('.rfp-specify-input');
-        if (specifyTriggers.length && $specifyInput.length) {
-            if (specifyTriggers.includes(value)) {
-                $specifyInput.removeClass('d-none');
-            } else {
-                $specifyInput.addClass('d-none').val('');
-            }
-        }
+        this._checkDependencies();
+        this._checkSpecifyTriggers();
     },
 
     // --- PUBLISH/UNPUBLISH ---

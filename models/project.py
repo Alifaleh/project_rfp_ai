@@ -39,7 +39,6 @@ class RfpProject(models.Model):
         (STAGE_DOCUMENT_LOCKED, 'Document Locked'),
         (STAGE_COMPLETED_WITH_ERRORS, 'Completed With Errors'),
         (STAGE_COMPLETED, 'Completed'),
-        (STAGE_COMPLETED, 'Completed'),
     ], string="Current Stage", default=STAGE_DRAFT, tracking=False, group_expand='_expand_stages')
 
     image_generation_progress = fields.Integer(string="Image Gen Progress", default=0, help="Transient field for progress bar")
@@ -203,6 +202,117 @@ class RfpProject(models.Model):
         )
         self.initial_research = response_text
 
+    def _run_scope_assessment(self):
+        """
+        Run ONCE before the first interview round.
+        Analyzes budget + company size + project complexity to determine
+        dynamic round limits (warn_round, max_round).
+        Stores results in ai_context_blob under 'scope_assessment'.
+        """
+        self.ensure_one()
+        from odoo.addons.project_rfp_ai.models.ai_schemas import get_scope_assessment_schema
+
+        # Guard: Only run once
+        blob = self.get_context_data()
+        if blob.get('scope_assessment'):
+            return
+
+        # Gather init field values
+        init_inputs = {inp.field_key: inp.user_value for inp in self.form_input_ids if inp.user_value}
+
+        prompt_record = self.env['rfp.prompt'].search([('code', '=', PROMPT_SCOPE_ASSESSOR)], limit=1)
+        if not prompt_record:
+            _logger.warning("Scope assessor prompt not found. Using default limits.")
+            blob['scope_assessment'] = {
+                'complexity_rating': 'medium',
+                'reasoning': 'Default limits (prompt not found).',
+                'warn_round': 15,
+                'max_round': 25,
+            }
+            self.ai_context_blob = json.dumps(blob, indent=4)
+            return
+
+        system_prompt = prompt_record.template_text.format(
+            project_name=self.name,
+            description=self.description,
+            domain=self.domain_id.name or 'General',
+            company_size=init_inputs.get('company_size', 'Unknown'),
+            budget_range=init_inputs.get('budget_range', 'Unknown'),
+            project_type=init_inputs.get('project_type', 'Unknown'),
+            target_audience=init_inputs.get('target_audience', 'Unknown'),
+            primary_goal=init_inputs.get('primary_goal', 'Unknown'),
+            initial_research_summary=(self.initial_research or 'No research available.')[:2000],
+        )
+
+        user_context = f"Project: {self.name}\nAssess the interview depth required."
+
+        try:
+            response_json_str = self.env['rfp.ai.log'].execute_request(
+                system_prompt=system_prompt,
+                user_context=user_context,
+                env=self.env,
+                mode='json',
+                schema=get_scope_assessment_schema(),
+                prompt_record=prompt_record
+            )
+        except Exception as e:
+            _logger.warning(f"Scope assessment AI call failed: {e}. Using defaults.")
+            blob['scope_assessment'] = {
+                'complexity_rating': 'medium',
+                'reasoning': f'Default limits (AI call failed).',
+                'warn_round': 15,
+                'max_round': 25,
+            }
+            self.ai_context_blob = json.dumps(blob, indent=4)
+            return
+
+        if not response_json_str:
+            blob['scope_assessment'] = {
+                'complexity_rating': 'medium',
+                'reasoning': 'Default limits (empty AI response).',
+                'warn_round': 15,
+                'max_round': 25,
+            }
+            self.ai_context_blob = json.dumps(blob, indent=4)
+            return
+
+        try:
+            assessment = json.loads(response_json_str)
+        except json.JSONDecodeError:
+            assessment = {
+                'complexity_rating': 'medium',
+                'reasoning': 'Default limits (invalid JSON).',
+                'warn_round': 15,
+                'max_round': 25,
+            }
+
+        # Validate and enforce constraints
+        warn_round = assessment.get('warn_round', 15)
+        max_round = assessment.get('max_round', 25)
+        warn_round = max(5, min(warn_round, 30))
+        max_round = max(warn_round + 4, min(max_round, 40))
+
+        assessment['warn_round'] = warn_round
+        assessment['max_round'] = max_round
+
+        blob['scope_assessment'] = assessment
+        self.ai_context_blob = json.dumps(blob, indent=4)
+        _logger.info(
+            f"Scope assessment for project {self.id}: "
+            f"complexity={assessment.get('complexity_rating')}, "
+            f"warn={warn_round}, max={max_round}"
+        )
+
+    def _get_round_limits(self):
+        """Retrieve dynamic round limits from ai_context_blob."""
+        self.ensure_one()
+        blob = self.get_context_data()
+        assessment = blob.get('scope_assessment', {})
+        return {
+            'warn_round': assessment.get('warn_round', 15),
+            'max_round': assessment.get('max_round', 25),
+        }
+
     def action_refine_practices(self):
         """
         Phase 4: Refinement
@@ -257,8 +367,12 @@ class RfpProject(models.Model):
         if not prompt_record:
             raise ValueError(f"System Prompt '{prompt_code}' not found.")
         
-        # Inject Round Count
-        prompt_template = prompt_record.template_text.replace("{{round_count}}", str(context_data.get('current_round', 1)))
+        # Inject Round Count and Dynamic Limits
+        limits = self._get_round_limits()
+        prompt_template = prompt_record.template_text
+        prompt_template = prompt_template.replace("{{round_count}}", str(context_data.get('current_round', 1)))
+        prompt_template = prompt_template.replace("{{warn_round}}", str(limits['warn_round']))
+        prompt_template = prompt_template.replace("{{max_round}}", str(limits['max_round']))
         context_str = json.dumps(context_data, indent=2)
         
         try:
@@ -359,6 +473,9 @@ class RfpProject(models.Model):
         Phase 3: Information Gathering (Project Specifics)
         """
         for project in self:
+            # Run scope assessment ONCE (before first interview round)
+            project._run_scope_assessment()
+
             # Context Building
             previous_inputs = []
             for inp in project.form_input_ids.sorted('id'):

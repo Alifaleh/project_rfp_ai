@@ -65,6 +65,63 @@ Instructions:
             </field>
         </record>
 
+        <!-- Phase 2b: Scope Assessment (Dynamic Round Limits) -->
+        <record id="prompt_scope_assessor" model="rfp.prompt">
+            <field name="name">Phase 2b: Scope Assessment</field>
+            <field name="code">scope_assessor</field>
+            <field name="ai_model_id" ref="model_gemini_3_pro_preview"/>
+            <field name="description">Analyzes project signals to determine interview depth (round limits).</field>
+            <field name="template_text">
+<![CDATA[
+# System Prompt: Scope Assessment (Interview Depth Calibration)
+
+**Role:** You are a Senior Project Estimator and Scope Analyst.
+**Goal:** Analyze the initial project signals to determine how many interview rounds are appropriate before the RFP document can be drafted.
+
+**Input Signals:**
+- Project Name: {project_name}
+- Project Description: {description}
+- Domain: {domain}
+- Company Size: {company_size}
+- Estimated Budget: {budget_range}
+- Project Type: {project_type}
+- Target Audience: {target_audience}
+- Primary Goal: {primary_goal}
+- Initial Research Summary (Best Practices): {initial_research_summary}
+
+**Assessment Guidelines:**
+
+1. **Low Complexity** (warn_round: 6-8, max_round: 10-12):
+   - Startup with small budget (< $20k)
+   - Simple/standard project type (e.g., basic website, simple internal tool)
+   - Single audience segment, few integrations expected
+
+2. **Medium Complexity** (warn_round: 10-14, max_round: 16-22):
+   - SMB with moderate budget ($20k-$100k)
+   - Standard SaaS or migration project
+   - Multiple audience segments, moderate integrations
+
+3. **High Complexity** (warn_round: 14-18, max_round: 22-28):
+   - Enterprise with substantial budget (> $100k)
+   - Legacy rewrite or complex platform
+   - Multiple audiences, compliance requirements, extensive integrations
+
+4. **Very High Complexity** (warn_round: 18-22, max_round: 28-35):
+   - Enterprise with large budget
+   - Mission-critical, multi-module platform with heavy compliance
+   - Government/Healthcare/Financial with strict regulatory needs
+
+**Rules:**
+- `warn_round` must always be less than `max_round`.
+- `max_round` must be at least 4 rounds greater than `warn_round`.
+- Consider the domain's inherent complexity (e.g., Healthcare has compliance overhead).
+- If the description mentions many distinct modules or subsystems, lean toward higher limits.
+
+**Output:** Return ONLY valid JSON matching the schema.
+]]>
+            </field>
+        </record>
+
         <!-- Phase 3: Information Gathering -->
         <record id="prompt_interviewer_main" model="rfp.prompt">
             <field name="name">Phase 3: Information Gathering (Project Specifics)</field>
@@ -104,8 +161,8 @@ Instructions:
     *   Do NOT ask more than 5 questions per round.
 *   **Time Awareness**:
     *   You are currently in **Round {{round_count}}**.
-    *   If **Round > 15**: You are running long. Stop asking nice-to-have questions. Only ask **CRITICAL BLOCKERS**.
-    *   If **Round > 25**: AGGRESSIVELY Wrap up. Unless there is a fatal missing piece of info, set `is_gathering_complete=True`.
+    *   If **Round > {{warn_round}}**: You are running long. Stop asking nice-to-have questions. Only ask **CRITICAL BLOCKERS**.
+    *   If **Round > {{max_round}}**: AGGRESSIVELY Wrap up. Unless there is a fatal missing piece of info, set `is_gathering_complete=True`.
 
 **Process:**
 1.  Analyze the `current_project_context` (User's concept + previous answers).
@@ -184,6 +241,11 @@ Perform a GAP ANALYSIS.
 *   **Limit:** Ask a MAXIMUM of 5 questions per round. If more gaps exist, push them to the next round.
 *   **MANDATORY:** You MUST ask about "Company Description", "Timeline", "Budget", "Compliance", if not already answered.
 *   **Output:** Generate questions to fill these specific gaps.
+
+**Time Awareness:**
+*   You are currently in **Round {{round_count}}**.
+*   If **Round > {{warn_round}}**: Focus only on CRITICAL compliance gaps. Skip nice-to-have best practice items.
+*   If **Round > {{max_round}}**: Set `is_gathering_complete=True` unless a critical regulatory compliance gap remains.
 
 **Rules:**
 *   **Do NOT** ask about project functional logic (already done).

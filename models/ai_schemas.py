@@ -283,3 +283,36 @@ def get_proposal_analysis_schema():
         },
         required=["coverage_score", "overall_rating", "summary", "strengths", "weaknesses", "recommendation", "recommendation_reason"]
     )
+
+def get_scope_assessment_schema():
+    """
+    Schema for the Scope Assessment AI call.
+    Analyzes budget + company size + project complexity to return
+    recommended interview round limits.
+    """
+    if not types:
+        return None
+
+    return types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            "complexity_rating": types.Schema(
+                type=types.Type.STRING,
+                enum=["low", "medium", "high", "very_high"],
+                description="Overall project complexity assessment."
+            ),
+            "reasoning": types.Schema(
+                type=types.Type.STRING,
+                description="Brief explanation of the complexity assessment and how it maps to round limits."
+            ),
+            "warn_round": types.Schema(
+                type=types.Type.INTEGER,
+                description="Round number at which the interviewer should start winding down and only ask critical questions. Typically 8-20 depending on complexity."
+            ),
+            "max_round": types.Schema(
+                type=types.Type.INTEGER,
+                description="Round number at which the interviewer must aggressively wrap up. Typically 12-30 depending on complexity."
+            ),
+        },
+        required=["complexity_rating", "reasoning", "warn_round", "max_round"]
+    )

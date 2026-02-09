@@ -24,6 +24,7 @@ PROMPT_RESEARCH_REFINEMENT = 'research_refinement'
 PROMPT_INTERVIEWER_PRACTICES = 'interviewer_practices'
 PROMPT_WRITER_TOC_ARCHITECT = 'writer_toc_architect'
 PROMPT_WRITER_SECTION = 'writer_section_content'
+PROMPT_SCOPE_ASSESSOR = 'scope_assessor'
 
 # Generation Status
 STATUS_PENDING = 'pending'

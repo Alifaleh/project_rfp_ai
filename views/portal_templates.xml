@@ -467,7 +467,7 @@
                             <t t-set="opt_val" t-value="opt['value'] if isinstance(opt, dict) else opt"/>
                             <t t-set="opt_label" t-value="opt['label'] if isinstance(opt, dict) else opt"/>
                             <div class="form-check">
-                                <input class="form-check-input rfp-dynamic-input" type="radio" t-att-name="input_field.field_key" t-att-id="input_field.field_key + '_' + str(opt_index)" t-att-value="opt_val" t-att-required="input_field.depends_on == '{}' or ''"/>
+                                <input class="form-check-input rfp-dynamic-input" type="radio" t-att-name="input_field.field_key" t-att-id="input_field.field_key + '_' + str(opt_index)" t-att-value="opt_val" t-att-required="'required' if (not input_field.depends_on or input_field.depends_on == '{}') else False"/>
                                 <label class="form-check-label" t-att-for="input_field.field_key + '_' + str(opt_index)">
                                     <t t-esc="opt_label"/>
                                 </label>
