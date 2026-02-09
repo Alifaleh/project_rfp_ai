@@ -39,3 +39,7 @@ access_rfp_published_diagram_public,rfp.published.diagram,model_rfp_published_di
 access_rfp_proposal_user,rfp.proposal,model_rfp_proposal,base.group_user,1,1,1,1
 access_rfp_proposal_portal,rfp.proposal,model_rfp_proposal,base.group_portal,1,1,1,0
 access_rfp_proposal_public,rfp.proposal,model_rfp_proposal,base.group_public,0,0,1,0
+access_rfp_eval_input_user,rfp.eval.input,model_rfp_eval_input,base.group_user,1,1,1,1
+access_rfp_eval_input_portal,rfp.eval.input,model_rfp_eval_input,base.group_portal,1,0,0,0
+access_rfp_evaluation_criterion_user,rfp.evaluation.criterion,model_rfp_evaluation_criterion,base.group_user,1,1,1,1
+access_rfp_evaluation_criterion_portal,rfp.evaluation.criterion,model_rfp_evaluation_criterion,base.group_portal,1,0,0,0

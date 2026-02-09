@@ -13,3 +13,5 @@ from . import knowledge_base
 from . import rfp_custom_field
 from . import rfp_practice_input
 from . import rfp_published
+from . import rfp_eval_input
+from . import rfp_evaluation_criterion

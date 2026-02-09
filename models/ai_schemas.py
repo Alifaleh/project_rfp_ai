@@ -284,6 +284,157 @@ def get_proposal_analysis_schema():
         required=["coverage_score", "overall_rating", "summary", "strengths", "weaknesses", "recommendation", "recommendation_reason"]
     )
 
+def get_eval_criteria_schema():
+    """
+    Schema for generating evaluation criteria from interview answers.
+    Returns structured criteria with weights summing to ~100.
+    """
+    if not types:
+        return None
+
+    return types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            "criteria": types.Schema(
+                type=types.Type.ARRAY,
+                items=types.Schema(
+                    type=types.Type.OBJECT,
+                    required=["name", "category", "weight", "is_must_have", "scoring_guidance"],
+                    properties={
+                        "name": types.Schema(
+                            type=types.Type.STRING,
+                            description="Short name for the criterion (e.g., 'Cloud Infrastructure Experience')"
+                        ),
+                        "description": types.Schema(
+                            type=types.Type.STRING,
+                            description="Detailed description of what this criterion evaluates"
+                        ),
+                        "category": types.Schema(
+                            type=types.Type.STRING,
+                            enum=["technical", "commercial", "experience", "compliance", "timeline", "methodology", "support", "innovation", "other"],
+                            description="Category this criterion belongs to"
+                        ),
+                        "weight": types.Schema(
+                            type=types.Type.INTEGER,
+                            description="Relative importance weight (1-100). All weights across criteria should sum to approximately 100."
+                        ),
+                        "is_must_have": types.Schema(
+                            type=types.Type.BOOLEAN,
+                            description="If true, failing this criterion means automatic rejection regardless of other scores."
+                        ),
+                        "scoring_guidance": types.Schema(
+                            type=types.Type.STRING,
+                            description="Guidance for scoring: what constitutes a high score (80-100), medium (50-79), and low (0-49) for this criterion."
+                        ),
+                    }
+                ),
+                description="List of evaluation criteria. Weights should sum to approximately 100."
+            )
+        },
+        required=["criteria"]
+    )
+
+def get_criteria_proposal_analysis_schema():
+    """
+    Enhanced proposal analysis schema that includes per-criterion scoring.
+    Used when project has finalized evaluation criteria.
+    """
+    if not types:
+        return None
+
+    return types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            "coverage_score": types.Schema(
+                type=types.Type.INTEGER,
+                description="Percentage (0-100) of RFP requirements addressed by the proposal."
+            ),
+            "overall_rating": types.Schema(
+                type=types.Type.STRING,
+                enum=["Excellent", "Good", "Fair", "Poor"],
+                description="Overall quality assessment of the proposal."
+            ),
+            "summary": types.Schema(
+                type=types.Type.STRING,
+                description="Executive summary of the proposal analysis (2-3 sentences)."
+            ),
+            "criteria_scores": types.Schema(
+                type=types.Type.ARRAY,
+                items=types.Schema(
+                    type=types.Type.OBJECT,
+                    required=["criterion_name", "score", "justification"],
+                    properties={
+                        "criterion_name": types.Schema(
+                            type=types.Type.STRING,
+                            description="Exact name of the evaluation criterion being scored."
+                        ),
+                        "score": types.Schema(
+                            type=types.Type.INTEGER,
+                            description="Score from 0-100 for this criterion."
+                        ),
+                        "justification": types.Schema(
+                            type=types.Type.STRING,
+                            description="Brief justification for the assigned score."
+                        ),
+                        "met": types.Schema(
+                            type=types.Type.BOOLEAN,
+                            description="For must-have criteria: whether the minimum requirement is met."
+                        ),
+                    }
+                ),
+                description="Per-criterion evaluation scores."
+            ),
+            "weighted_total_score": types.Schema(
+                type=types.Type.INTEGER,
+                description="Weighted total score (0-100), calculated from individual criterion scores and their weights."
+            ),
+            "must_have_failures": types.Schema(
+                type=types.Type.ARRAY,
+                items=types.Schema(type=types.Type.STRING),
+                description="List of must-have criterion names that were NOT met. Empty if all must-haves passed."
+            ),
+            "strengths": types.Schema(
+                type=types.Type.ARRAY,
+                items=types.Schema(
+                    type=types.Type.OBJECT,
+                    properties={
+                        "title": types.Schema(type=types.Type.STRING),
+                        "description": types.Schema(type=types.Type.STRING),
+                        "impact": types.Schema(type=types.Type.STRING, enum=["High", "Medium", "Low"])
+                    },
+                    required=["title", "description"]
+                )
+            ),
+            "weaknesses": types.Schema(
+                type=types.Type.ARRAY,
+                items=types.Schema(
+                    type=types.Type.OBJECT,
+                    properties={
+                        "title": types.Schema(type=types.Type.STRING),
+                        "description": types.Schema(type=types.Type.STRING),
+                        "severity": types.Schema(type=types.Type.STRING, enum=["Critical", "Major", "Minor"])
+                    },
+                    required=["title", "description"]
+                )
+            ),
+            "recommendation": types.Schema(
+                type=types.Type.STRING,
+                enum=["Shortlist", "Review", "Reject"],
+                description="AI recommendation for this proposal."
+            ),
+            "recommendation_reason": types.Schema(
+                type=types.Type.STRING,
+                description="Explanation for the recommendation."
+            ),
+            "questions_for_vendor": types.Schema(
+                type=types.Type.ARRAY,
+                items=types.Schema(type=types.Type.STRING),
+                description="Suggested clarification questions to ask the vendor."
+            )
+        },
+        required=["coverage_score", "overall_rating", "summary", "criteria_scores", "weighted_total_score", "must_have_failures", "recommendation", "recommendation_reason"]
+    )
+
 def get_scope_assessment_schema():
     """
     Schema for the Scope Assessment AI call.

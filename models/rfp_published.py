@@ -145,6 +145,11 @@ class RfpProposal(models.Model):
         ('review', 'Review'),
         ('reject', 'Reject'),
     ], string="AI Recommendation")
+
+    # Criteria-based analysis fields
+    criteria_scores = fields.Text(string="Per-Criterion Scores (JSON)")
+    weighted_score = fields.Float(string="Weighted Score", help="Calculated from criteria weights (0-100)")
+    has_must_have_failure = fields.Boolean(string="Must-Have Failure", default=False)
     
     @api.model
     def create(self, vals):
@@ -179,37 +184,57 @@ class RfpProposal(models.Model):
         import base64
         self.ensure_one()
         self.write({'analysis_status': 'processing'})
-        
+
         try:
             # Get RFP content
             published = self.published_id
             rfp_content = f"# {published.title}\n\n{published.description or ''}\n\n"
             for section in published.section_ids.sorted(lambda s: s.sequence):
                 rfp_content += f"## {section.title}\n{section.content_html or ''}\n\n"
-            
+
             # Get proposal content
             proposal_content = f"Company: {self.company_name}\n"
             proposal_content += f"Contact: {self.contact_person} ({self.email})\n"
             if self.notes:
                 proposal_content += f"Notes: {self.notes}\n"
-            
-            # If PDF, extract text (simplified - just use filename as indicator)
+
             if self.proposal_file and self.proposal_filename:
                 proposal_content += f"\n[Attached file: {self.proposal_filename}]\n"
-                # For PDF content extraction, we'd need a PDF library
-                # For now, we pass the file info
-            
-            # Build the prompt
-            prompt_record = self.env['rfp.prompt'].browse(prompt_record_id) if prompt_record_id else None
-            
-            if prompt_record and prompt_record.template_text:
-                user_context = prompt_record.template_text.format(
-                    rfp_content=rfp_content,
-                    proposal_content=proposal_content,
-                    company_name=self.company_name
-                )
+
+            # Check if project has finalized evaluation criteria
+            project = published.project_id
+            use_criteria = (
+                project
+                and project.eval_criteria_status == 'finalized'
+                and project.evaluation_criterion_ids
+            )
+
+            if use_criteria:
+                self._analyze_with_criteria(rfp_content, proposal_content, project)
             else:
-                user_context = f"""
+                self._analyze_generic(rfp_content, proposal_content, prompt_record_id)
+
+        except Exception as e:
+            self.write({
+                'analysis_status': 'failed',
+                'analysis_result': json.dumps({'error': str(e)})
+            })
+
+    def _analyze_generic(self, rfp_content, proposal_content, prompt_record_id=None):
+        """Original generic proposal analysis (backward compatible)."""
+        import json
+        from odoo.addons.project_rfp_ai.models.ai_schemas import get_proposal_analysis_schema
+
+        prompt_record = self.env['rfp.prompt'].browse(prompt_record_id) if prompt_record_id else None
+
+        if prompt_record and prompt_record.template_text:
+            user_context = prompt_record.template_text.format(
+                rfp_content=rfp_content,
+                proposal_content=proposal_content,
+                company_name=self.company_name
+            )
+        else:
+            user_context = f"""
 Analyze this vendor proposal against the RFP requirements.
 
 ## RFP CONTENT:
@@ -220,42 +245,104 @@ Analyze this vendor proposal against the RFP requirements.
 
 Provide a comprehensive analysis in the required JSON format.
 """
-            
-            # Get schema
-            from odoo.addons.project_rfp_ai.models.ai_schemas import get_proposal_analysis_schema
-            
-            system_prompt = """You are an expert procurement analyst. Analyze vendor proposals against RFP requirements.
+
+        system_prompt = """You are an expert procurement analyst. Analyze vendor proposals against RFP requirements.
 Provide objective, actionable insights to help decision-makers evaluate proposals effectively.
 Be specific about what's covered, what's missing, and what risks exist."""
-            
-            # Call AI
-            response_json_str = self.env['rfp.ai.log'].execute_request(
-                system_prompt=system_prompt,
-                user_context=user_context,
-                env=self.env,
-                mode='json',
-                schema=get_proposal_analysis_schema(),
-                prompt_record=prompt_record
+
+        response_json_str = self.env['rfp.ai.log'].execute_request(
+            system_prompt=system_prompt,
+            user_context=user_context,
+            env=self.env,
+            mode='json',
+            schema=get_proposal_analysis_schema(),
+            prompt_record=prompt_record
+        )
+
+        try:
+            data = json.loads(response_json_str)
+        except json.JSONDecodeError:
+            data = {}
+
+        self.write({
+            'analysis_status': 'done',
+            'analysis_result': response_json_str,
+            'coverage_score': data.get('coverage_score', 0),
+            'overall_rating': data.get('overall_rating', 'Unknown'),
+            'ai_recommendation': data.get('recommendation', '').lower() if data.get('recommendation') else None,
+        })
+
+    def _analyze_with_criteria(self, rfp_content, proposal_content, project):
+        """Criteria-based proposal analysis with per-criterion scoring."""
+        import json
+        from odoo.addons.project_rfp_ai.models.ai_schemas import get_criteria_proposal_analysis_schema
+
+        # Build criteria data for the prompt
+        criteria_list = []
+        for c in project.evaluation_criterion_ids.filtered('active').sorted('sequence'):
+            criteria_list.append({
+                'name': c.name,
+                'description': c.description or '',
+                'category': c.category,
+                'weight': c.weight,
+                'is_must_have': c.is_must_have,
+                'scoring_guidance': c.scoring_guidance or '',
+            })
+
+        # Get the criteria-based prompt
+        prompt_record = self.env['rfp.prompt'].search([('code', '=', 'analyze_proposal_criteria')], limit=1)
+
+        if prompt_record and prompt_record.template_text:
+            user_context = prompt_record.template_text.format(
+                rfp_content=rfp_content,
+                proposal_content=proposal_content,
+                company_name=self.company_name,
+                evaluation_criteria=json.dumps(criteria_list, indent=2)
             )
-            
-            # Parse response
-            try:
-                data = json.loads(response_json_str)
-            except json.JSONDecodeError:
-                data = {}
-            
-            # Store results
-            self.write({
-                'analysis_status': 'done',
-                'analysis_result': response_json_str,
-                'coverage_score': data.get('coverage_score', 0),
-                'overall_rating': data.get('overall_rating', 'Unknown'),
-                'ai_recommendation': data.get('recommendation', '').lower() if data.get('recommendation') else None,
-            })
-            
-        except Exception as e:
-            self.write({
-                'analysis_status': 'failed',
-                'analysis_result': json.dumps({'error': str(e)})
-            })
-            raise e
+        else:
+            user_context = f"""
+Analyze this vendor proposal against the RFP requirements and evaluation criteria.
+
+## RFP CONTENT:
+{rfp_content}
+
+## EVALUATION CRITERIA:
+{json.dumps(criteria_list, indent=2)}
+
+## PROPOSAL FROM: {self.company_name}
+{proposal_content}
+
+Score each criterion and provide a comprehensive analysis in the required JSON format.
+"""
+
+        system_prompt = """You are an expert procurement analyst. Evaluate vendor proposals against specific evaluation criteria with weighted scoring.
+Be objective, evidence-based, and score each criterion according to its scoring guidance."""
+
+        response_json_str = self.env['rfp.ai.log'].execute_request(
+            system_prompt=system_prompt,
+            user_context=user_context,
+            env=self.env,
+            mode='json',
+            schema=get_criteria_proposal_analysis_schema(),
+            prompt_record=prompt_record
+        )
+
+        try:
+            data = json.loads(response_json_str)
+        except json.JSONDecodeError:
+            data = {}
+
+        # Check must-have failures
+        must_have_failures = data.get('must_have_failures', [])
+        has_failure = len(must_have_failures) > 0
+
+        self.write({
+            'analysis_status': 'done',
+            'analysis_result': response_json_str,
+            'coverage_score': data.get('coverage_score', 0),
+            'overall_rating': data.get('overall_rating', 'Unknown'),
+            'ai_recommendation': data.get('recommendation', '').lower() if data.get('recommendation') else None,
+            'criteria_scores': json.dumps(data.get('criteria_scores', [])),
+            'weighted_score': data.get('weighted_total_score', 0),
+            'has_must_have_failure': has_failure,
+        })

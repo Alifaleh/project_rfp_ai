@@ -49,6 +49,16 @@ class RfpProject(models.Model):
     practice_input_ids = fields.One2many('rfp.practice.input', 'project_id', string="Practice Inputs")
     document_section_ids = fields.One2many('rfp.document.section', 'project_id', string="Generated Sections")
 
+    # Evaluation Criteria
+    eval_input_ids = fields.One2many('rfp.eval.input', 'project_id', string="Evaluation Inputs")
+    evaluation_criterion_ids = fields.One2many('rfp.evaluation.criterion', 'project_id', string="Evaluation Criteria")
+    eval_criteria_status = fields.Selection([
+        ('not_started', 'Not Started'),
+        ('gathering', 'Gathering'),
+        ('generated', 'Generated'),
+        ('finalized', 'Finalized'),
+    ], string="Eval Criteria Status", default='not_started')
+
     # Research Fields
     initial_research = fields.Text(string="Initial Best Practices", readonly=True, help="Broad research before gathering.")
     refined_practices = fields.Text(string="Refined Best Practices", readonly=True, help="Specific research after gathering.")
@@ -775,7 +785,123 @@ class RfpProject(models.Model):
         for project in self:
             project.current_stage = 'completed'
 
+    # ========== EVALUATION CRITERIA METHODS ==========
 
+    def action_gather_eval_criteria(self):
+        """AI interview loop to gather evaluation priorities from the user."""
+        self.ensure_one()
+        import json
+
+        # Build context for the eval criteria interviewer
+        previous_eval_inputs = []
+        for inp in self.eval_input_ids.filtered(lambda i: i.user_value):
+            previous_eval_inputs.append({
+                'question': inp.label,
+                'answer': inp.user_value,
+            })
+
+        section_titles = [s.section_title for s in self.document_section_ids] if self.document_section_ids else []
+
+        current_input_count = len(self.eval_input_ids)
+        current_round = (current_input_count // 5) + 1
+
+        context_data = {
+            'project_name': self.name,
+            'description': self.description,
+            'domain': self.domain_id.name if self.domain_id else 'General',
+            'section_titles': json.dumps(section_titles),
+            'previous_eval_inputs': json.dumps(previous_eval_inputs, indent=2),
+            'current_round': current_round,
+        }
+
+        is_ongoing = self._execute_interview_round(
+            PROMPT_INTERVIEWER_EVAL_CRITERIA,
+            'rfp.eval.input',
+            context_data,
+            scope_key='eval_criteria'
+        )
+
+        if not is_ongoing:
+            # Interview complete — generate criteria from answers
+            self._generate_eval_criteria()
+            self.eval_criteria_status = 'generated'
+        else:
+            self.eval_criteria_status = 'gathering'
+
+        return is_ongoing
+
+    def _generate_eval_criteria(self):
+        """After eval interview completes, call AI to generate structured criteria."""
+        self.ensure_one()
+        import json
+        from odoo.addons.project_rfp_ai.models.ai_schemas import get_eval_criteria_schema
+
+        # Collect all eval inputs with answers
+        eval_qa = []
+        for inp in self.eval_input_ids.filtered(lambda i: i.user_value and not i.is_irrelevant):
+            eval_qa.append({'question': inp.label, 'answer': inp.user_value})
+
+        section_titles = [s.section_title for s in self.document_section_ids] if self.document_section_ids else []
+
+        context_data = {
+            'project_name': self.name,
+            'domain': self.domain_id.name if self.domain_id else 'General',
+            'description': self.description,
+            'eval_interview_answers': json.dumps(eval_qa, indent=2),
+            'section_titles': json.dumps(section_titles),
+        }
+
+        prompt_record = self.env['rfp.prompt'].search([('code', '=', PROMPT_GENERATE_EVAL_CRITERIA)], limit=1)
+        if not prompt_record:
+            _logger.error("Prompt '%s' not found.", PROMPT_GENERATE_EVAL_CRITERIA)
+            return
+
+        try:
+            response_json_str = self.env['rfp.ai.log'].execute_request(
+                system_prompt=prompt_record.template_text,
+                user_context=json.dumps(context_data, indent=2),
+                env=self.env,
+                mode='json',
+                schema=get_eval_criteria_schema(),
+                prompt_record=prompt_record
+            )
+        except Exception as e:
+            _logger.error("Eval criteria generation failed: %s", e)
+            return
+
+        if not response_json_str:
+            return
+
+        try:
+            data = json.loads(response_json_str)
+        except json.JSONDecodeError:
+            _logger.error("Invalid JSON from eval criteria generation.")
+            return
+
+        # Clear existing criteria and create new ones
+        self.evaluation_criterion_ids.unlink()
+
+        for idx, c in enumerate(data.get('criteria', [])):
+            category = c.get('category', 'other')
+            valid_categories = ['technical', 'commercial', 'experience', 'compliance', 'timeline', 'methodology', 'support', 'innovation', 'other']
+            if category not in valid_categories:
+                category = 'other'
+
+            self.env['rfp.evaluation.criterion'].create({
+                'project_id': self.id,
+                'name': c.get('name', f'Criterion {idx + 1}'),
+                'description': c.get('description', ''),
+                'category': category,
+                'weight': max(1, min(100, c.get('weight', 10))),
+                'is_must_have': c.get('is_must_have', False),
+                'scoring_guidance': c.get('scoring_guidance', ''),
+                'sequence': (idx + 1) * 10,
+            })
+
+    def action_finalize_eval_criteria(self):
+        """Called after user reviews/edits criteria. Marks as finalized."""
+        self.ensure_one()
+        self.eval_criteria_status = 'finalized'
 
     def get_context_data(self):
         """Helper to parse the context blob (Text) back into a Dict for views."""

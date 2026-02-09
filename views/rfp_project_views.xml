@@ -70,6 +70,34 @@
                                 </list>
                             </field>
                         </page>
+                        <page string="Evaluation Inputs">
+                            <group>
+                                <field name="eval_criteria_status" readonly="1"/>
+                            </group>
+                            <field name="eval_input_ids">
+                                <list editable="bottom">
+                                    <field name="field_key"/>
+                                    <field name="label"/>
+                                    <field name="user_value"/>
+                                    <field name="data_type"/>
+                                    <field name="round_number"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Evaluation Criteria">
+                            <field name="evaluation_criterion_ids">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="name"/>
+                                    <field name="category" widget="badge" decoration-primary="category == 'technical'" decoration-success="category == 'commercial'" decoration-info="category == 'experience'" decoration-warning="category == 'compliance'"/>
+                                    <field name="weight"/>
+                                    <field name="is_must_have"/>
+                                    <field name="description" optional="hide"/>
+                                    <field name="scoring_guidance" optional="hide"/>
+                                    <field name="active" invisible="1"/>
+                                </list>
+                            </field>
+                        </page>
                         <page string="Research &amp; Best Practices">
                             <group>
                                 <field name="initial_research"/>

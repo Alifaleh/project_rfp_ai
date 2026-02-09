@@ -46,6 +46,16 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         'click #btn_copy_publish_url': '_onCopyPublishUrl',
         'click #btn_copy_editor_url': '_onCopyEditorUrl',
         'click #btn_copy_proposals_url': '_onCopyProposalsUrl',
+
+        // Evaluation Criteria Review
+        'click #btn_save_criteria': '_onSaveCriteria',
+        'click #btn_finalize_criteria': '_onFinalizeCriteria',
+        'click #btn_add_criterion': '_onAddCriterion',
+        'click .btn-delete-criterion': '_onDeleteCriterion',
+        'input .criterion-weight-slider': '_onWeightSliderChange',
+        'click #btn_regenerate_criteria': '_onRegenerateCriteria',
+        'click #btn_unfinalize_criteria': '_onUnfinalizeCriteria',
+        'click #btn_eval_confirm_action': '_onEvalConfirmAction',
     },
 
     // Custom RPC implementation to avoid module dependency issues in frontend
@@ -1218,6 +1228,388 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         } catch (err) {
             console.error('Copy failed:', err);
         }
+    },
+
+    // ==================== Evaluation Criteria Review ====================
+
+    _getEvalProjectId: function () {
+        const $el = this.$('#eval_criteria_container');
+        // jQuery .data() camelCases 'project-id' to 'projectId'
+        return $el.data('projectId') || $el.data('project-id') || $el.attr('data-project-id');
+    },
+
+    // Normalize response: handles both {success: true} and {status: 'success'}
+    _isEvalSuccess: function (result) {
+        return result && (result.success === true || result.status === 'success');
+    },
+
+    _getEvalError: function (result) {
+        return (result && (result.error || result.message)) || 'Unknown error';
+    },
+
+    _collectCriteriaData: function () {
+        const criteria = [];
+        this.$('.eval-criterion-card').each(function () {
+            const $card = $(this);
+            const rawId = $card.data('criterionId') || $card.data('criterion-id') || $card.attr('data-criterion-id');
+            criteria.push({
+                id: parseInt(rawId, 10),
+                name: $card.find('.criterion-name').val(),
+                weight: parseInt($card.find('.criterion-weight-slider').val(), 10),
+                is_must_have: $card.find('.criterion-must-have').is(':checked'),
+                description: $card.find('.criterion-description').val() || '',
+                scoring_guidance: $card.find('.criterion-scoring-guidance').val() || '',
+            });
+        });
+        return criteria;
+    },
+
+    _updateTotalWeight: function () {
+        let total = 0;
+        this.$('.criterion-weight-slider').each(function () {
+            total += parseInt($(this).val(), 10) || 0;
+        });
+        const $indicator = this.$('#eval_total_weight');
+        $indicator.text(total);
+
+        const $alert = this.$('#eval_weight_alert');
+        $alert.removeClass('alert-success alert-warning alert-danger');
+        if (total === 100) {
+            $alert.addClass('alert-success');
+        } else if (Math.abs(total - 100) <= 10) {
+            $alert.addClass('alert-warning');
+        } else {
+            $alert.addClass('alert-danger');
+        }
+
+        const $hint = this.$('#eval_weight_hint');
+        if (total === 100) {
+            $hint.text('').hide();
+        } else {
+            $hint.text('(should equal 100)').show();
+        }
+    },
+
+    _showEvalBanner: function (type, title, message) {
+        const $banner = this.$('#eval_status_banner');
+        const $icon = this.$('#eval_status_icon');
+        const $title = this.$('#eval_status_title');
+        const $msg = this.$('#eval_status_message');
+
+        $banner.removeClass('d-none alert-success alert-danger alert-warning alert-info');
+        $icon.removeClass();
+
+        if (type === 'success') {
+            $banner.addClass('alert-success');
+            $icon.addClass('fa fa-2x fa-check-circle text-success me-3');
+        } else if (type === 'error') {
+            $banner.addClass('alert-danger');
+            $icon.addClass('fa fa-2x fa-times-circle text-danger me-3');
+        } else {
+            $banner.addClass('alert-info');
+            $icon.addClass('fa fa-2x fa-info-circle text-info me-3');
+        }
+
+        $title.text(title);
+        $msg.text(message);
+
+        // Scroll to top so user sees the banner
+        $('html, body').animate({ scrollTop: $banner.offset().top - 80 }, 300);
+
+        // Auto-hide success after 5 seconds
+        if (type === 'success') {
+            setTimeout(() => $banner.fadeOut(400, () => $banner.addClass('d-none').show()), 5000);
+        }
+    },
+
+    // Custom confirmation modal instead of browser confirm()
+    _pendingConfirmCallback: null,
+
+    _showEvalConfirm: function (options) {
+        const $modal = $('#modal_eval_confirm');
+        const $icon = $modal.find('#eval_confirm_icon');
+        const $iconWrap = $modal.find('#eval_confirm_icon_wrap');
+        const $title = $modal.find('#eval_confirm_title');
+        const $message = $modal.find('#eval_confirm_message');
+        const $actionBtn = $modal.find('#btn_eval_confirm_action');
+
+        $icon.removeClass().addClass('fa fa-3x ' + (options.icon || 'fa-question-circle'));
+        $iconWrap.css('background', options.iconBg || '#fff3cd');
+        $icon.css('color', options.iconColor || '#856404');
+        $title.text(options.title || 'Confirm');
+        $message.text(options.message || 'Are you sure?');
+        $actionBtn
+            .text(options.confirmText || 'Confirm')
+            .removeClass('btn-danger btn-rfp-gold btn-warning')
+            .addClass(options.confirmClass || 'btn-rfp-gold');
+
+        this._pendingConfirmCallback = options.onConfirm || null;
+        $modal.modal('show');
+    },
+
+    _onEvalConfirmAction: function () {
+        $('#modal_eval_confirm').modal('hide');
+        if (this._pendingConfirmCallback) {
+            this._pendingConfirmCallback();
+            this._pendingConfirmCallback = null;
+        }
+    },
+
+    _onWeightSliderChange: function (ev) {
+        const $slider = $(ev.currentTarget);
+        $slider.closest('.eval-criterion-card').find('.criterion-weight-display').text($slider.val());
+        this._updateTotalWeight();
+    },
+
+    _onSaveCriteria: async function (ev) {
+        const $btn = $(ev.currentTarget);
+        const originalText = $btn.html();
+        $btn.html('<i class="fa fa-spinner fa-spin me-1"></i> Saving...').prop('disabled', true);
+
+        try {
+            const projectId = this._getEvalProjectId();
+            const criteria = this._collectCriteriaData();
+            const result = await this._rpc({
+                route: '/rfp/eval/save/' + projectId,
+                params: { criteria: criteria },
+            });
+            if (this._isEvalSuccess(result)) {
+                this._showEvalBanner('success', 'Changes Saved', 'All evaluation criteria have been saved successfully.');
+            } else {
+                this._showEvalBanner('error', 'Save Failed', this._getEvalError(result));
+            }
+        } catch (e) {
+            this._showEvalBanner('error', 'Save Failed', 'An error occurred: ' + e.message);
+        } finally {
+            $btn.html(originalText).prop('disabled', false);
+        }
+    },
+
+    _onFinalizeCriteria: function () {
+        const self = this;
+        this._showEvalConfirm({
+            icon: 'fa-lock',
+            iconBg: '#d4edda',
+            iconColor: '#155724',
+            title: 'Finalize Evaluation Criteria?',
+            message: 'Once finalized, all new proposals will be scored against these criteria. You can still edit them later.',
+            confirmText: 'Save & Finalize',
+            confirmClass: 'btn-rfp-gold',
+            onConfirm: async function () {
+                const $btn = self.$('#btn_finalize_criteria');
+                $btn.html('<i class="fa fa-spinner fa-spin me-1"></i> Finalizing...').prop('disabled', true);
+
+                try {
+                    const projectId = self._getEvalProjectId();
+                    const criteria = self._collectCriteriaData();
+
+                    const saveResult = await self._rpc({
+                        route: '/rfp/eval/save/' + projectId,
+                        params: { criteria: criteria },
+                    });
+                    if (!self._isEvalSuccess(saveResult)) {
+                        self._showEvalBanner('error', 'Save Failed', self._getEvalError(saveResult));
+                        $btn.html('<i class="fa fa-check me-1"></i> Finalize Criteria').prop('disabled', false);
+                        return;
+                    }
+
+                    const result = await self._rpc({
+                        route: '/rfp/eval/finalize/' + projectId,
+                        params: {},
+                    });
+                    if (self._isEvalSuccess(result)) {
+                        self._showEvalBanner('success', 'Criteria Finalized!', 'All new proposals will now be scored against these criteria.');
+                        $btn.html('<i class="fa fa-check me-1"></i> Finalized').addClass('btn-success').removeClass('btn-rfp-gold');
+                        setTimeout(() => window.location.reload(), 2000);
+                    } else {
+                        self._showEvalBanner('error', 'Finalize Failed', self._getEvalError(result));
+                        $btn.html('<i class="fa fa-check me-1"></i> Finalize Criteria').prop('disabled', false);
+                    }
+                } catch (e) {
+                    self._showEvalBanner('error', 'Finalize Failed', 'An error occurred: ' + e.message);
+                    $btn.html('<i class="fa fa-check me-1"></i> Finalize Criteria').prop('disabled', false);
+                }
+            }
+        });
+    },
+
+    _onAddCriterion: async function (ev) {
+        const $btn = $(ev.currentTarget);
+        const originalText = $btn.html();
+        $btn.html('<i class="fa fa-spinner fa-spin me-1"></i> Adding...').prop('disabled', true);
+
+        try {
+            const projectId = this._getEvalProjectId();
+            const result = await this._rpc({
+                route: '/rfp/eval/add/' + projectId,
+                params: {},
+            });
+            if (this._isEvalSuccess(result)) {
+                // Inject new card matching server-rendered structure exactly
+                const newId = result.id;
+                const cardHtml =
+                    '<div class="card shadow-sm border-0 mb-3 eval-criterion-card" data-criterion-id="' + newId + '">' +
+                        '<div class="card-body">' +
+                            '<div class="row align-items-center">' +
+                                '<div class="col-md-4">' +
+                                    '<input type="text" class="form-control form-control-sm fw-bold criterion-name" value="' + (result.name || 'New Criterion') + '"/>' +
+                                    '<div class="mt-1">' +
+                                        '<span class="badge bg-secondary" style="text-transform: capitalize;">other</span>' +
+                                    '</div>' +
+                                '</div>' +
+                                '<div class="col-md-3">' +
+                                    '<label class="form-label small text-muted mb-0">Weight</label>' +
+                                    '<div class="d-flex align-items-center gap-2">' +
+                                        '<input type="range" class="form-range criterion-weight-slider" min="1" max="100" value="5"/>' +
+                                        '<span class="badge bg-rfp-gold criterion-weight-display" style="min-width: 40px;">5</span>' +
+                                    '</div>' +
+                                '</div>' +
+                                '<div class="col-md-2 text-center">' +
+                                    '<label class="form-label small text-muted mb-0 d-block">Must-Have</label>' +
+                                    '<div class="form-check form-switch d-inline-block">' +
+                                        '<input class="form-check-input criterion-must-have" type="checkbox"/>' +
+                                    '</div>' +
+                                '</div>' +
+                                '<div class="col-md-3 text-end">' +
+                                    '<button class="btn btn-sm btn-outline-secondary me-1" type="button" data-bs-toggle="collapse" data-bs-target="#detail_new_' + newId + '">' +
+                                        '<i class="fa fa-chevron-down"></i>' +
+                                    '</button>' +
+                                    '<button class="btn btn-sm btn-outline-danger btn-delete-criterion" type="button">' +
+                                        '<i class="fa fa-trash"></i>' +
+                                    '</button>' +
+                                '</div>' +
+                            '</div>' +
+                            '<div class="collapse show mt-3" id="detail_new_' + newId + '">' +
+                                '<div class="bg-light rounded p-3">' +
+                                    '<label class="form-label small fw-bold">Description</label>' +
+                                    '<textarea class="form-control form-control-sm mb-3 criterion-description" rows="2" placeholder="Describe what this criterion evaluates..."></textarea>' +
+                                    '<label class="form-label small fw-bold">Scoring Guidance</label>' +
+                                    '<textarea class="form-control form-control-sm criterion-scoring-guidance" rows="2" placeholder="What constitutes high, medium, and low scores..."></textarea>' +
+                                '</div>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>';
+
+                const $newCard = $(cardHtml);
+                this.$('#eval_criteria_container').append($newCard);
+                this._updateTotalWeight();
+                // Scroll smoothly to new card, then focus the name field
+                setTimeout(() => {
+                    $('html, body').animate({ scrollTop: $newCard.offset().top - 100 }, 300, () => {
+                        $newCard.find('.criterion-name').focus().select();
+                    });
+                }, 100);
+            } else {
+                this._showEvalBanner('error', 'Error', this._getEvalError(result));
+            }
+        } catch (e) {
+            this._showEvalBanner('error', 'Error', 'Add failed: ' + e.message);
+        } finally {
+            $btn.html(originalText).prop('disabled', false);
+        }
+    },
+
+    _onDeleteCriterion: function (ev) {
+        const self = this;
+        const $card = $(ev.currentTarget).closest('.eval-criterion-card');
+        const rawId = $card.data('criterionId') || $card.data('criterion-id') || $card.attr('data-criterion-id');
+        const criterionId = parseInt(rawId, 10);
+        const criterionName = $card.find('.criterion-name').val();
+
+        this._showEvalConfirm({
+            icon: 'fa-trash',
+            iconBg: '#f8d7da',
+            iconColor: '#721c24',
+            title: 'Delete Criterion?',
+            message: 'Remove "' + criterionName + '" from the evaluation criteria. This cannot be undone.',
+            confirmText: 'Delete',
+            confirmClass: 'btn-danger',
+            onConfirm: async function () {
+                try {
+                    const result = await self._rpc({
+                        route: '/rfp/eval/delete/' + criterionId,
+                        params: {},
+                    });
+                    if (self._isEvalSuccess(result)) {
+                        $card.slideUp(300, () => {
+                            $card.remove();
+                            self._updateTotalWeight();
+                        });
+                    } else {
+                        self._showEvalBanner('error', 'Error', self._getEvalError(result));
+                    }
+                } catch (e) {
+                    self._showEvalBanner('error', 'Error', 'Delete failed: ' + e.message);
+                }
+            }
+        });
+    },
+
+    _onRegenerateCriteria: function (ev) {
+        const self = this;
+        const $btn = $(ev.currentTarget);
+
+        this._showEvalConfirm({
+            icon: 'fa-refresh',
+            iconBg: '#fff3cd',
+            iconColor: '#856404',
+            title: 'Regenerate All Criteria?',
+            message: 'This will replace all current criteria with freshly AI-generated ones based on your interview answers. Any manual edits will be lost.',
+            confirmText: 'Regenerate',
+            confirmClass: 'btn-warning',
+            onConfirm: async function () {
+                const originalText = $btn.html();
+                $btn.html('<i class="fa fa-spinner fa-spin me-1"></i> Regenerating...').prop('disabled', true);
+
+                try {
+                    const projectId = self._getEvalProjectId();
+                    const result = await self._rpc({
+                        route: '/rfp/eval/regenerate/' + projectId,
+                        params: {},
+                    });
+                    if (self._isEvalSuccess(result)) {
+                        self._showEvalBanner('success', 'Criteria Regenerated', 'Reloading page with new criteria...');
+                        setTimeout(() => window.location.reload(), 1200);
+                    } else {
+                        self._showEvalBanner('error', 'Error', self._getEvalError(result));
+                        $btn.html(originalText).prop('disabled', false);
+                    }
+                } catch (e) {
+                    self._showEvalBanner('error', 'Error', 'Regenerate failed: ' + e.message);
+                    $btn.html(originalText).prop('disabled', false);
+                }
+            }
+        });
+    },
+
+    _onUnfinalizeCriteria: function () {
+        const self = this;
+        this._showEvalConfirm({
+            icon: 'fa-unlock',
+            iconBg: '#fff3cd',
+            iconColor: '#856404',
+            title: 'Unlock Evaluation Criteria?',
+            message: 'This will allow you to edit weights, add/remove criteria, and re-finalize. Existing proposal scores will not change until proposals are re-analyzed.',
+            confirmText: 'Unlock',
+            confirmClass: 'btn-warning',
+            onConfirm: async function () {
+                try {
+                    const projectId = self._getEvalProjectId();
+                    const result = await self._rpc({
+                        route: '/rfp/eval/unfinalize/' + projectId,
+                        params: {},
+                    });
+                    if (self._isEvalSuccess(result)) {
+                        self._showEvalBanner('success', 'Criteria Unlocked', 'You can now edit the criteria. Remember to finalize when done.');
+                        setTimeout(() => window.location.reload(), 1200);
+                    } else {
+                        self._showEvalBanner('error', 'Error', self._getEvalError(result));
+                    }
+                } catch (e) {
+                    self._showEvalBanner('error', 'Error', 'Unlock failed: ' + e.message);
+                }
+            }
+        });
     }
 
 });

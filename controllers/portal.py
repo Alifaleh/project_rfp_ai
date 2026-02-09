@@ -655,4 +655,191 @@ class RfpCustomerPortal(CustomerPortal):
             'file_type': file_type,
             'analysis': analysis,
         }
+        # Parse criteria scores if available
+        criteria_scores = None
+        if Proposal.criteria_scores:
+            try:
+                criteria_scores = json.loads(Proposal.criteria_scores)
+            except json.JSONDecodeError:
+                criteria_scores = None
+
+        values['criteria_scores'] = criteria_scores
+        values['weighted_score'] = Proposal.weighted_score
+        values['has_must_have_failure'] = Proposal.has_must_have_failure
+
         return request.render("project_rfp_ai.portal_rfp_proposal_detail", values)
+
+    # ========== EVALUATION CRITERIA ROUTES ==========
+
+    @http.route(['/rfp/eval/setup/<int:project_id>'], type='http', auth="user", website=True)
+    def portal_rfp_eval_setup(self, project_id, **kw):
+        """Evaluation criteria setup page - routes to interview or review."""
+        Project = request.env['rfp.project'].sudo().browse(project_id)
+        if not Project.exists() or Project.user_id.id != request.env.user.id:
+            return request.redirect('/my')
+
+        if Project.eval_criteria_status == 'not_started':
+            # First visit — trigger first interview round
+            Project.action_gather_eval_criteria()
+            return request.redirect(f"/rfp/eval/setup/{Project.id}")
+
+        if Project.eval_criteria_status == 'gathering':
+            # Show unanswered eval questions
+            questions = Project.eval_input_ids.filtered(lambda i: not i.user_value and not i.is_irrelevant)
+            if not questions:
+                # All questions answered but still gathering — trigger next round
+                Project.action_gather_eval_criteria()
+                return request.redirect(f"/rfp/eval/setup/{Project.id}")
+
+            values = self._prepare_portal_layout_values()
+            values.update({
+                'rfp_project': Project,
+                'questions_to_answer': questions,
+                'page_name': 'eval_interview',
+            })
+            return request.render("project_rfp_ai.portal_rfp_eval_interview", values)
+
+        if Project.eval_criteria_status in ('generated', 'finalized'):
+            # Show criteria for review/edit
+            values = self._prepare_portal_layout_values()
+            values.update({
+                'rfp_project': Project,
+                'criteria': Project.evaluation_criterion_ids.filtered('active').sorted('sequence'),
+                'page_name': 'eval_review',
+                'total_weight': sum(c.weight for c in Project.evaluation_criterion_ids.filtered('active')),
+            })
+            return request.render("project_rfp_ai.portal_rfp_eval_review", values)
+
+        return request.redirect(f"/rfp/proposals/{Project.id}")
+
+    @http.route(['/rfp/eval/next_step/<int:project_id>'], type='http', auth="user", website=True, methods=['POST'], csrf=True)
+    def portal_rfp_eval_next_step(self, project_id, **post):
+        """Process eval interview answers and trigger next round."""
+        Project = request.env['rfp.project'].sudo().browse(project_id)
+        if not Project.exists() or Project.user_id.id != request.env.user.id:
+            return request.redirect('/my')
+
+        # Process inputs — same pattern as portal_rfp_next_step
+        input_map = {inp.field_key: inp for inp in Project.eval_input_ids}
+
+        for key, inp_record in input_map.items():
+            custom_answer_flag = post.get(f"has_custom_answer_{key}")
+            if custom_answer_flag == 'true':
+                custom_val = post.get(f"custom_answer_val_{key}")
+                if custom_val:
+                    inp_record.sudo().write({'user_value': custom_val})
+                continue
+
+            is_irrelevant = post.get(f"is_irrelevant_{key}")
+            if is_irrelevant == 'true':
+                reason = post.get(f"irrelevant_reason_{key}")
+                vals = {'is_irrelevant': True}
+                if reason:
+                    vals['irrelevant_reason'] = reason
+                inp_record.sudo().write(vals)
+                continue
+
+            if key in post:
+                value = post.get(key)
+                specify_key = f"{key}_specify"
+                final_value = value
+                if specify_key in post and post.get(specify_key):
+                    final_value = f"{value}: {post.get(specify_key)}"
+                inp_record.sudo().write({'user_value': final_value})
+
+        # Trigger next round
+        Project.action_gather_eval_criteria()
+        return request.redirect(f"/rfp/eval/setup/{Project.id}")
+
+    @http.route(['/rfp/eval/save/<int:project_id>'], type='json', auth="user", website=True)
+    def portal_rfp_eval_save(self, project_id, criteria=None, **kw):
+        """Save edited criteria (weights, names, must-have toggles)."""
+        Project = request.env['rfp.project'].sudo().browse(project_id)
+        if not Project.exists() or Project.user_id.id != request.env.user.id:
+            return {'success': False, 'error': 'Access denied'}
+
+        if not criteria:
+            return {'success': False, 'error': 'No data provided'}
+
+        for item in criteria:
+            criterion = request.env['rfp.evaluation.criterion'].sudo().browse(item.get('id'))
+            if criterion.exists() and criterion.project_id.id == Project.id:
+                vals = {}
+                if 'name' in item:
+                    vals['name'] = item['name']
+                if 'weight' in item:
+                    vals['weight'] = max(1, min(100, int(item['weight'])))
+                if 'is_must_have' in item:
+                    vals['is_must_have'] = bool(item['is_must_have'])
+                if 'description' in item:
+                    vals['description'] = item['description']
+                if 'scoring_guidance' in item:
+                    vals['scoring_guidance'] = item['scoring_guidance']
+                if vals:
+                    criterion.write(vals)
+
+        return {'success': True}
+
+    @http.route(['/rfp/eval/finalize/<int:project_id>'], type='json', auth="user", website=True)
+    def portal_rfp_eval_finalize(self, project_id, **kw):
+        """Finalize evaluation criteria."""
+        Project = request.env['rfp.project'].sudo().browse(project_id)
+        if not Project.exists() or Project.user_id.id != request.env.user.id:
+            return {'success': False, 'error': 'Access denied'}
+
+        Project.action_finalize_eval_criteria()
+        return {'success': True}
+
+    @http.route(['/rfp/eval/unfinalize/<int:project_id>'], type='json', auth="user", website=True)
+    def portal_rfp_eval_unfinalize(self, project_id, **kw):
+        """Unlock finalized criteria for editing."""
+        Project = request.env['rfp.project'].sudo().browse(project_id)
+        if not Project.exists() or Project.user_id.id != request.env.user.id:
+            return {'success': False, 'error': 'Access denied'}
+
+        Project.eval_criteria_status = 'generated'
+        return {'success': True}
+
+    @http.route(['/rfp/eval/add/<int:project_id>'], type='json', auth="user", website=True)
+    def portal_rfp_eval_add_criterion(self, project_id, name=None, **kw):
+        """Add a custom criterion."""
+        Project = request.env['rfp.project'].sudo().browse(project_id)
+        if not Project.exists() or Project.user_id.id != request.env.user.id:
+            return {'success': False, 'error': 'Access denied'}
+
+        max_seq = max([c.sequence for c in Project.evaluation_criterion_ids] or [0])
+        criterion = request.env['rfp.evaluation.criterion'].sudo().create({
+            'project_id': Project.id,
+            'name': name or 'New Criterion',
+            'description': '',
+            'scoring_guidance': '',
+            'category': 'other',
+            'weight': 5,
+            'sequence': max_seq + 10,
+        })
+        return {'success': True, 'id': criterion.id, 'name': criterion.name}
+
+    @http.route(['/rfp/eval/delete/<int:criterion_id>'], type='json', auth="user", website=True)
+    def portal_rfp_eval_delete_criterion(self, criterion_id, **kw):
+        """Delete a criterion."""
+        criterion = request.env['rfp.evaluation.criterion'].sudo().browse(criterion_id)
+        if not criterion.exists():
+            return {'success': False, 'error': 'Not found'}
+
+        Project = criterion.project_id
+        if Project.user_id.id != request.env.user.id:
+            return {'success': False, 'error': 'Access denied'}
+
+        criterion.unlink()
+        return {'success': True}
+
+    @http.route(['/rfp/eval/regenerate/<int:project_id>'], type='json', auth="user", website=True)
+    def portal_rfp_eval_regenerate(self, project_id, **kw):
+        """Regenerate criteria from existing interview answers."""
+        Project = request.env['rfp.project'].sudo().browse(project_id)
+        if not Project.exists() or Project.user_id.id != request.env.user.id:
+            return {'success': False, 'error': 'Access denied'}
+
+        Project._generate_eval_criteria()
+        Project.eval_criteria_status = 'generated'
+        return {'success': True}

@@ -25,6 +25,9 @@ PROMPT_INTERVIEWER_PRACTICES = 'interviewer_practices'
 PROMPT_WRITER_TOC_ARCHITECT = 'writer_toc_architect'
 PROMPT_WRITER_SECTION = 'writer_section_content'
 PROMPT_SCOPE_ASSESSOR = 'scope_assessor'
+PROMPT_INTERVIEWER_EVAL_CRITERIA = 'interviewer_eval_criteria'
+PROMPT_GENERATE_EVAL_CRITERIA = 'generate_eval_criteria'
+PROMPT_ANALYZE_PROPOSAL_CRITERIA = 'analyze_proposal_criteria'
 
 # Generation Status
 STATUS_PENDING = 'pending'
