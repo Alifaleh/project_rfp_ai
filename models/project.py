@@ -1078,3 +1078,104 @@ class RfpProject(models.Model):
         if self.published_id:
             self.published_id.active = False
         return True
+
+    def action_duplicate_for_adaptation(self, new_name=None):
+        """
+        Create a copy of this project for adaptation.
+        Copies: interview answers, eval criteria, required docs, AI context.
+        Clears: generated sections, published record, research, user_value on inputs.
+        Resets stage to 'initialized' so user can review/modify answers.
+
+        Note: Odoo 18 defaults One2many copy=False, so we must manually copy child records.
+        """
+        self.ensure_one()
+        FormInput = self.env['rfp.form.input']
+        PracticeInput = self.env['rfp.practice.input']
+        EvalCriterion = self.env['rfp.evaluation.criterion']
+        RequiredDoc = self.env['rfp.required.document']
+
+        # Reset ai_context_blob: keep scope_assessment (interview limits), clear everything else
+        old_blob = self.get_context_data() if self.ai_context_blob else {}
+        new_blob = {}
+        if 'scope_assessment' in old_blob:
+            new_blob['scope_assessment'] = old_blob['scope_assessment']
+
+        new_project = self.copy(default={
+            'name': new_name or f"{self.name} - Copy",
+            'current_stage': STAGE_INITIALIZED,
+            'published_id': False,
+            'initial_research': False,
+            'refined_practices': False,
+            'image_generation_progress': 0,
+            'ai_context_blob': json.dumps(new_blob) if new_blob else '{}',
+        })
+
+        # Manually copy form_input_ids with cleared user_value
+        for inp in self.form_input_ids:
+            # Build suggested_answers: preserve original answer as a suggestion
+            suggestions = []
+            try:
+                suggestions = json.loads(inp.suggested_answers) if inp.suggested_answers else []
+            except Exception:
+                suggestions = []
+            if inp.user_value and inp.user_value not in suggestions:
+                suggestions.insert(0, inp.user_value)
+
+            FormInput.create({
+                'project_id': new_project.id,
+                'field_key': inp.field_key,
+                'label': inp.label,
+                'component_type': inp.component_type,
+                'options': inp.options,
+                'user_value': False,  # Cleared for re-interview
+                'data_type': inp.data_type,
+                'description_tooltip': inp.description_tooltip,
+                'round_number': inp.round_number,
+                'suggested_answers': json.dumps(suggestions) if suggestions else inp.suggested_answers,
+                'depends_on': inp.depends_on,
+                'is_irrelevant': False,
+                'irrelevant_reason': False,
+                'specify_triggers': inp.specify_triggers,
+                'sequence': inp.sequence,
+            })
+
+        # Manually copy practice_input_ids with cleared user_value
+        for inp in self.practice_input_ids:
+            suggestions = []
+            try:
+                suggestions = json.loads(inp.suggested_answers) if inp.suggested_answers else []
+            except Exception:
+                suggestions = []
+            if inp.user_value and inp.user_value not in suggestions:
+                suggestions.insert(0, inp.user_value)
+
+            PracticeInput.create({
+                'project_id': new_project.id,
+                'field_key': inp.field_key,
+                'label': inp.label,
+                'component_type': inp.component_type,
+                'options': inp.options,
+                'user_value': False,
+                'data_type': inp.data_type,
+                'description_tooltip': inp.description_tooltip,
+                'round_number': inp.round_number,
+                'suggested_answers': json.dumps(suggestions) if suggestions else inp.suggested_answers,
+                'depends_on': inp.depends_on,
+                'is_irrelevant': False,
+                'irrelevant_reason': False,
+                'specify_triggers': inp.specify_triggers,
+                'sequence': inp.sequence,
+            })
+
+        # Copy evaluation criteria as-is
+        for crit in self.evaluation_criterion_ids:
+            crit.copy(default={'project_id': new_project.id})
+
+        # Copy required documents as-is
+        for doc in self.required_document_ids:
+            doc.copy(default={'project_id': new_project.id})
+
+        _logger.info(f"Duplicated project {self.id} → new project {new_project.id} ({new_project.name}), "
+                     f"copied {len(self.form_input_ids)} form inputs, {len(self.practice_input_ids)} practice inputs, "
+                     f"{len(self.evaluation_criterion_ids)} eval criteria, {len(self.required_document_ids)} required docs")
+        return new_project.id

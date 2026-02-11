@@ -61,6 +61,10 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         'click #btn_add_rdoc': '_onAddRequiredDoc',
         'click .btn-delete-rdoc': '_onDeleteRequiredDoc',
         'click #btn_save_rdocs': '_onSaveRequiredDocs',
+
+        // Project Duplication
+        'click .btn-duplicate-project': '_onDuplicateProject',
+        'click #btn_confirm_duplicate': '_onConfirmDuplicate',
     },
 
     // Custom RPC implementation to avoid module dependency issues in frontend
@@ -1750,6 +1754,60 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
             }
         } catch (e) {
             this._showNotification('error', 'Save Failed', 'An error occurred: ' + e.message);
+            $btn.html(originalText).prop('disabled', false);
+        }
+    },
+
+    // ==================== Project Duplication ====================
+
+    _onDuplicateProject: function (ev) {
+        ev.preventDefault();
+        var $btn = $(ev.currentTarget);
+        var projectId = $btn.data('projectId') || $btn.data('project-id') || $btn.attr('data-project-id');
+        var projectName = $btn.data('projectName') || $btn.data('project-name') || $btn.attr('data-project-name') || '';
+
+        var $modal = $('#modal_duplicate_confirm');
+        $modal.data('project-id', projectId);
+        // Pre-fill name field with "Original Name - Copy"
+        $modal.find('#duplicate_new_name').val(projectName ? projectName + ' - Copy' : '');
+        $modal.modal('show');
+    },
+
+    _onConfirmDuplicate: async function (ev) {
+        var $modal = $('#modal_duplicate_confirm');
+        var projectId = $modal.data('project-id');
+        var newName = $modal.find('#duplicate_new_name').val().trim();
+        var $btn = $(ev.currentTarget);
+        var originalText = $btn.html();
+
+        $btn.html('<i class="fa fa-spinner fa-spin me-1"></i> Duplicating...').prop('disabled', true);
+
+        try {
+            var result = await this._rpc({
+                route: '/rfp/duplicate/' + projectId,
+                params: { new_name: newName },
+            });
+
+            if (result && result.success) {
+                $modal.modal('hide');
+                if (this._showNotification) {
+                    this._showNotification('success', 'Project Duplicated', 'Redirecting to your new project...');
+                }
+                setTimeout(function () {
+                    window.location.href = result.redirect_url;
+                }, 500);
+            } else {
+                $modal.modal('hide');
+                if (this._showNotification) {
+                    this._showNotification('error', 'Duplication Failed', (result && result.error) || 'Unknown error');
+                }
+                $btn.html(originalText).prop('disabled', false);
+            }
+        } catch (e) {
+            $modal.modal('hide');
+            if (this._showNotification) {
+                this._showNotification('error', 'Error', 'Duplication failed: ' + e.message);
+            }
             $btn.html(originalText).prop('disabled', false);
         }
     }

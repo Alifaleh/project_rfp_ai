@@ -317,14 +317,48 @@
                                         <span class="badge bg-rfp-gold rounded-pill" t-field="project.current_stage"/>
                                     </div>
                                     <p class="text-muted small mb-3 text-truncate" style="max-height: 40px;" t-field="project.description"/>
-                                    <a t-attf-href="/rfp/interface/#{project.id}" class="btn btn-rfp-gold-outline btn-sm w-100">
-                                        <i class="fa fa-arrow-right me-1"/> Continue
-                                    </a>
+                                    <div class="d-flex gap-2">
+                                        <a t-attf-href="/rfp/interface/#{project.id}" class="btn btn-rfp-gold-outline btn-sm flex-fill">
+                                            <i class="fa fa-arrow-right me-1"/> Continue
+                                        </a>
+                                        <button class="btn btn-outline-secondary btn-sm btn-duplicate-project"
+                                                t-att-data-project-id="project.id"
+                                                t-att-data-project-name="project.name"
+                                                title="Duplicate this RFP">
+                                            <i class="fa fa-copy"/>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </t>
                     </div>
                 </t>
+
+                <!-- Duplicate Confirmation Modal (must be inside .rfp-portal-wrapper for widget events) -->
+                <div class="modal fade" id="modal_duplicate_confirm" tabindex="-1" role="dialog">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content border-0 shadow-lg">
+                            <div class="modal-body text-center py-5 px-4">
+                                <div class="mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle"
+                                     style="width: 64px; height: 64px; background: rgba(197, 168, 70, 0.15);">
+                                    <i class="fa fa-copy fa-2x text-rfp-gold"/>
+                                </div>
+                                <h5 class="fw-bold mb-2">Duplicate this RFP?</h5>
+                                <p class="text-muted mb-4">This will create a copy with all interview answers and settings, allowing you to modify them for your new project.</p>
+                                <div class="mb-4 text-start">
+                                    <label class="form-label small fw-bold" for="duplicate_new_name">Project Name</label>
+                                    <input type="text" class="form-control" id="duplicate_new_name" placeholder="Enter name for the new project"/>
+                                </div>
+                                <div class="d-flex justify-content-center gap-3">
+                                    <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Cancel</button>
+                                    <button type="button" class="btn btn-rfp-gold px-4" id="btn_confirm_duplicate">
+                                        <i class="fa fa-copy me-1"/> Duplicate
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </t>
     </template>
@@ -708,7 +742,13 @@
                         <button onclick="window.print()" class="btn btn-outline-secondary">
                             <i class="fa fa-print me-1"/> Print
                         </button>
-                        
+                        <button class="btn btn-outline-secondary btn-duplicate-project"
+                                t-att-data-project-id="rfp_project.id"
+                                t-att-data-project-name="rfp_project.name"
+                                title="Duplicate this RFP">
+                            <i class="fa fa-copy me-1"/> Duplicate
+                        </button>
+
                         <div class="vr mx-1"></div>
 
                         <t t-if="rfp_project.current_stage != 'document_locked'">
@@ -955,6 +995,32 @@
                     </div>
                 </div>
         
+                <!-- Duplicate Confirmation Modal -->
+                <div class="modal fade" id="modal_duplicate_confirm" tabindex="-1" role="dialog">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content border-0 shadow-lg">
+                            <div class="modal-body text-center py-5 px-4">
+                                <div class="mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle"
+                                     style="width: 64px; height: 64px; background: rgba(197, 168, 70, 0.15);">
+                                    <i class="fa fa-copy fa-2x text-rfp-gold"/>
+                                </div>
+                                <h5 class="fw-bold mb-2">Duplicate this RFP?</h5>
+                                <p class="text-muted mb-4">This will create a copy with all interview answers and settings, allowing you to modify them for your new project.</p>
+                                <div class="mb-4 text-start">
+                                    <label class="form-label small fw-bold" for="duplicate_new_name">Project Name</label>
+                                    <input type="text" class="form-control" id="duplicate_new_name" placeholder="Enter name for the new project"/>
+                                </div>
+                                <div class="d-flex justify-content-center gap-3">
+                                    <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Cancel</button>
+                                    <button type="button" class="btn btn-rfp-gold px-4" id="btn_confirm_duplicate">
+                                        <i class="fa fa-copy me-1"/> Duplicate
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Lock Confirmation Modal -->
                 <div class="modal fade" id="modal_lock_confirm" tabindex="-1" role="dialog">
                     <div class="modal-dialog modal-dialog-centered" role="document">

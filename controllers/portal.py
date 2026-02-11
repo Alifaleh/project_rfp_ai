@@ -3,6 +3,9 @@ from odoo.http import request
 from odoo.addons.portal.controllers.portal import CustomerPortal
 import json
 import base64
+import logging
+
+_logger = logging.getLogger(__name__)
 from odoo.addons.project_rfp_ai.const import *
 
 class RfpCustomerPortal(CustomerPortal):
@@ -941,3 +944,24 @@ class RfpCustomerPortal(CustomerPortal):
 
         doc.unlink()
         return {'success': True}
+
+    # ==================== Project Duplication ====================
+
+    @http.route(['/rfp/duplicate/<int:project_id>'], type='json', auth="user", website=True)
+    def portal_rfp_duplicate_project(self, project_id, **kw):
+        """Duplicate an existing project for adaptation."""
+        Project = request.env['rfp.project'].sudo().browse(project_id)
+        if not Project.exists() or Project.user_id.id != request.env.user.id:
+            return {'success': False, 'error': 'Access denied'}
+
+        try:
+            new_name = kw.get('new_name', '').strip() or None
+            new_project_id = Project.action_duplicate_for_adaptation(new_name=new_name)
+            return {
+                'success': True,
+                'project_id': new_project_id,
+                'redirect_url': f'/rfp/interface/{new_project_id}'
+            }
+        except Exception as e:
+            _logger.exception("Failed to duplicate project %s", project_id)
+            return {'success': False, 'error': str(e)}
