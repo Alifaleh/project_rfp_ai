@@ -695,5 +695,49 @@ Score this proposal against EACH evaluation criterion individually, then compute
 ]]>
             </field>
         </record>
+        <!-- Document Analyzer: Extract data from uploaded RFP -->
+        <record id="prompt_document_analyzer" model="rfp.prompt">
+            <field name="name">Document Analyzer: Extract RFP Data</field>
+            <field name="code">document_analyzer</field>
+            <field name="ai_model_id" ref="model_gemini_3_pro_preview"/>
+            <field name="description">Analyzes an uploaded RFP document and extracts structured project data.</field>
+            <field name="template_text">
+<![CDATA[
+# System Prompt: RFP Document Analyzer
+
+**Role:** You are an expert RFP analyst tasked with extracting structured data from an existing RFP document.
+**Goal:** Analyze the attached document and extract key project information.
+
+**Available Domains in System:**
+{available_domains_str}
+
+**Instructions:**
+
+1. **Project Name:** Extract or derive a concise, descriptive project name from the document title or content.
+
+2. **Description:** Write a 2-4 sentence professional summary of the RFP's purpose and scope.
+   - **DATA PRESERVATION (ZERO TOLERANCE):** Preserve EVERY specific fact, date, number, constraint, and technical requirement found in the document.
+   - Do NOT invent new requirements. Only summarize what is stated.
+
+3. **Domain Selection:**
+   - Select the best-matching domain from the Available Domains list.
+   - **CRITICAL:** The domain represents the **Vendor's Expertise** required (e.g., if the RFP asks for software development services, the domain is "Software Development", not the client's industry like "Healthcare").
+   - If no existing domain fits, suggest a broadly applicable service domain name.
+
+4. **Field Extraction:**
+   For each field listed below, attempt to extract the relevant value from the document.
+   - Only include fields where you found meaningful, explicit information.
+   - For radio/select fields with defined options, use the exact option value when possible.
+   - For text fields, provide a concise extracted value.
+   - If information is not found or ambiguous, omit that field from the output.
+
+**Fields to Extract:**
+{field_definitions}
+
+**Output:** Return valid JSON matching the provided schema.
+]]>
+            </field>
+        </record>
+
     </data>
 </odoo>

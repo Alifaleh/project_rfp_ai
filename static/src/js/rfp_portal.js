@@ -65,6 +65,12 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         // Project Duplication
         'click .btn-duplicate-project': '_onDuplicateProject',
         'click #btn_confirm_duplicate': '_onConfirmDuplicate',
+
+        // Upload Existing RFP
+        'click .btn-upload-rfp': '_onUploadRfpClick',
+        'change #rfp_upload_file': '_onUploadFileChange',
+        'click #btn_confirm_upload': '_onConfirmUpload',
+        'click #btn_retry_upload': '_onRetryUpload',
     },
 
     // Custom RPC implementation to avoid module dependency issues in frontend
@@ -1810,6 +1816,118 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
             }
             $btn.html(originalText).prop('disabled', false);
         }
+    },
+
+    // ==================== Upload Existing RFP ====================
+
+    _onUploadRfpClick: function (ev) {
+        ev.preventDefault();
+        var $modal = $('#modal_upload_rfp');
+        // Reset to form state
+        $modal.find('#upload_form_state').removeClass('d-none');
+        $modal.find('#upload_processing_state').addClass('d-none');
+        $modal.find('#upload_error_state').addClass('d-none');
+        $modal.find('#rfp_upload_file').val('');
+        $modal.find('#upload_project_name').val('');
+        $modal.find('#upload_file_info').addClass('d-none');
+        $modal.find('#upload_file_error').addClass('d-none');
+        $modal.find('#btn_confirm_upload').prop('disabled', true);
+        $modal.modal('show');
+    },
+
+    _onUploadFileChange: function (ev) {
+        var $input = $(ev.currentTarget);
+        var file = $input[0].files[0];
+        var $modal = $('#modal_upload_rfp');
+        var $info = $modal.find('#upload_file_info');
+        var $error = $modal.find('#upload_file_error');
+        var $uploadBtn = $modal.find('#btn_confirm_upload');
+
+        $info.addClass('d-none');
+        $error.addClass('d-none');
+        $uploadBtn.prop('disabled', true);
+
+        if (!file) return;
+
+        // Validate file type
+        var ext = file.name.split('.').pop().toLowerCase();
+        if (ext !== 'pdf' && ext !== 'docx') {
+            $error.removeClass('d-none').find('.alert').text('Invalid file type. Please select a PDF or DOCX file.');
+            $input.val('');
+            return;
+        }
+
+        // Validate file size (25 MB max)
+        var maxSize = 25 * 1024 * 1024;
+        if (file.size > maxSize) {
+            $error.removeClass('d-none').find('.alert').text('File is too large. Maximum size is 25 MB.');
+            $input.val('');
+            return;
+        }
+
+        // Show file info
+        var sizeStr = file.size < 1024 * 1024
+            ? (file.size / 1024).toFixed(1) + ' KB'
+            : (file.size / (1024 * 1024)).toFixed(1) + ' MB';
+        $info.removeClass('d-none');
+        $modal.find('#upload_file_name').text(file.name);
+        $modal.find('#upload_file_size').text('(' + sizeStr + ')');
+        $uploadBtn.prop('disabled', false);
+    },
+
+    _onConfirmUpload: async function (ev) {
+        var self = this;
+        var $modal = $('#modal_upload_rfp');
+        var fileInput = $modal.find('#rfp_upload_file')[0];
+        var file = fileInput.files[0];
+        var projectName = $modal.find('#upload_project_name').val().trim();
+
+        if (!file) return;
+
+        // Switch to processing state
+        $modal.find('#upload_form_state').addClass('d-none');
+        $modal.find('#upload_processing_state').removeClass('d-none');
+
+        try {
+            var formData = new FormData();
+            formData.append('rfp_file', file);
+            formData.append('project_name', projectName);
+            formData.append('csrf_token', odoo.csrf_token);
+
+            var response = await fetch('/rfp/upload', {
+                method: 'POST',
+                body: formData,
+            });
+
+            var result = await response.json();
+
+            if (result && result.success) {
+                if (self._showNotification) {
+                    self._showNotification('success', 'RFP Uploaded', 'Redirecting to your new project...');
+                }
+                setTimeout(function () {
+                    window.location.href = result.redirect_url;
+                }, 500);
+            } else {
+                // Show error state
+                $modal.find('#upload_processing_state').addClass('d-none');
+                $modal.find('#upload_error_state').removeClass('d-none');
+                $modal.find('#upload_error_message').text((result && result.error) || 'An unknown error occurred.');
+            }
+        } catch (e) {
+            $modal.find('#upload_processing_state').addClass('d-none');
+            $modal.find('#upload_error_state').removeClass('d-none');
+            $modal.find('#upload_error_message').text('Upload failed: ' + e.message);
+        }
+    },
+
+    _onRetryUpload: function (ev) {
+        var $modal = $('#modal_upload_rfp');
+        $modal.find('#upload_error_state').addClass('d-none');
+        $modal.find('#upload_form_state').removeClass('d-none');
+        $modal.find('#rfp_upload_file').val('');
+        $modal.find('#upload_file_info').addClass('d-none');
+        $modal.find('#btn_confirm_upload').prop('disabled', true);
     }
 
 });

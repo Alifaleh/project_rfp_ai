@@ -59,6 +59,49 @@ class RfpCustomerPortal(CustomerPortal):
             return request.redirect(f"/rfp/interface/{new_project.id}")
         return request.redirect('/my/rfp/start')
 
+    @http.route(['/rfp/upload'], type='http', auth="user", methods=['POST'], website=True, csrf=True)
+    def portal_rfp_upload(self, **post):
+        """Upload an existing RFP document to create a new project."""
+        uploaded_file = request.httprequest.files.get('rfp_file')
+        project_name = post.get('project_name', '').strip()
+
+        if not uploaded_file or not uploaded_file.filename:
+            return request.make_json_response({'success': False, 'error': 'No file uploaded'})
+
+        filename = uploaded_file.filename
+        ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+        MIME_MAP = {
+            'pdf': 'application/pdf',
+            'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        }
+        if ext not in MIME_MAP:
+            return request.make_json_response({'success': False, 'error': 'Only PDF and DOCX files are supported'})
+
+        try:
+            file_data = uploaded_file.read()
+            file_b64 = base64.b64encode(file_data)
+
+            Project = request.env['rfp.project'].sudo()
+            new_project = Project.create({
+                'name': project_name or 'Untitled Upload',
+                'description': f'Imported from: {filename}',
+                'user_id': request.env.user.id,
+                'source_document': file_b64,
+                'source_filename': filename,
+                'source_mimetype': MIME_MAP[ext],
+            })
+
+            new_project.action_initialize_from_document()
+
+            return request.make_json_response({
+                'success': True,
+                'project_id': new_project.id,
+                'redirect_url': f'/rfp/interface/{new_project.id}'
+            })
+        except Exception as e:
+            _logger.exception("RFP upload failed for file '%s'", filename)
+            return request.make_json_response({'success': False, 'error': str(e)})
+
     @http.route(['/rfp/interface/<int:project_id>'], type='http', auth="user", website=True)
     def portal_rfp_interface(self, project_id, **kw):
         Project = request.env['rfp.project'].sudo().browse(project_id)

@@ -289,10 +289,16 @@
                             <h2 class="mb-2">My RFP Projects</h2>
                             <p class="mb-0">Create and manage your AI-powered Request for Proposals</p>
                         </div>
-                        <div class="col-md-4 text-md-end mt-3 mt-md-0">
-                            <a href="/rfp/start" class="btn btn-rfp-gold btn-lg">
-                                <i class="fa fa-plus me-2"/> Start New Project
-                            </a>
+                        <div class="col-md-4 mt-3 mt-md-0">
+                            <div class="d-flex flex-wrap gap-2 justify-content-md-end">
+                                <a href="/rfp/start" class="btn btn-rfp-gold">
+                                    <i class="fa fa-plus me-1"/> Start New Project
+                                </a>
+                                <button class="btn btn-rfp-gold-outline btn-upload-rfp"
+                                        title="Upload an existing RFP document">
+                                    <i class="fa fa-upload me-1"/> Upload RFP
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -354,6 +360,85 @@
                                     <button type="button" class="btn btn-rfp-gold px-4" id="btn_confirm_duplicate">
                                         <i class="fa fa-copy me-1"/> Duplicate
                                     </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Upload RFP Modal (must be inside .rfp-portal-wrapper for widget events) -->
+                <div class="modal fade" id="modal_upload_rfp" tabindex="-1" role="dialog">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content border-0 shadow-lg">
+                            <div class="modal-body py-5 px-4">
+                                <!-- Form State -->
+                                <div id="upload_form_state">
+                                    <div class="text-center mb-4">
+                                        <div class="mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle"
+                                             style="width: 64px; height: 64px; background: rgba(197, 168, 70, 0.15);">
+                                            <i class="fa fa-upload fa-2x text-rfp-gold"/>
+                                        </div>
+                                        <h5 class="fw-bold mb-2">Upload Existing RFP</h5>
+                                        <p class="text-muted mb-0">Upload a PDF or DOCX file and our AI will extract key information to pre-populate your new project.</p>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-bold" for="rfp_upload_file">RFP Document <span class="text-danger">*</span></label>
+                                        <input type="file" class="form-control" id="rfp_upload_file" accept=".pdf,.docx"/>
+                                        <small class="text-muted">Accepted formats: PDF, DOCX (max 25 MB)</small>
+                                    </div>
+                                    <div id="upload_file_info" class="d-none mb-3">
+                                        <div class="alert alert-light border py-2 px-3 mb-0 d-flex align-items-center">
+                                            <i class="fa fa-file-text-o text-rfp-gold me-2"/>
+                                            <span id="upload_file_name" class="small fw-bold me-2"/>
+                                            <span id="upload_file_size" class="small text-muted"/>
+                                        </div>
+                                    </div>
+                                    <div id="upload_file_error" class="d-none mb-3">
+                                        <div class="alert alert-danger py-2 px-3 mb-0 small"/>
+                                    </div>
+
+                                    <div class="mb-4">
+                                        <label class="form-label small fw-bold" for="upload_project_name">Project Name <span class="text-muted fw-normal">(optional)</span></label>
+                                        <input type="text" class="form-control" id="upload_project_name" placeholder="Leave blank to auto-detect from document"/>
+                                    </div>
+
+                                    <div class="d-flex justify-content-center gap-3">
+                                        <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Cancel</button>
+                                        <button type="button" class="btn btn-rfp-gold px-4" id="btn_confirm_upload" disabled="disabled">
+                                            <i class="fa fa-upload me-1"/> Upload &amp; Analyze
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Processing State -->
+                                <div id="upload_processing_state" class="d-none text-center">
+                                    <div class="mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle"
+                                         style="width: 64px; height: 64px; background: rgba(197, 168, 70, 0.15);">
+                                        <i class="fa fa-cog fa-spin fa-2x text-rfp-gold"/>
+                                    </div>
+                                    <h5 class="fw-bold mb-2">Analyzing Your Document</h5>
+                                    <p class="text-muted mb-3">Our AI is reading and extracting information from your RFP. This usually takes 15-30 seconds.</p>
+                                    <div class="progress mb-3" style="height: 4px;">
+                                        <div class="progress-bar bg-rfp-gold progress-bar-striped progress-bar-animated" style="width: 100%;"/>
+                                    </div>
+                                    <small class="text-muted">Please do not close this window.</small>
+                                </div>
+
+                                <!-- Error State -->
+                                <div id="upload_error_state" class="d-none text-center">
+                                    <div class="mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle"
+                                         style="width: 64px; height: 64px; background: rgba(220, 53, 69, 0.15);">
+                                        <i class="fa fa-exclamation-triangle fa-2x text-danger"/>
+                                    </div>
+                                    <h5 class="fw-bold mb-2">Upload Failed</h5>
+                                    <p id="upload_error_message" class="text-muted mb-4"/>
+                                    <div class="d-flex justify-content-center gap-3">
+                                        <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Close</button>
+                                        <button type="button" class="btn btn-rfp-gold px-4" id="btn_retry_upload">
+                                            <i class="fa fa-refresh me-1"/> Try Again
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>

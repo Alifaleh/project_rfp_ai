@@ -179,6 +179,47 @@ def get_kb_analysis_schema():
         required=['suggested_domain_name', 'extracted_practices']
     )
 
+def get_document_extraction_schema():
+    """Schema for extracting structured data from an uploaded RFP document."""
+    if not types:
+        return None
+    return types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            "suggested_name": types.Schema(
+                type=types.Type.STRING,
+                description="A concise project name extracted or derived from the document."
+            ),
+            "refined_description": types.Schema(
+                type=types.Type.STRING,
+                description="A professional 2-4 sentence summary of the RFP's purpose and scope. Preserve ALL specific facts, dates, numbers, and constraints."
+            ),
+            "suggested_domain_name": types.Schema(
+                type=types.Type.STRING,
+                description="The vendor expertise domain best matching this RFP (e.g. 'Software Development', not the client's industry)."
+            ),
+            "field_extractions": types.Schema(
+                type=types.Type.ARRAY,
+                items=types.Schema(
+                    type=types.Type.OBJECT,
+                    required=["field_key", "extracted_value"],
+                    properties={
+                        "field_key": types.Schema(
+                            type=types.Type.STRING,
+                            description="The exact field_key from the provided field list."
+                        ),
+                        "extracted_value": types.Schema(
+                            type=types.Type.STRING,
+                            description="The value extracted or inferred from the document for this field."
+                        ),
+                    }
+                ),
+                description="Extracted values for each field where information was found in the document. Only include fields with meaningful data."
+            ),
+        },
+        required=["suggested_name", "refined_description", "suggested_domain_name", "field_extractions"]
+    )
+
 def get_proposal_analysis_schema():
     """
     Schema for AI Proposal Analysis.

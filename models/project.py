@@ -3,6 +3,9 @@ from odoo.exceptions import ValidationError
 import json
 import logging
 import base64
+import zipfile
+import io
+from xml.etree import ElementTree
 from odoo.addons.project_rfp_ai.const import *
 
 _logger = logging.getLogger(__name__)
@@ -61,6 +64,11 @@ class RfpProject(models.Model):
 
     # Required Document Types (for vendor submissions)
     required_document_ids = fields.One2many('rfp.required.document', 'project_id', string="Required Documents")
+
+    # Source Document (for uploaded RFP imports)
+    source_document = fields.Binary(string="Source Document", attachment=True)
+    source_filename = fields.Char(string="Source Filename")
+    source_mimetype = fields.Char(string="Source MIME Type")
 
     # Research Fields
     initial_research = fields.Text(string="Initial Best Practices", readonly=True, help="Broad research before gathering.")
@@ -176,6 +184,161 @@ class RfpProject(models.Model):
                     })
             
             project.current_stage = STAGE_INITIALIZED
+
+    @staticmethod
+    def _extract_text_from_docx(file_bytes):
+        """Extract plain text from a DOCX file using built-in Python modules."""
+        ns = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
+        paragraphs = []
+        with zipfile.ZipFile(io.BytesIO(file_bytes)) as zf:
+            with zf.open('word/document.xml') as doc_xml:
+                tree = ElementTree.parse(doc_xml)
+                for p in tree.getroot().iter(f'{{{ns}}}p'):
+                    texts = [t.text for t in p.iter(f'{{{ns}}}t') if t.text]
+                    if texts:
+                        paragraphs.append(''.join(texts))
+        return '\n'.join(paragraphs)
+
+    def action_initialize_from_document(self):
+        """
+        Initialize project from an uploaded RFP document.
+        Sends document to AI for extraction of project metadata and init field values.
+        Creates form_input records with extracted values as suggested_answers.
+        """
+        self.ensure_one()
+        from odoo.addons.project_rfp_ai.models.ai_schemas import get_document_extraction_schema
+
+        # 1. Build field definitions string from init custom fields
+        init_fields = self.env['rfp.custom.field'].search([('phase', '=', 'init')])
+        field_defs_lines = []
+        for cf in init_fields:
+            line = f"- `{cf.code}` ({cf.input_type}): {cf.name}"
+            options = cf.option_ids
+            if options:
+                opts = ", ".join([o.label for o in options])
+                line += f" [Options: {opts}]"
+            suggestions = cf.suggestion_ids
+            if suggestions:
+                suggs = ", ".join([s.name for s in suggestions])
+                line += f" [Examples: {suggs}]"
+            field_defs_lines.append(line)
+        field_definitions = "\n".join(field_defs_lines)
+
+        # 2. Build prompt
+        existing_domains = self.env['rfp.project.domain'].search([])
+        available_domains_str = "\n".join([f"- {d.name}" for d in existing_domains])
+
+        prompt_record = self.env['rfp.prompt'].search(
+            [('code', '=', 'document_analyzer')], limit=1)
+        if not prompt_record:
+            raise ValidationError("System Prompt 'document_analyzer' not found.")
+
+        system_prompt = prompt_record.template_text.format(
+            available_domains_str=available_domains_str,
+            field_definitions=field_definitions
+        )
+
+        # 3. Prepare file content — Gemini supports PDF natively but NOT DOCX
+        file_content = base64.b64decode(self.source_document)
+        attachments = None
+        user_context = f"Analyze the attached RFP document: {self.source_filename}"
+
+        if self.source_mimetype == 'application/pdf':
+            attachments = [{'data': file_content, 'mime_type': 'application/pdf'}]
+        else:
+            # DOCX: extract text using built-in zipfile (DOCX is a ZIP of XML)
+            extracted_text = self._extract_text_from_docx(file_content)
+            user_context = (
+                f"Analyze the following RFP document content (extracted from {self.source_filename}):\n\n"
+                f"---BEGIN DOCUMENT---\n{extracted_text}\n---END DOCUMENT---"
+            )
+
+        # 4. Call AI
+        try:
+            response_json_str = self.env['rfp.ai.log'].execute_request(
+                system_prompt=system_prompt,
+                user_context=user_context,
+                env=self.env,
+                mode='json',
+                schema=get_document_extraction_schema(),
+                prompt_record=prompt_record,
+                attachments=attachments
+            )
+        except Exception as e:
+            raise ValidationError(f"AI Document Analysis Failed: {str(e)}")
+
+        if not response_json_str:
+            raise ValidationError("AI returned no response for document analysis.")
+
+        try:
+            data = json.loads(response_json_str)
+        except json.JSONDecodeError:
+            raise ValidationError("AI returned invalid JSON for document analysis.")
+
+        # 5. Apply project metadata
+        suggested_name = data.get('suggested_name', '')
+        if self.name == 'Untitled Upload' and suggested_name:
+            self.name = suggested_name
+
+        refined_desc = data.get('refined_description', '')
+        if refined_desc:
+            self.description = refined_desc
+
+        # Domain handling (same pattern as action_initialize_project)
+        suggested_domain = data.get('suggested_domain_name')
+        if suggested_domain:
+            match = next((d for d in existing_domains
+                          if d.name.lower() == suggested_domain.lower()), None)
+            if match:
+                self.domain_id = match.id
+            else:
+                new_domain = self.env['rfp.project.domain'].create(
+                    {'name': suggested_domain})
+                self.domain_id = new_domain.id
+
+        # 6. Initial research (same as normal init)
+        self._run_initial_research()
+
+        # 7. Build extraction lookup: {field_key: extracted_value}
+        extractions = {}
+        for item in data.get('field_extractions', []):
+            key = item.get('field_key')
+            val = item.get('extracted_value')
+            if key and val:
+                extractions[key] = val
+
+        # 8. Create form_input records with extracted values as suggestions
+        for cf in init_fields:
+            existing = self.form_input_ids.filtered(
+                lambda i, code=cf.code: i.field_key == code)
+            if existing:
+                continue
+
+            # Start with default suggestions from custom field
+            suggestions = list(cf.suggestion_ids.mapped('name'))
+
+            # Add extracted value at the top if found
+            extracted_val = extractions.get(cf.code)
+            if extracted_val and extracted_val not in suggestions:
+                suggestions.insert(0, extracted_val)
+
+            self.env['rfp.form.input'].create({
+                'project_id': self.id,
+                'field_key': cf.code,
+                'label': cf.name,
+                'component_type': cf.input_type,
+                'user_value': False,
+                'sequence': cf.sequence,
+                'suggested_answers': json.dumps(suggestions),
+                'options': json.dumps([{'value': o.value, 'label': o.label}
+                                       for o in cf.option_ids]),
+                'specify_triggers': cf.specify_triggers or '[]',
+            })
+
+        self.current_stage = STAGE_INITIALIZED
+        _logger.info("Initialized project %s from document '%s', "
+                     "extracted %d field values",
+                     self.id, self.source_filename, len(extractions))
 
     def _run_initial_research(self):
         self.ensure_one()
