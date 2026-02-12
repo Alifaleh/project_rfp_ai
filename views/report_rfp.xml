@@ -46,11 +46,7 @@
                                 <div class="mb-4">
                                     <h2
                                     t-field="section.section_title" class="mb-3"/>
-                                    <!-- Simple Rendering: Treats Markdown as text for now. 
-                                                                                                                 In a real app, we'd use a markdown-to-html converter. -->
-                                    <div class="ms-1">
-                                        <p style="white-space: pre-wrap;" t-field="section.content_markdown"/>
-                                    </div>
+                                    <div class="ms-1" t-field="section.content_html"/>
                                     <hr/>
                                 </div>
                                 <div class="page-break" style="page-break-inside: avoid;"/>
