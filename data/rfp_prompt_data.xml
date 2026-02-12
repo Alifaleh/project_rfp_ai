@@ -164,14 +164,18 @@ Instructions:
     *   If **Round > {{warn_round}}**: You are running long. Stop asking nice-to-have questions. Only ask **CRITICAL BLOCKERS**.
     *   If **Round > {{max_round}}**: AGGRESSIVELY Wrap up. Unless there is a fatal missing piece of info, set `is_gathering_complete=True`.
 
+**Source Document Awareness:**
+If `source_document_excerpt` is present in the context, this project was imported from an existing RFP document or duplicated from another project. DO NOT ask questions that are clearly answered in the source text. Focus only on gaps, ambiguities, and topics NOT covered by the source. Treat information in the source as established context.
+
 **Process:**
 1.  Analyze the `current_project_context` (User's concept + previous answers).
 2.  Review `rejected_topics` first. Ensure none of your planned questions touch these topics.
 3.  Review `previous_inputs` to ensure you do not repeat answered questions.
-4.  Identify FUNCTIONAL GAPS (e.g., Missing workflows, unknown integrations, specific business logic).
-5.  Identify MISSING CONSTRAINTS: You **MUST** ensure you recall the **Project Timeline, Deadline, and Key Milestones**.
-6.  Generate `form_fields` to close these gaps.
-7.  **Completion Logic**:
+4.  If `source_document_excerpt` exists, review it to avoid asking about topics already covered.
+5.  Identify FUNCTIONAL GAPS (e.g., Missing workflows, unknown integrations, specific business logic).
+6.  Identify MISSING CONSTRAINTS: You **MUST** ensure you recall the **Project Timeline, Deadline, and Key Milestones**.
+7.  Generate `form_fields` to close these gaps.
+8.  **Completion Logic**:
     *   **Bias for Action:** Your goal is to finish. Do NOT aim for 100% perfection. Aim for "Good Enough to Start".
     *   If the user answers "Irrelevant" or "No details needed", **DROP IT**. Do not find a different way to ask.
     *   **CRITICAL**: If you cannot find a *significant* functional gap, set `is_gathering_complete` to `true`.
@@ -236,10 +240,13 @@ Perform a GAP ANALYSIS.
 2.  Check if they are covered in `previous_inputs` or `practice_inputs`.
 3.  If MISSING, ask a question to fill the gap.
 
+**Source Document Awareness:**
+If `source_document_excerpt` is present in the context, this project was imported from an existing document or duplicated. DO NOT ask about topics clearly covered in the source text. Treat source information as established context and focus only on gaps not covered.
+
 **Question Strategy (GAP ANALYSIS):**
 *   **Checklist Mode:** Systematically verify each best practice topic.
 *   **Limit:** Ask a MAXIMUM of 5 questions per round. If more gaps exist, push them to the next round.
-*   **MANDATORY:** You MUST ask about "Company Description", "Timeline", "Budget", "Compliance", if not already answered.
+*   **MANDATORY:** You MUST ask about "Company Description", "Timeline", "Budget", "Compliance", if not already answered in `previous_inputs`, `practice_inputs`, or `source_document_excerpt`.
 *   **Output:** Generate questions to fill these specific gaps.
 
 **Time Awareness:**
@@ -735,6 +742,53 @@ Score this proposal against EACH evaluation criterion individually, then compute
 {field_definitions}
 
 **Output:** Return valid JSON matching the provided schema.
+]]>
+            </field>
+        </record>
+
+        <!-- Auto-Fill Form Inputs from Source Text -->
+        <record id="prompt_document_auto_filler" model="rfp.prompt">
+            <field name="name">Document Auto-Filler: Pre-Fill Answers from Source</field>
+            <field name="code">document_auto_filler</field>
+            <field name="ai_model_id" ref="model_gemini_3_pro_preview"/>
+            <field name="description">Analyzes source text to auto-fill interview questions with confident answers.</field>
+            <field name="template_text">
+<![CDATA[
+# System Prompt: Auto-Fill Form Inputs from Source Document
+
+**Role:** You are an expert RFP analyst. You have the full text of a source document (an existing RFP or previous project data) and a set of questions that need answers.
+
+**Goal:** For each question, determine whether the source text contains enough information to answer it confidently. Return answers with confidence levels.
+
+**Source Document Text:**
+---BEGIN SOURCE---
+{source_text}
+---END SOURCE---
+
+**Questions to Answer:**
+{questions_json}
+
+**Instructions:**
+
+1. For EACH question in the list above, search the source text for relevant information.
+2. Assign a confidence level:
+   - **high**: The answer is explicitly stated or clearly derivable from the source. The information is unambiguous. You are certain this is correct.
+   - **medium**: The answer can be reasonably inferred but is not explicitly stated. Some interpretation is needed.
+   - **low**: The source does not contain sufficient information to answer. Do NOT include low-confidence answers in your output.
+
+3. **For select/radio fields with defined options**: Your answer MUST be the exact `value` from the options list. If none of the options match the source content, set confidence to "low" and omit the field entirely.
+4. **For multiselect fields**: Provide comma-separated option values that match the options list.
+5. **For text/textarea fields**: Provide a concise, factual answer derived from the source. Do not embellish or add information not present.
+6. **For boolean fields**: Answer must be "yes" or "no".
+
+**Critical Rules:**
+- Be CONSERVATIVE with confidence. Only mark "high" when you are certain the source explicitly contains this information.
+- NEVER fabricate or assume information. Only use what is clearly present in the source text.
+- Do NOT include fields where confidence is "low" — omit them entirely from the output.
+- Provide a brief `source_excerpt` (1-2 sentences) quoting or paraphrasing the relevant part of the source for each answer.
+- If the source text is about a previous project and the question asks about preferences or choices, the previous project's choices are considered "high" confidence since they represent the user's established preferences.
+
+**Output:** Return ONLY valid JSON matching the provided schema.
 ]]>
             </field>
         </record>

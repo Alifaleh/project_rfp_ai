@@ -220,6 +220,44 @@ def get_document_extraction_schema():
         required=["suggested_name", "refined_description", "suggested_domain_name", "field_extractions"]
     )
 
+def get_auto_fill_schema():
+    """Schema for auto-filling form inputs from source text with confidence levels."""
+    if not types:
+        return None
+    return types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            "auto_filled_fields": types.Schema(
+                type=types.Type.ARRAY,
+                items=types.Schema(
+                    type=types.Type.OBJECT,
+                    required=["field_key", "answer", "confidence"],
+                    properties={
+                        "field_key": types.Schema(
+                            type=types.Type.STRING,
+                            description="The exact field_key from the question list."
+                        ),
+                        "answer": types.Schema(
+                            type=types.Type.STRING,
+                            description="The answer text. For select/radio fields: must be the exact option value. For multiselect: comma-separated option values. For boolean: 'yes' or 'no'."
+                        ),
+                        "confidence": types.Schema(
+                            type=types.Type.STRING,
+                            enum=["high", "medium", "low"],
+                            description="high: explicitly stated in source (auto-fill). medium: reasonably inferred (suggest). low: insufficient info (omit)."
+                        ),
+                        "source_excerpt": types.Schema(
+                            type=types.Type.STRING,
+                            description="Brief 1-2 sentence quote from the source text supporting this answer."
+                        ),
+                    }
+                ),
+                description="Answers extracted from source text. Only include high and medium confidence entries. Omit low-confidence fields entirely."
+            )
+        },
+        required=["auto_filled_fields"]
+    )
+
 def get_proposal_analysis_schema():
     """
     Schema for AI Proposal Analysis.

@@ -71,6 +71,9 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         'change #rfp_upload_file': '_onUploadFileChange',
         'click #btn_confirm_upload': '_onConfirmUpload',
         'click #btn_retry_upload': '_onRetryUpload',
+
+        // Auto-Fill Review
+        'click .btn-clear-autofill': '_onClearAutofill',
     },
 
     // Custom RPC implementation to avoid module dependency issues in frontend
@@ -1785,7 +1788,7 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         var $btn = $(ev.currentTarget);
         var originalText = $btn.html();
 
-        $btn.html('<i class="fa fa-spinner fa-spin me-1"></i> Duplicating...').prop('disabled', true);
+        $btn.html('<i class="fa fa-spinner fa-spin me-1"></i> Creating &amp; pre-filling...').prop('disabled', true);
 
         try {
             var result = await this._rpc({
@@ -1927,6 +1930,33 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         $modal.find('#rfp_upload_file').val('');
         $modal.find('#upload_file_info').addClass('d-none');
         $modal.find('#btn_confirm_upload').prop('disabled', true);
+    },
+
+    // ========== AUTO-FILL REVIEW ==========
+    _onClearAutofill: async function (ev) {
+        ev.preventDefault();
+        var $btn = $(ev.currentTarget);
+        var fieldKey = $btn.data('field-key');
+        var projectId = $btn.data('project-id');
+
+        if (!fieldKey || !projectId) return;
+
+        $btn.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"/>');
+
+        try {
+            var result = await this._rpc({
+                route: '/rfp/clear_autofill/' + projectId,
+                params: { field_key: fieldKey }
+            });
+            if (result && result.success) {
+                window.location.reload();
+            } else {
+                $btn.prop('disabled', false).html('<i class="fa fa-undo"/>');
+            }
+        } catch (e) {
+            console.error('Failed to clear auto-fill:', e);
+            $btn.prop('disabled', false).html('<i class="fa fa-undo"/>');
+        }
     }
 
 });

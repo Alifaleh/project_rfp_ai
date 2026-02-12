@@ -32,6 +32,7 @@ class RfpFormInput(models.Model):
     is_irrelevant = fields.Boolean(string="Marked Irrelevant", default=False)
     irrelevant_reason = fields.Char(string="Reason for Irrelevance")
     specify_triggers = fields.Text(string="Specify Triggers JSON")
+    is_auto_filled = fields.Boolean(string="Auto-Filled by AI", default=False)
 
     def get_suggested_answers_parsed(self):
         if not self.suggested_answers:

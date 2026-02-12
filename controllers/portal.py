@@ -217,6 +217,22 @@ class RfpCustomerPortal(CustomerPortal):
             
         return request.redirect(f"/rfp/interface/{Project.id}")
 
+    @http.route(['/rfp/clear_autofill/<int:project_id>'], type='json', auth="user", website=True)
+    def portal_rfp_clear_autofill(self, project_id, field_key=None, **kw):
+        """Clear an auto-filled answer so the user can re-answer it."""
+        Project = request.env['rfp.project'].sudo().browse(project_id)
+        if not Project.exists() or Project.user_id != request.env.user:
+            return {'success': False, 'error': 'Access denied'}
+
+        if not field_key:
+            return {'success': False, 'error': 'No field_key provided'}
+
+        inp = Project.form_input_ids.filtered(lambda i: i.field_key == field_key)
+        if inp:
+            inp.write({'user_value': False, 'is_auto_filled': False})
+            return {'success': True}
+        return {'success': False, 'error': 'Field not found'}
+
     # --- PHASE 2: UNIFIED PROCESSING ---
     @http.route(['/rfp/processing/<int:project_id>'], type='http', auth="user", website=True)
     def portal_rfp_processing(self, project_id, **kw):

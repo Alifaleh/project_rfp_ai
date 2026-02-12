@@ -69,6 +69,8 @@ class RfpProject(models.Model):
     source_document = fields.Binary(string="Source Document", attachment=True)
     source_filename = fields.Char(string="Source Filename")
     source_mimetype = fields.Char(string="Source MIME Type")
+    source_extracted_text = fields.Text(string="Source Extracted Text",
+        help="Full text extracted from uploaded document or source project, used for auto-fill and interview context")
 
     # Research Fields
     initial_research = fields.Text(string="Initial Best Practices", readonly=True, help="Broad research before gathering.")
@@ -199,6 +201,159 @@ class RfpProject(models.Model):
                         paragraphs.append(''.join(texts))
         return '\n'.join(paragraphs)
 
+    @staticmethod
+    def _extract_text_from_pdf(file_bytes):
+        """Extract plain text from a PDF file using PyPDF2."""
+        try:
+            import PyPDF2
+            reader = PyPDF2.PdfReader(io.BytesIO(file_bytes))
+            parts = []
+            for page in reader.pages:
+                text = page.extract_text()
+                if text:
+                    parts.append(text)
+            return '\n'.join(parts)
+        except Exception:
+            return ''
+
+    def _auto_fill_from_source(self):
+        """
+        Auto-fill form input answers from source_extracted_text.
+        High-confidence answers → user_value (question disappears from form).
+        Medium-confidence answers → prepended to suggested_answers.
+        Non-fatal: if AI call fails, user answers manually.
+        """
+        self.ensure_one()
+        from odoo.addons.project_rfp_ai.models.ai_schemas import get_auto_fill_schema
+
+        source_text = self.source_extracted_text
+        if not source_text or len(source_text.strip()) < 50:
+            _logger.info("Project %s: No meaningful source text for auto-fill", self.id)
+            return
+
+        # 1. Get all unanswered form_inputs
+        unanswered = self.form_input_ids.filtered(
+            lambda i: not i.user_value and not i.is_irrelevant
+        )
+        if not unanswered:
+            _logger.info("Project %s: No unanswered form inputs for auto-fill", self.id)
+            return
+
+        # 2. Build question list for AI
+        questions = []
+        for inp in unanswered:
+            q = {
+                "field_key": inp.field_key,
+                "label": inp.label,
+                "component_type": inp.component_type,
+            }
+            if inp.options:
+                try:
+                    q["options"] = json.loads(inp.options)
+                except Exception:
+                    pass
+            if inp.suggested_answers:
+                try:
+                    q["existing_suggestions"] = json.loads(inp.suggested_answers)
+                except Exception:
+                    pass
+            questions.append(q)
+
+        questions_json = json.dumps(questions, indent=2)
+
+        # 3. Truncate source text if needed (context window safety)
+        max_source_chars = 50000
+        truncated_source = source_text[:max_source_chars]
+        if len(source_text) > max_source_chars:
+            truncated_source += "\n\n[... Source text truncated for length ...]"
+
+        # 4. Build prompt
+        prompt_record = self.env['rfp.prompt'].search(
+            [('code', '=', PROMPT_DOCUMENT_AUTO_FILLER)], limit=1
+        )
+        if not prompt_record:
+            _logger.warning("Auto-filler prompt not found. Skipping auto-fill for project %s.", self.id)
+            return
+
+        system_prompt = prompt_record.template_text.format(
+            source_text=truncated_source,
+            questions_json=questions_json
+        )
+
+        # 5. Call AI
+        try:
+            response_json_str = self.env['rfp.ai.log'].execute_request(
+                system_prompt=system_prompt,
+                user_context="Auto-fill the above questions from the source text.",
+                env=self.env,
+                mode='json',
+                schema=get_auto_fill_schema(),
+                prompt_record=prompt_record
+            )
+        except Exception as e:
+            _logger.warning("Auto-fill AI call failed for project %s: %s", self.id, e)
+            return
+
+        if not response_json_str:
+            return
+
+        try:
+            data = json.loads(response_json_str)
+        except json.JSONDecodeError:
+            _logger.warning("Auto-fill AI returned invalid JSON for project %s", self.id)
+            return
+
+        # 6. Apply results
+        auto_fill_count = 0
+        suggestion_count = 0
+        input_map = {inp.field_key: inp for inp in unanswered}
+
+        for field_result in data.get('auto_filled_fields', []):
+            field_key = field_result.get('field_key')
+            answer = field_result.get('answer')
+            confidence = field_result.get('confidence', 'low')
+
+            if not field_key or not answer or field_key not in input_map:
+                continue
+
+            inp = input_map[field_key]
+
+            # Validate select/radio answers against options
+            if confidence == 'high' and inp.component_type in ('select', 'radio'):
+                try:
+                    options = json.loads(inp.options) if inp.options else []
+                    valid_values = [
+                        o['value'] if isinstance(o, dict) else o
+                        for o in options
+                    ]
+                    if answer not in valid_values:
+                        confidence = 'medium'  # Demote: doesn't match options
+                except Exception:
+                    confidence = 'medium'
+
+            if confidence == 'high':
+                inp.write({
+                    'user_value': answer,
+                    'is_auto_filled': True,
+                })
+                auto_fill_count += 1
+            elif confidence == 'medium':
+                try:
+                    suggestions = json.loads(inp.suggested_answers) if inp.suggested_answers else []
+                except Exception:
+                    suggestions = []
+                if answer not in suggestions:
+                    suggestions.insert(0, answer)
+                inp.write({
+                    'suggested_answers': json.dumps(suggestions)
+                })
+                suggestion_count += 1
+
+        _logger.info(
+            "Auto-fill for project %s: %d high-confidence fills, %d medium-confidence suggestions",
+            self.id, auto_fill_count, suggestion_count
+        )
+
     def action_initialize_from_document(self):
         """
         Initialize project from an uploaded RFP document.
@@ -245,9 +400,12 @@ class RfpProject(models.Model):
 
         if self.source_mimetype == 'application/pdf':
             attachments = [{'data': file_content, 'mime_type': 'application/pdf'}]
+            # Extract text for auto-fill (PyPDF2)
+            self.source_extracted_text = self._extract_text_from_pdf(file_content)
         else:
             # DOCX: extract text using built-in zipfile (DOCX is a ZIP of XML)
             extracted_text = self._extract_text_from_docx(file_content)
+            self.source_extracted_text = extracted_text
             user_context = (
                 f"Analyze the following RFP document content (extracted from {self.source_filename}):\n\n"
                 f"---BEGIN DOCUMENT---\n{extracted_text}\n---END DOCUMENT---"
@@ -307,6 +465,15 @@ class RfpProject(models.Model):
             if key and val:
                 extractions[key] = val
 
+        # Fallback: if PDF text extraction was empty, build source text from AI extraction
+        if not self.source_extracted_text:
+            parts = [f"Project: {self.name}", f"Description: {self.description}"]
+            for item in data.get('field_extractions', []):
+                k, v = item.get('field_key', ''), item.get('extracted_value', '')
+                if k and v:
+                    parts.append(f"{k}: {v}")
+            self.source_extracted_text = "\n\n".join(parts)
+
         # 8. Create form_input records with extracted values as suggestions
         for cf in init_fields:
             existing = self.form_input_ids.filtered(
@@ -334,6 +501,9 @@ class RfpProject(models.Model):
                                        for o in cf.option_ids]),
                 'specify_triggers': cf.specify_triggers or '[]',
             })
+
+        # 9. Auto-fill answers from source text
+        self._auto_fill_from_source()
 
         self.current_stage = STAGE_INITIALIZED
         _logger.info("Initialized project %s from document '%s', "
@@ -664,10 +834,14 @@ class RfpProject(models.Model):
                 "project_name": project.name,
                 "description": project.description,
                 "domain": project.domain_id.name or 'General',
-                "initial_best_practices": project.initial_research or "No research found.", 
+                "initial_best_practices": project.initial_research or "No research found.",
                 "previous_inputs": previous_inputs,
                 "current_round": (len(previous_inputs) // 4) + 1
             }
+
+            # Include source document text to avoid redundant questions
+            if project.source_extracted_text:
+                context_data["source_document_excerpt"] = project.source_extracted_text[:5000]
 
             is_ongoing = project._execute_interview_round(PROMPT_INTERVIEWER_PROJECT, 'rfp.form.input', context_data, scope_key='project')
             
@@ -737,6 +911,10 @@ class RfpProject(models.Model):
                 "practice_inputs": practice_inputs,
                 "current_round": (len(practice_inputs) // 4) + 1
             }
+
+            # Include source document text to avoid redundant questions
+            if project.source_extracted_text:
+                context_data["source_document_excerpt"] = project.source_extracted_text[:5000]
 
             # Scope Key = 'practices'
             is_ongoing = project._execute_interview_round(PROMPT_INTERVIEWER_PRACTICES, 'rfp.practice.input', context_data, scope_key='practices')
@@ -1270,6 +1448,16 @@ class RfpProject(models.Model):
             'ai_context_blob': json.dumps(new_blob) if new_blob else '{}',
         })
 
+        # Build source text from original project's answers for auto-fill
+        source_parts = [f"Project: {self.name}", f"Description: {self.description}"]
+        if self.domain_id:
+            source_parts.append(f"Domain: {self.domain_id.name}")
+        for inp in self.form_input_ids.filtered(lambda i: i.user_value):
+            source_parts.append(f"Q: {inp.label}\nA: {inp.user_value}")
+        for inp in self.practice_input_ids.filtered(lambda i: i.user_value):
+            source_parts.append(f"Q: {inp.label}\nA: {inp.user_value}")
+        new_project.source_extracted_text = "\n\n".join(source_parts)
+
         # Manually copy form_input_ids with cleared user_value
         for inp in self.form_input_ids:
             # Build suggested_answers: preserve original answer as a suggestion
@@ -1334,6 +1522,9 @@ class RfpProject(models.Model):
         # Copy required documents as-is
         for doc in self.required_document_ids:
             doc.copy(default={'project_id': new_project.id})
+
+        # Auto-fill from source text (original project's answers)
+        new_project._auto_fill_from_source()
 
         _logger.info(f"Duplicated project {self.id} → new project {new_project.id} ({new_project.name}), "
                      f"copied {len(self.form_input_ids)} form inputs, {len(self.practice_input_ids)} practice inputs, "

@@ -350,7 +350,7 @@
                                     <i class="fa fa-copy fa-2x text-rfp-gold"/>
                                 </div>
                                 <h5 class="fw-bold mb-2">Duplicate this RFP?</h5>
-                                <p class="text-muted mb-4">This will create a copy with all interview answers and settings, allowing you to modify them for your new project.</p>
+                                <p class="text-muted mb-4">This will create a copy and use AI to pre-fill answers from your existing project. This may take 1-2 minutes.</p>
                                 <div class="mb-4 text-start">
                                     <label class="form-label small fw-bold" for="duplicate_new_name">Project Name</label>
                                     <input type="text" class="form-control" id="duplicate_new_name" placeholder="Enter name for the new project"/>
@@ -367,7 +367,7 @@
                 </div>
 
                 <!-- Upload RFP Modal (must be inside .rfp-portal-wrapper for widget events) -->
-                <div class="modal fade" id="modal_upload_rfp" tabindex="-1" role="dialog">
+                <div class="modal fade" id="modal_upload_rfp" tabindex="-1" role="dialog" data-bs-backdrop="static" data-bs-keyboard="false">
                     <div class="modal-dialog modal-dialog-centered">
                         <div class="modal-content border-0 shadow-lg">
                             <div class="modal-body py-5 px-4">
@@ -418,7 +418,7 @@
                                         <i class="fa fa-cog fa-spin fa-2x text-rfp-gold"/>
                                     </div>
                                     <h5 class="fw-bold mb-2">Analyzing Your Document</h5>
-                                    <p class="text-muted mb-3">Our AI is reading and extracting information from your RFP. This usually takes 15-30 seconds.</p>
+                                    <p class="text-muted mb-3">Our AI is reading your document, extracting information, and pre-filling answers. This may take 1-2 minutes.</p>
                                     <div class="progress mb-3" style="height: 4px;">
                                         <div class="progress-bar bg-rfp-gold progress-bar-striped progress-bar-animated" style="width: 100%;"/>
                                     </div>
@@ -679,14 +679,51 @@
 
                                 <!-- Progress Bar -->
                                 <t t-set="raw_score" t-value="rfp_project.get_context_data().get('analysis_meta', {}).get('completeness_score', 0)"/>
-                                <t t-set="completeness" t-value="raw_score if raw_score > 1 else raw_score * 100"/>
-                                <div t-if="rfp_project.current_stage == 'initialized' and rfp_project.ai_context_blob" class="mb-4">
+                                <t t-set="ai_completeness" t-value="raw_score if raw_score > 1 else raw_score * 100"/>
+                                <t t-set="total_inputs" t-value="len(rfp_project.form_input_ids)"/>
+                                <t t-set="answered_inputs" t-value="len(rfp_project.form_input_ids.filtered(lambda i: i.user_value or i.is_irrelevant))"/>
+                                <t t-set="fill_pct" t-value="int((answered_inputs / total_inputs) * 100) if total_inputs else 0"/>
+                                <t t-set="completeness" t-value="max(fill_pct, int(ai_completeness))"/>
+                                <div t-if="rfp_project.current_stage == 'initialized'" class="mb-4">
                                     <div class="d-flex justify-content-between mb-2">
                                         <small class="text-muted">Analysis Progress</small>
                                         <small class="fw-semibold text-rfp-gold"><t t-esc="int(completeness)"/>%</small>
                                     </div>
                                     <div class="progress" style="height: 12px;">
                                         <div class="progress-bar" role="progressbar" t-att-style="'width: ' + str(int(completeness)) + '%'" t-att-aria-valuenow="int(completeness)" aria-valuemin="0" aria-valuemax="100"/>
+                                    </div>
+                                </div>
+
+                                <!-- Auto-Filled Summary Banner -->
+                                <t t-set="auto_filled_inputs" t-value="rfp_project.form_input_ids.filtered(lambda i: i.is_auto_filled)"/>
+                                <div t-if="auto_filled_inputs" class="alert border-0 mb-4" style="background: linear-gradient(135deg, rgba(212,175,55,0.08), rgba(212,175,55,0.15)); border-left: 4px solid var(--rfp-gold) !important;">
+                                    <div class="d-flex align-items-center justify-content-between mb-1">
+                                        <div class="d-flex align-items-center">
+                                            <i class="fa fa-magic fa-lg me-2" style="color: var(--rfp-gold);"/>
+                                            <strong style="color: var(--rfp-gold);">
+                                                <t t-esc="len(auto_filled_inputs)"/> answers pre-filled from your document
+                                            </strong>
+                                        </div>
+                                        <a data-bs-toggle="collapse" href="#auto_filled_review" class="small" style="color: var(--rfp-gold); text-decoration: none;">
+                                            <i class="fa fa-chevron-down me-1"/> Review
+                                        </a>
+                                    </div>
+                                    <small class="text-muted">These were extracted automatically. You can undo any to re-answer manually.</small>
+                                    <div class="collapse mt-3" id="auto_filled_review">
+                                        <t t-foreach="auto_filled_inputs" t-as="af">
+                                            <div class="d-flex justify-content-between align-items-start py-2 border-bottom">
+                                                <div class="flex-grow-1 me-2">
+                                                    <small class="text-muted"><t t-esc="af.label"/></small>
+                                                    <div class="fw-semibold"><t t-esc="af.user_value"/></div>
+                                                </div>
+                                                <button class="btn btn-sm btn-outline-warning btn-clear-autofill"
+                                                        t-att-data-field-key="af.field_key"
+                                                        t-att-data-project-id="rfp_project.id"
+                                                        title="Clear this answer to re-answer manually">
+                                                    <i class="fa fa-undo"/>
+                                                </button>
+                                            </div>
+                                        </t>
                                     </div>
                                 </div>
 
@@ -1248,7 +1285,7 @@
                                     <i class="fa fa-copy fa-2x text-rfp-gold"/>
                                 </div>
                                 <h5 class="fw-bold mb-2">Duplicate this RFP?</h5>
-                                <p class="text-muted mb-4">This will create a copy with all interview answers and settings, allowing you to modify them for your new project.</p>
+                                <p class="text-muted mb-4">This will create a copy and use AI to pre-fill answers from your existing project. This may take 1-2 minutes.</p>
                                 <div class="mb-4 text-start">
                                     <label class="form-label small fw-bold" for="duplicate_new_name">Project Name</label>
                                     <input type="text" class="form-control" id="duplicate_new_name" placeholder="Enter name for the new project"/>
@@ -2294,8 +2331,8 @@
                                         </t>
 
                                         <div class="d-flex justify-content-between mt-4">
-                                            <a t-attf-href="/rfp/proposals/#{rfp_project.id}" class="btn btn-outline-secondary">
-                                                <i class="fa fa-arrow-left me-1"/> Back to Proposals
+                                            <a t-attf-href="/rfp/edit/#{rfp_project.id}" class="btn btn-outline-secondary">
+                                                <i class="fa fa-arrow-left me-1"/> Back to Project
                                             </a>
                                             <button type="submit" class="btn btn-rfp-gold btn-lg">
                                                 <i class="fa fa-arrow-right me-2"/> Submit &amp; Continue
@@ -2341,8 +2378,8 @@
                                 </p>
                             </div>
                             <div>
-                                <a t-attf-href="/rfp/proposals/#{rfp_project.id}" class="btn btn-outline-secondary">
-                                    <i class="fa fa-arrow-left me-1"/> Back to Proposals
+                                <a t-attf-href="/rfp/edit/#{rfp_project.id}" class="btn btn-outline-secondary">
+                                    <i class="fa fa-arrow-left me-1"/> Back to Project
                                 </a>
                             </div>
                         </div>
