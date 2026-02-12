@@ -1568,13 +1568,13 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
             icon: 'fa-refresh',
             iconBg: '#fff3cd',
             iconColor: '#856404',
-            title: 'Regenerate All Criteria?',
-            message: 'This will replace all current criteria with freshly AI-generated ones based on your interview answers. Any manual edits will be lost.',
-            confirmText: 'Regenerate',
+            title: 'Restart Evaluation Interview?',
+            message: 'This will clear all current criteria and interview answers, then start a fresh evaluation interview from scratch. Any manual edits will be lost.',
+            confirmText: 'Restart',
             confirmClass: 'btn-warning',
             onConfirm: async function () {
                 const originalText = $btn.html();
-                $btn.html('<i class="fa fa-spinner fa-spin me-1"></i> Regenerating...').prop('disabled', true);
+                $btn.html('<i class="fa fa-spinner fa-spin me-1"></i> Restarting...').prop('disabled', true);
 
                 try {
                     const projectId = self._getEvalProjectId();
@@ -1583,14 +1583,13 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
                         params: {},
                     });
                     if (self._isEvalSuccess(result)) {
-                        self._showEvalBanner('success', 'Criteria Regenerated', 'Reloading page with new criteria...');
-                        setTimeout(() => window.location.reload(), 1200);
+                        window.location.href = result.redirect_url || ('/rfp/eval/setup/' + projectId);
                     } else {
                         self._showEvalBanner('error', 'Error', self._getEvalError(result));
                         $btn.html(originalText).prop('disabled', false);
                     }
                 } catch (e) {
-                    self._showEvalBanner('error', 'Error', 'Regenerate failed: ' + e.message);
+                    self._showEvalBanner('error', 'Error', 'Restart failed: ' + e.message);
                     $btn.html(originalText).prop('disabled', false);
                 }
             }

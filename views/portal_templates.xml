@@ -961,6 +961,164 @@
                     </div>
                 </div>
 
+                <!-- Evaluation Criteria Panel -->
+                <div class="card shadow-sm border-0 mb-4" style="border-left: 4px solid var(--rfp-gold) !important;">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center py-3"
+                         style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#eval_criteria_panel" aria-expanded="false">
+                        <div class="d-flex align-items-center">
+                            <i class="fa fa-balance-scale me-2 text-rfp-gold"/>
+                            <h6 class="mb-0 fw-bold">Evaluation Criteria</h6>
+                            <span class="badge bg-rfp-gold ms-2"><t t-esc="len(rfp_project.evaluation_criterion_ids.filtered('active'))"/></span>
+                            <t t-if="rfp_project.eval_criteria_status == 'finalized'">
+                                <span class="badge bg-success ms-2"><i class="fa fa-check me-1"/>Finalized</span>
+                            </t>
+                            <t t-elif="rfp_project.eval_criteria_status == 'generated'">
+                                <span class="badge bg-warning text-dark ms-2">Ready for Review</span>
+                            </t>
+                            <t t-elif="rfp_project.eval_criteria_status == 'not_started'">
+                                <span class="badge bg-secondary ms-2">Not Started</span>
+                            </t>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <small class="text-muted">Scoring rubric for vendor proposals</small>
+                            <i class="fa fa-chevron-down"/>
+                        </div>
+                    </div>
+                    <div class="collapse" id="eval_criteria_panel">
+                        <div class="card-body p-4">
+
+                            <t t-if="rfp_project.eval_criteria_status == 'not_started'">
+                                <div class="text-center py-3">
+                                    <i class="fa fa-balance-scale fa-3x text-muted mb-3" style="opacity: 0.3;"/>
+                                    <p class="text-muted">No evaluation criteria yet. Generate criteria based on your project requirements.</p>
+                                    <a t-attf-href="/rfp/eval/setup/#{rfp_project.id}" class="btn btn-rfp-gold">
+                                        <i class="fa fa-play me-1"/> Start Criteria Setup
+                                    </a>
+                                </div>
+                            </t>
+
+                            <t t-if="rfp_project.eval_criteria_status in ('generated', 'finalized')">
+                                <!-- Status Banner (hidden by default, shown by JS) -->
+                                <div id="eval_status_banner" class="alert d-none mb-3" role="alert">
+                                    <div class="d-flex align-items-center">
+                                        <i id="eval_status_icon" class="fa fa-2x me-3"/>
+                                        <div>
+                                            <strong id="eval_status_title"/>
+                                            <p id="eval_status_message" class="mb-0 small"/>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Weight Total Indicator -->
+                                <t t-set="eval_total_weight" t-value="sum(c.weight for c in rfp_project.evaluation_criterion_ids.filtered('active'))"/>
+                                <div class="alert mb-3 py-2" id="eval_weight_alert" t-att-class="'alert-success' if eval_total_weight == 100 else ('alert-warning' if abs(eval_total_weight - 100) &lt;= 10 else 'alert-danger')">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="small">
+                                            <i class="fa fa-pie-chart me-1"/>
+                                            Total Weight: <strong id="eval_total_weight"><t t-esc="eval_total_weight"/></strong> / 100
+                                            <span id="eval_weight_hint" t-if="eval_total_weight != 100" class="ms-1">(should equal 100)</span>
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <!-- Criteria Cards -->
+                                <div id="eval_criteria_container" t-att-data-project-id="rfp_project.id">
+                                    <t t-foreach="rfp_project.evaluation_criterion_ids.filtered('active').sorted('sequence')" t-as="c">
+                                        <div class="card border mb-2 eval-criterion-card" t-att-data-criterion-id="c.id">
+                                            <div class="card-body py-2 px-3">
+                                                <div class="row align-items-center">
+                                                    <!-- Name + Category -->
+                                                    <div class="col-md-4">
+                                                        <input type="text" class="form-control form-control-sm fw-bold criterion-name" t-att-value="c.name"/>
+                                                        <div class="mt-1">
+                                                            <span t-attf-class="badge bg-{{ 'primary' if c.category == 'technical' else ('success' if c.category == 'commercial' else ('info' if c.category == 'experience' else ('warning' if c.category == 'compliance' else 'secondary'))) }}"
+                                                                  t-esc="c.category" style="text-transform: capitalize; font-size: 0.7em;"/>
+                                                            <span t-if="c.is_must_have" class="badge bg-danger ms-1" style="font-size: 0.7em;">Must-Have</span>
+                                                        </div>
+                                                    </div>
+                                                    <!-- Weight Slider -->
+                                                    <div class="col-md-3">
+                                                        <label class="form-label small text-muted mb-0">Weight</label>
+                                                        <div class="d-flex align-items-center gap-2">
+                                                            <input type="range" class="form-range criterion-weight-slider" min="1" max="100" t-att-value="c.weight"/>
+                                                            <span class="badge bg-rfp-gold criterion-weight-display" style="min-width: 35px;"><t t-esc="c.weight"/></span>
+                                                        </div>
+                                                    </div>
+                                                    <!-- Must-Have Toggle -->
+                                                    <div class="col-md-2 text-center">
+                                                        <label class="form-label small text-muted mb-0 d-block">Must-Have</label>
+                                                        <div class="form-check form-switch d-inline-block">
+                                                            <input class="form-check-input criterion-must-have" type="checkbox" t-att-checked="'checked' if c.is_must_have else None"/>
+                                                        </div>
+                                                    </div>
+                                                    <!-- Actions -->
+                                                    <div class="col-md-3 text-end">
+                                                        <button class="btn btn-sm btn-outline-secondary me-1 btn-toggle-details" type="button" data-bs-toggle="collapse" t-attf-data-bs-target="#editor_detail_#{c.id}">
+                                                            <i class="fa fa-chevron-down"/>
+                                                        </button>
+                                                        <button class="btn btn-sm btn-outline-danger btn-delete-criterion" type="button">
+                                                            <i class="fa fa-trash"/>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <!-- Collapsible Details -->
+                                                <div class="collapse mt-2" t-attf-id="editor_detail_#{c.id}">
+                                                    <div class="bg-light rounded p-3">
+                                                        <label class="form-label small fw-bold">Description</label>
+                                                        <textarea class="form-control form-control-sm mb-2 criterion-description" rows="2"
+                                                                  placeholder="Describe what this criterion evaluates..."><t t-esc="c.description or ''"/></textarea>
+                                                        <label class="form-label small fw-bold">Scoring Guidance</label>
+                                                        <textarea class="form-control form-control-sm criterion-scoring-guidance" rows="2"
+                                                                  placeholder="What constitutes high, medium, and low scores..."><t t-esc="c.scoring_guidance or ''"/></textarea>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </t>
+                                </div>
+
+                                <!-- Action Buttons -->
+                                <div class="d-flex justify-content-between mt-3">
+                                    <div>
+                                        <button type="button" class="btn btn-sm btn-outline-primary me-2" id="btn_add_criterion">
+                                            <i class="fa fa-plus me-1"/> Add Criterion
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" id="btn_regenerate_criteria">
+                                            <i class="fa fa-refresh me-1"/> Regenerate
+                                        </button>
+                                    </div>
+                                    <div>
+                                        <button type="button" class="btn btn-sm btn-rfp-gold-outline me-2" id="btn_save_criteria">
+                                            <i class="fa fa-save me-1"/> Save Changes
+                                        </button>
+                                        <t t-if="rfp_project.eval_criteria_status == 'finalized'">
+                                            <button type="button" class="btn btn-sm btn-outline-warning" id="btn_unfinalize_criteria">
+                                                <i class="fa fa-unlock me-1"/> Unlock
+                                            </button>
+                                        </t>
+                                        <t t-else="">
+                                            <button type="button" class="btn btn-sm btn-rfp-gold" id="btn_finalize_criteria">
+                                                <i class="fa fa-check me-1"/> Finalize
+                                            </button>
+                                        </t>
+                                    </div>
+                                </div>
+                            </t>
+
+                            <t t-if="rfp_project.eval_criteria_status == 'gathering'">
+                                <div class="text-center py-3">
+                                    <i class="fa fa-spinner fa-spin fa-2x text-rfp-gold mb-3"/>
+                                    <p class="text-muted">Criteria interview is in progress.</p>
+                                    <a t-attf-href="/rfp/eval/setup/#{rfp_project.id}" class="btn btn-rfp-gold-outline">
+                                        <i class="fa fa-arrow-right me-1"/> Continue Interview
+                                    </a>
+                                </div>
+                            </t>
+
+                        </div>
+                    </div>
+                </div>
+
                 <div class="row">
                     <!-- Main Editor Area -->
                     <div class="col-12">
@@ -1291,6 +1449,25 @@
                                 <button type="button" class="btn btn-danger" id="btn_confirm_unpublish">
                                     <i class="fa fa-eye-slash me-1"/> Yes, Unpublish
                                 </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Eval Criteria Confirmation Modal (must be inside rfp-portal-wrapper) -->
+                <div class="modal fade" id="modal_eval_confirm" tabindex="-1">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content border-0 shadow-lg" style="border-radius: var(--rfp-radius);">
+                            <div class="modal-body text-center py-5 px-4">
+                                <div id="eval_confirm_icon_wrap" class="mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle" style="width: 64px; height: 64px;">
+                                    <i id="eval_confirm_icon" class="fa fa-3x"/>
+                                </div>
+                                <h5 id="eval_confirm_title" class="fw-bold mb-2"/>
+                                <p id="eval_confirm_message" class="text-muted mb-4"/>
+                                <div class="d-flex justify-content-center gap-3">
+                                    <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Cancel</button>
+                                    <button type="button" class="btn px-4" id="btn_eval_confirm_action">Confirm</button>
+                                </div>
                             </div>
                         </div>
                     </div>

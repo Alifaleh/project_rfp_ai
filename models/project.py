@@ -1019,8 +1019,7 @@ class RfpProject(models.Model):
 
         prompt_record = self.env['rfp.prompt'].search([('code', '=', PROMPT_GENERATE_EVAL_CRITERIA)], limit=1)
         if not prompt_record:
-            _logger.error("Prompt '%s' not found.", PROMPT_GENERATE_EVAL_CRITERIA)
-            return
+            raise ValidationError(f"Prompt '{PROMPT_GENERATE_EVAL_CRITERIA}' not found.")
 
         try:
             response_json_str = self.env['rfp.ai.log'].execute_request(
@@ -1032,17 +1031,15 @@ class RfpProject(models.Model):
                 prompt_record=prompt_record
             )
         except Exception as e:
-            _logger.error("Eval criteria generation failed: %s", e)
-            return
+            raise ValidationError(f"AI criteria generation failed: {str(e)}")
 
         if not response_json_str:
-            return
+            raise ValidationError("AI returned no response for criteria generation.")
 
         try:
             data = json.loads(response_json_str)
         except json.JSONDecodeError:
-            _logger.error("Invalid JSON from eval criteria generation.")
-            return
+            raise ValidationError("AI returned invalid JSON for criteria generation.")
 
         # Clear existing criteria and create new ones
         self.evaluation_criterion_ids.unlink()

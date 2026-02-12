@@ -917,14 +917,25 @@ class RfpCustomerPortal(CustomerPortal):
 
     @http.route(['/rfp/eval/regenerate/<int:project_id>'], type='json', auth="user", website=True)
     def portal_rfp_eval_regenerate(self, project_id, **kw):
-        """Regenerate criteria from existing interview answers."""
+        """Restart eval criteria: clear old answers + criteria, reset to not_started."""
         Project = request.env['rfp.project'].sudo().browse(project_id)
         if not Project.exists() or Project.user_id.id != request.env.user.id:
             return {'success': False, 'error': 'Access denied'}
 
-        Project._generate_eval_criteria()
-        Project.eval_criteria_status = 'generated'
-        return {'success': True}
+        try:
+            # Clear old eval interview answers
+            Project.eval_input_ids.unlink()
+            # Clear old criteria
+            Project.evaluation_criterion_ids.unlink()
+            # Reset status so setup page triggers a fresh interview
+            Project.eval_criteria_status = 'not_started'
+            return {
+                'success': True,
+                'redirect_url': f'/rfp/eval/setup/{project_id}'
+            }
+        except Exception as e:
+            _logger.exception("Eval criteria restart failed for project %s", project_id)
+            return {'success': False, 'error': str(e)}
 
     # ========== REQUIRED DOCUMENT ROUTES ==========
 
