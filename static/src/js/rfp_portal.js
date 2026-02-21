@@ -39,11 +39,11 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         'click .btn-ai-edit-diagram': '_onAiEditDiagram',
         'click #btn_submit_ai_edit': '_onSubmitAiEdit',
 
-        // Publish Actions
-        'click #btn_publish': '_onPublish',
-        'click #btn_unpublish': '_onUnpublish',
-        'click #btn_confirm_unpublish': '_onConfirmUnpublish',
-        'click #btn_copy_publish_url': '_onCopyPublishUrl',
+        // Export Actions
+        'click #btn_publish': '_onExport',
+        'click #btn_unpublish': '_onDeleteExport',
+        'click #btn_confirm_unpublish': '_onConfirmDeleteExport',
+        'click #btn_copy_publish_url': '_onCopyExportUrl',
         'click #btn_copy_editor_url': '_onCopyEditorUrl',
         'click #btn_copy_proposals_url': '_onCopyProposalsUrl',
 
@@ -74,6 +74,11 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
 
         // Auto-Fill Review
         'click .btn-clear-autofill': '_onClearAutofill',
+
+        // Upload Proposal (Vendor Proposals)
+        'click .btn-upload-proposal': '_onUploadProposalClick',
+        'click #btn_confirm_proposal_upload': '_onConfirmProposalUpload',
+        'click #btn_retry_proposal_upload': '_onRetryProposalUpload',
     },
 
     // Custom RPC implementation to avoid module dependency issues in frontend
@@ -106,6 +111,21 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
     start: function () {
         this._super.apply(this, arguments);
 
+        var self = this;
+
+        // Proposal upload modal: document-level delegated change events
+        // (Bootstrap modals can break widget-scoped event delegation)
+        $(document).on('change.rfpProposalUpload', '#modal_upload_proposal .proposal-doc-file, #modal_upload_proposal #proposal_upload_file', function (e) {
+            var file = e.target.files[0];
+            var $modal = $('#modal_upload_proposal');
+            if (file && file.size > 25 * 1024 * 1024) {
+                $modal.find('#proposal_file_error').text('File too large (max 25 MB): ' + file.name).removeClass('d-none');
+                e.target.value = '';
+            } else {
+                $modal.find('#proposal_file_error').addClass('d-none');
+            }
+            self._validateProposalFiles();
+        });
 
         // 3. Drag and Drop (Native Events)
         // We bind native events to a container (e.g. tbody)
@@ -1081,69 +1101,38 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         this._checkSpecifyTriggers();
     },
 
-    // --- PUBLISH/UNPUBLISH ---
+    // --- EXPORT/DELETE EXPORT ---
 
-    _onPublish: async function (ev) {
+    _onExport: async function (ev) {
         ev.preventDefault();
         const $btn = $(ev.currentTarget);
         const projectId = $btn.data('project-id');
         const isUpdate = $btn.data('is-update') === 'true';
         const originalText = $btn.html();
 
-        $btn.html('<i class="fa fa-spinner fa-spin me-1"></i> Publishing...').prop('disabled', true);
+        $btn.html('<i class="fa fa-spinner fa-spin me-1"></i> Exporting...').prop('disabled', true);
 
         try {
             const result = await this._rpc({
-                route: `/rfp/publish/${projectId}`,
+                route: `/rfp/export/${projectId}`,
                 params: {}
             });
 
             if (result.success) {
-                // Show success with URL
-                this._showNotification('success', isUpdate ? 'Updated!' : 'Published!',
-                    'Your RFP is now public. URL: ' + result.url);
-                // Reload to update buttons
-                setTimeout(() => window.location.reload(), 1500);
+                // Show export success modal with URL and copy button
+                this._showExportSuccessModal(isUpdate ? 'Re-Exported!' : 'Exported!', result.url);
             } else {
-                this._showNotification('error', 'Error', result.error || 'Failed to publish');
+                this._showNotification('error', 'Error', result.error || 'Failed to export');
             }
         } catch (e) {
-            this._showNotification('error', 'Error', 'Failed to publish: ' + e.message);
+            this._showNotification('error', 'Error', 'Failed to export: ' + e.message);
         } finally {
             $btn.html(originalText).prop('disabled', false);
         }
     },
 
-    _onPublish: async function (ev) {
-        ev.preventDefault();
-        const $btn = $(ev.currentTarget);
-        const projectId = $btn.data('project-id');
-        const isUpdate = $btn.data('is-update') === 'true';
-        const originalText = $btn.html();
-
-        $btn.html('<i class="fa fa-spinner fa-spin me-1"></i> Publishing...').prop('disabled', true);
-
-        try {
-            const result = await this._rpc({
-                route: `/rfp/publish/${projectId}`,
-                params: {}
-            });
-
-            if (result.success) {
-                // Show publish success modal with URL and copy button
-                this._showPublishSuccessModal(isUpdate ? 'Updated!' : 'Published!', result.url);
-            } else {
-                this._showNotification('error', 'Error', result.error || 'Failed to publish');
-            }
-        } catch (e) {
-            this._showNotification('error', 'Error', 'Failed to publish: ' + e.message);
-        } finally {
-            $btn.html(originalText).prop('disabled', false);
-        }
-    },
-
-    _showPublishSuccessModal: function (title, url) {
-        // Update existing notification modal to show publish success
+    _showExportSuccessModal: function (title, url) {
+        // Update existing notification modal to show export success
         const $modal = this.$('#modal_publish_success');
         $modal.find('#publish_success_title').text(title);
         $modal.find('#publish_success_url').val(url).attr('data-url', url);
@@ -1151,7 +1140,7 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         $('#modal_publish_success').modal('show');
     },
 
-    _onUnpublish: function (ev) {
+    _onDeleteExport: function (ev) {
         ev.preventDefault();
         const $btn = $(ev.currentTarget);
         const projectId = $btn.data('project-id');
@@ -1161,36 +1150,36 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         $('#modal_unpublish_confirm').modal('show');
     },
 
-    _onConfirmUnpublish: async function (ev) {
+    _onConfirmDeleteExport: async function (ev) {
         ev.preventDefault();
         const $modal = this.$('#modal_unpublish_confirm');
         const projectId = $modal.data('project-id');
         const $btn = $(ev.currentTarget);
         const originalText = $btn.html();
 
-        $btn.html('<i class="fa fa-spinner fa-spin me-1"></i> Unpublishing...').prop('disabled', true);
+        $btn.html('<i class="fa fa-spinner fa-spin me-1"></i> Deleting...').prop('disabled', true);
 
         try {
             const result = await this._rpc({
-                route: `/rfp/unpublish/${projectId}`,
+                route: `/rfp/delete_export/${projectId}`,
                 params: {}
             });
 
             if (result.success) {
                 $('#modal_unpublish_confirm').modal('hide');
-                this._showNotification('success', 'Unpublished', 'Your RFP has been taken down.');
+                this._showNotification('success', 'Deleted', 'Your RFP export has been deleted.');
                 setTimeout(() => window.location.reload(), 1500);
             } else {
-                this._showNotification('error', 'Error', result.error || 'Failed to unpublish');
+                this._showNotification('error', 'Error', result.error || 'Failed to delete export');
             }
         } catch (e) {
-            this._showNotification('error', 'Error', 'Failed to unpublish: ' + e.message);
+            this._showNotification('error', 'Error', 'Failed to delete export: ' + e.message);
         } finally {
             $btn.html(originalText).prop('disabled', false);
         }
     },
 
-    _onCopyPublishUrl: function (ev) {
+    _onCopyExportUrl: function (ev) {
         const $input = this.$('#publish_success_url');
         const inputEl = $input[0];
         const $btn = $(ev.currentTarget);
@@ -1957,6 +1946,116 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
             console.error('Failed to clear auto-fill:', e);
             $btn.prop('disabled', false).html('<i class="fa fa-undo"/>');
         }
+    },
+
+    // ========== UPLOAD PROPOSAL (VENDOR PROPOSALS) ==========
+    _onUploadProposalClick: function (ev) {
+        var self = this;
+        var projectId = $(ev.currentTarget).data('project-id');
+        var $modal = $('#modal_upload_proposal');
+        $modal.data('project-id', projectId);
+        // Reset states
+        $modal.find('#proposal_form_state').removeClass('d-none');
+        $modal.find('#proposal_processing_state').addClass('d-none');
+        $modal.find('#proposal_error_state').addClass('d-none');
+        $modal.find('#proposal_upload_file').val('');
+        $modal.find('.proposal-doc-file').each(function () { this.value = ''; });
+        $modal.find('#proposal_vendor_name').val('');
+        $modal.find('#proposal_file_error').addClass('d-none');
+        $modal.find('#btn_confirm_proposal_upload').prop('disabled', true);
+
+        // Clear any previous polling
+        if (this._proposalPollId) clearInterval(this._proposalPollId);
+
+        // Poll file inputs every 500ms as fallback for event delegation issues
+        this._proposalPollId = setInterval(function () {
+            var $m = $('#modal_upload_proposal');
+            if (!$m.hasClass('show')) {
+                clearInterval(self._proposalPollId);
+                self._proposalPollId = null;
+                return;
+            }
+            self._validateProposalFiles();
+        }, 500);
+
+        $modal.modal('show');
+    },
+
+    _validateProposalFiles: function () {
+        var $modal = $('#modal_upload_proposal');
+        var $requiredInputs = $modal.find('.proposal-doc-input[data-required="true"]');
+        var hasRequiredDocs = $requiredInputs.length > 0;
+
+        if (hasRequiredDocs) {
+            var allFilled = true;
+            $requiredInputs.each(function () {
+                var fileInput = $(this).find('.proposal-doc-file')[0];
+                if (!fileInput || !fileInput.files || !fileInput.files.length) {
+                    allFilled = false;
+                }
+            });
+            $modal.find('#btn_confirm_proposal_upload').prop('disabled', !allFilled);
+        } else {
+            // Fallback: single file mode — need at least the main file
+            var fileInput = $modal.find('#proposal_upload_file')[0];
+            var hasFile = fileInput && fileInput.files && fileInput.files.length > 0;
+            $modal.find('#btn_confirm_proposal_upload').prop('disabled', !hasFile);
+        }
+    },
+
+    _onConfirmProposalUpload: async function (ev) {
+        var $modal = $('#modal_upload_proposal');
+        var projectId = $modal.data('project-id');
+        var vendorName = $modal.find('#proposal_vendor_name').val();
+
+        // Switch to processing state
+        $modal.find('#proposal_form_state').addClass('d-none');
+        $modal.find('#proposal_processing_state').removeClass('d-none');
+
+        // Build FormData with all files
+        var formData = new FormData();
+        formData.append('vendor_name', vendorName);
+        formData.append('csrf_token', odoo.csrf_token);
+
+        // Add required document files
+        $modal.find('.proposal-doc-file').each(function () {
+            if (this.files && this.files.length > 0) {
+                formData.append(this.name, this.files[0]);
+            }
+        });
+
+        // Add additional/single proposal file
+        var mainFileInput = $modal.find('#proposal_upload_file')[0];
+        if (mainFileInput && mainFileInput.files && mainFileInput.files.length > 0) {
+            formData.append('proposal_file', mainFileInput.files[0]);
+        }
+
+        try {
+            var response = await fetch('/rfp/proposal/upload/' + projectId, {
+                method: 'POST',
+                body: formData
+            });
+            var result = await response.json();
+
+            if (result.success) {
+                $modal.modal('hide');
+                window.location.href = result.redirect_url;
+            } else {
+                $modal.find('#proposal_processing_state').addClass('d-none');
+                $modal.find('#proposal_error_state').removeClass('d-none');
+                $modal.find('#proposal_error_message').text(result.error || 'Upload failed');
+            }
+        } catch (e) {
+            $modal.find('#proposal_processing_state').addClass('d-none');
+            $modal.find('#proposal_error_state').removeClass('d-none');
+            $modal.find('#proposal_error_message').text('Network error: ' + e.message);
+        }
+    },
+
+    _onRetryProposalUpload: function (ev) {
+        var $modal = $('#modal_upload_proposal');
+        $modal.find('#proposal_error_state').addClass('d-none');
+        $modal.find('#proposal_form_state').removeClass('d-none');
     }
 
 });

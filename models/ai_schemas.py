@@ -257,6 +257,36 @@ def get_auto_fill_schema():
         },
         required=["auto_filled_fields"]
     )
+def get_proposal_extraction_schema():
+    """Schema for extracting vendor info from uploaded proposal."""
+    if not types:
+        return None
+    return types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            "company_name": types.Schema(
+                type=types.Type.STRING,
+                description="Vendor company name extracted from proposal"
+            ),
+            "contact_person": types.Schema(
+                type=types.Type.STRING,
+                description="Contact person name"
+            ),
+            "email": types.Schema(
+                type=types.Type.STRING,
+                description="Email address"
+            ),
+            "phone": types.Schema(
+                type=types.Type.STRING,
+                description="Phone number (optional)"
+            ),
+            "website": types.Schema(
+                type=types.Type.STRING,
+                description="Company website (optional)"
+            ),
+        },
+        required=["company_name", "contact_person", "email"]
+    )
 
 def get_proposal_analysis_schema():
     """

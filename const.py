@@ -29,6 +29,7 @@ PROMPT_INTERVIEWER_EVAL_CRITERIA = 'interviewer_eval_criteria'
 PROMPT_GENERATE_EVAL_CRITERIA = 'generate_eval_criteria'
 PROMPT_ANALYZE_PROPOSAL_CRITERIA = 'analyze_proposal_criteria'
 PROMPT_DOCUMENT_AUTO_FILLER = 'document_auto_filler'
+PROMPT_PROPOSAL_EXTRACTOR = 'proposal_extractor'
 
 # Generation Status
 STATUS_PENDING = 'pending'

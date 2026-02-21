@@ -793,5 +793,37 @@ Score this proposal against EACH evaluation criterion individually, then compute
             </field>
         </record>
 
+        <!-- Proposal Vendor Info Extractor -->
+        <record id="prompt_proposal_extractor" model="rfp.prompt">
+            <field name="name">Proposal Extractor: Extract Vendor Info</field>
+            <field name="code">proposal_extractor</field>
+            <field name="ai_model_id" ref="model_gemini_3_pro_preview"/>
+            <field name="description">Extracts vendor information from uploaded proposal documents.</field>
+            <field name="template_text">
+<![CDATA[
+# System Prompt: Extract Vendor Information from Proposal
+
+You are analyzing a vendor proposal document. Extract the following information:
+
+**Proposal Text:**
+{proposal_text}
+
+**Instructions:**
+1. Find the vendor's company name
+2. Find the contact person name
+3. Find the email address
+4. Find the phone number (if present)
+5. Find the company website (if present)
+
+Return valid JSON matching the schema. If a field is not found, use:
+- company_name: "Unknown Vendor"
+- contact_person: "N/A"
+- email: "noreply@example.com"
+- phone: "" (empty string if not found)
+- website: "" (empty string if not found)
+]]>
+            </field>
+        </record>
+
     </data>
 </odoo>

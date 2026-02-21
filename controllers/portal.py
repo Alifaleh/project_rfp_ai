@@ -577,110 +577,57 @@ class RfpCustomerPortal(CustomerPortal):
         ]
         return request.make_response(file_content, headers=headers)
 
-    # ============ PUBLISH ROUTES ============
+    # ============ EXPORT ROUTES ============
 
-    @http.route(['/rfp/publish/<int:project_id>'], type='json', auth="user", methods=['POST'])
-    def portal_rfp_publish(self, project_id, **kw):
-        """Publish or update an RFP for public viewing."""
+    @http.route(['/rfp/export/<int:project_id>'], type='json', auth="user", methods=['POST'])
+    def portal_rfp_export(self, project_id, **kw):
+        """Export RFP for download (no public submission)."""
         Project = request.env['rfp.project'].sudo().browse(project_id)
-        
+
         # Verify ownership
         if not Project.exists() or Project.user_id.id != request.env.user.id:
             return {'success': False, 'error': 'Access denied'}
-        
+
         try:
-            public_url = Project.action_publish()
-            return {'success': True, 'url': public_url, 'is_update': bool(Project.published_id.last_updated)}
+            download_url = Project.action_export_rfp()
+            return {'success': True, 'url': download_url, 'is_update': bool(Project.published_id.last_updated)}
         except Exception as e:
             return {'success': False, 'error': str(e)}
 
-    @http.route(['/rfp/unpublish/<int:project_id>'], type='json', auth="user", methods=['POST'])
-    def portal_rfp_unpublish(self, project_id, **kw):
-        """Take down a published RFP."""
+    @http.route(['/rfp/delete_export/<int:project_id>'], type='json', auth="user", methods=['POST'])
+    def portal_rfp_delete_export(self, project_id, **kw):
+        """Delete an exported RFP."""
         Project = request.env['rfp.project'].sudo().browse(project_id)
-        
+
         # Verify ownership
         if not Project.exists() or Project.user_id.id != request.env.user.id:
             return {'success': False, 'error': 'Access denied'}
-        
+
         try:
-            Project.action_unpublish()
+            Project.action_delete_export()
             return {'success': True}
         except Exception as e:
             return {'success': False, 'error': str(e)}
 
-    @http.route(['/rfp/public/<string:uuid>'], type='http', auth="public", website=True)
-    def portal_rfp_public_view(self, uuid, **kw):
-        """Public view of a published RFP."""
+    @http.route(['/rfp/export/view/<string:uuid>'], type='http', auth="user", website=True)
+    def portal_rfp_export_view(self, uuid, **kw):
+        """View exported RFP (authenticated only)."""
         Published = request.env['rfp.published'].sudo().search([('uuid', '=', uuid), ('active', '=', True)], limit=1)
-        
+
         if not Published:
-            return request.redirect('/')
-        
+            return request.redirect('/my')
+
+        # Verify ownership
+        if Published.owner_id.id != request.env.user.id:
+            return request.redirect('/my')
+
         values = {
             'published': Published,
             'sections': Published.section_ids.sorted(lambda s: s.sequence),
         }
-        return request.render("project_rfp_ai.portal_rfp_public_view", values)
+        return request.render("project_rfp_ai.portal_rfp_export_view", values)
 
-    @http.route(['/rfp/public/<string:uuid>/submit'], type='http', auth="public", website=True, methods=['GET', 'POST'], csrf=True)
-    def portal_rfp_proposal_submit(self, uuid, **post):
-        """Proposal submission form and handler."""
-        Published = request.env['rfp.published'].sudo().search([('uuid', '=', uuid), ('active', '=', True)], limit=1)
-
-        if not Published:
-            return request.redirect('/')
-
-        # Get required documents from the source project
-        required_docs = Published.project_id.required_document_ids.sorted('sequence')
-
-        if request.httprequest.method == 'POST':
-            # Handle legacy single file upload
-            proposal_file = None
-            proposal_filename = None
-            if 'proposal_file' in request.httprequest.files:
-                file = request.httprequest.files['proposal_file']
-                if file.filename:
-                    proposal_file = base64.b64encode(file.read())
-                    proposal_filename = file.filename
-
-            # Create proposal
-            proposal = request.env['rfp.proposal'].sudo().create({
-                'published_id': Published.id,
-                'company_name': post.get('company_name'),
-                'contact_person': post.get('contact_person'),
-                'email': post.get('email'),
-                'phone': post.get('phone'),
-                'website': post.get('website'),
-                'linkedin': post.get('linkedin'),
-                'proposal_file': proposal_file,
-                'proposal_filename': proposal_filename,
-                'notes': post.get('notes'),
-            })
-
-            # Handle multi-document uploads
-            if required_docs:
-                for doc_type in required_docs:
-                    file_key = f'doc_file_{doc_type.id}'
-                    if file_key in request.httprequest.files:
-                        file = request.httprequest.files[file_key]
-                        if file.filename:
-                            request.env['rfp.proposal.document'].sudo().create({
-                                'proposal_id': proposal.id,
-                                'required_document_id': doc_type.id,
-                                'name': doc_type.name,
-                                'file_data': base64.b64encode(file.read()),
-                                'filename': file.filename,
-                                'sequence': doc_type.sequence,
-                            })
-
-            return request.render("project_rfp_ai.portal_rfp_proposal_success", {'published': Published})
-
-        values = {
-            'published': Published,
-            'required_docs': required_docs,
-        }
-        return request.render("project_rfp_ai.portal_rfp_proposal_form", values)
+    # ============ PROPOSALS ROUTES (Owner only - no public submission) ============
 
     @http.route(['/rfp/proposals/<int:project_id>'], type='http', auth="user", website=True)
     def portal_rfp_view_proposals(self, project_id, **kw):
@@ -766,6 +713,119 @@ class RfpCustomerPortal(CustomerPortal):
         values['proposal_documents'] = proposal_documents
 
         return request.render("project_rfp_ai.portal_rfp_proposal_detail", values)
+
+    @http.route(['/rfp/proposal/upload/<int:project_id>'], type='http', auth="user",
+                methods=['POST'], website=True, csrf=True)
+    def portal_rfp_proposal_upload(self, project_id, **post):
+        """Client uploads vendor proposal documents for AI analysis."""
+        import base64
+        Project = request.env['rfp.project'].sudo().browse(project_id)
+
+        # Verify ownership
+        if not Project.exists() or Project.user_id != request.env.user:
+            return request.make_json_response({'success': False, 'error': 'Access denied'})
+
+        vendor_name = post.get('vendor_name', '').strip()
+        required_docs = Project.required_document_ids.sorted('sequence')
+
+        # Collect all uploaded files
+        all_files = request.httprequest.files
+        main_proposal_file = None
+        main_proposal_filename = None
+        main_proposal_b64 = None
+
+        # Ensure project has a published record
+        if not Project.published_id:
+            published = request.env['rfp.published'].sudo().create({
+                'project_id': Project.id,
+                'title': Project.name,
+                'description': Project.description or '',
+                'owner_id': Project.user_id.id,
+            })
+            Project.published_id = published.id
+
+        # Process required document files (doc_file_{id})
+        doc_entries = []
+        for doc_type in required_docs:
+            file_key = f'doc_file_{doc_type.id}'
+            if file_key in all_files:
+                f = all_files[file_key]
+                if f.filename:
+                    f_bytes = f.read()
+                    f_b64 = base64.b64encode(f_bytes).decode('utf-8')
+                    doc_entries.append({
+                        'required_document_id': doc_type.id,
+                        'name': doc_type.name,
+                        'file_data': f_b64,
+                        'filename': f.filename,
+                        'sequence': doc_type.sequence,
+                    })
+                    # Use first PDF/DOCX as main proposal for AI extraction
+                    if not main_proposal_file:
+                        ext = f.filename.lower().split('.')[-1]
+                        if ext in ('pdf', 'docx'):
+                            main_proposal_file = f_b64
+                            main_proposal_filename = f.filename
+
+        # Process the additional/single proposal_file input
+        additional_file = all_files.get('proposal_file')
+        if additional_file and additional_file.filename:
+            add_bytes = additional_file.read()
+            add_b64 = base64.b64encode(add_bytes).decode('utf-8')
+            if not main_proposal_file:
+                ext = additional_file.filename.lower().split('.')[-1]
+                if ext in ('pdf', 'docx'):
+                    main_proposal_file = add_b64
+                    main_proposal_filename = additional_file.filename
+                else:
+                    return request.make_json_response({
+                        'success': False,
+                        'error': 'Only PDF and DOCX files are supported for AI analysis'
+                    })
+            # Also store as a document entry if required docs exist
+            if required_docs:
+                doc_entries.append({
+                    'name': 'Additional Document',
+                    'file_data': add_b64,
+                    'filename': additional_file.filename,
+                    'sequence': 999,
+                })
+
+        # Validate we have at least one file
+        if not main_proposal_file and not doc_entries:
+            return request.make_json_response({'success': False, 'error': 'No files provided'})
+
+        # Create proposal record
+        Proposal = request.env['rfp.proposal'].sudo().create({
+            'published_id': Project.published_id.id,
+            'proposal_file': main_proposal_file,
+            'proposal_filename': main_proposal_filename or '',
+            'company_name': vendor_name or 'Processing...',
+            'contact_person': 'Extracting...',
+            'email': 'pending@extraction.ai',
+            'status': 'new',
+            'analysis_status': 'pending',
+        })
+
+        # Create document records
+        for entry in doc_entries:
+            entry['proposal_id'] = Proposal.id
+            request.env['rfp.proposal.document'].sudo().create(entry)
+
+        # Trigger AI extraction and analysis
+        try:
+            Proposal.action_extract_and_analyze()
+        except Exception as e:
+            return request.make_json_response({
+                'success': False,
+                'error': f'Upload succeeded but analysis failed: {str(e)}'
+            })
+
+        return request.make_json_response({
+            'success': True,
+            'proposal_id': Proposal.id,
+            'redirect_url': f'/rfp/proposals/{project_id}'
+        })
 
     # ========== EVALUATION CRITERIA ROUTES ==========
 

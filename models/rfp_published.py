@@ -42,7 +42,7 @@ class RfpPublished(models.Model):
     def get_public_url(self):
         self.ensure_one()
         base_url = self.env['ir.config_parameter'].sudo().get_param('web.base.url')
-        return f"{base_url}/rfp/public/{self.uuid}"
+        return f"{base_url}/rfp/export/view/{self.uuid}"
 
     def copy_content_from_project(self):
         """Copy or update content from source project."""
@@ -354,3 +354,116 @@ Be objective, evidence-based, and score each criterion according to its scoring 
             'weighted_score': data.get('weighted_total_score', 0),
             'has_must_have_failure': has_failure,
         })
+
+    def action_extract_and_analyze(self):
+        """Extract vendor info from uploaded proposal and trigger scoring."""
+        self.ensure_one()
+        import json
+        import base64
+        import io
+        import logging
+        _logger = logging.getLogger(__name__)
+
+        from odoo.addons.project_rfp_ai.models.ai_schemas import get_proposal_extraction_schema
+        from odoo.addons.project_rfp_ai.const import PROMPT_PROPOSAL_EXTRACTOR
+        from odoo.exceptions import ValidationError
+
+        # Decode file
+        if not self.proposal_file:
+            _logger.warning("No proposal file to extract from")
+            self._trigger_analysis_job()
+            return
+
+        file_bytes = base64.b64decode(self.proposal_file)
+        filename = self.proposal_filename or ''
+
+        # Extract text
+        try:
+            if filename.lower().endswith('.pdf'):
+                text = self._extract_text_from_pdf(file_bytes)
+            elif filename.lower().endswith('.docx'):
+                text = self._extract_text_from_docx(file_bytes)
+            else:
+                _logger.warning(f"Unsupported file type: {filename}")
+                self._trigger_analysis_job()
+                return
+        except Exception as e:
+            _logger.error(f"Failed to extract text from {filename}: {e}")
+            self._trigger_analysis_job()
+            return
+
+        # Build prompt for vendor extraction
+        prompt_record = self.env['rfp.prompt'].search([('code', '=', PROMPT_PROPOSAL_EXTRACTOR)], limit=1)
+        if not prompt_record:
+            _logger.warning("Proposal extractor prompt not found")
+            self._trigger_analysis_job()
+            return
+
+        system_prompt = prompt_record.template_text.replace(
+            '{proposal_text}', text[:10000]  # Truncate for safety
+        )
+
+        # Call AI
+        try:
+            response_json = self.env['rfp.ai.log'].execute_request(
+                system_prompt=system_prompt,
+                user_context="Extract vendor information from the above proposal.",
+                env=self.env,
+                mode='json',
+                schema=get_proposal_extraction_schema(),
+                prompt_record=prompt_record
+            )
+
+            if response_json:
+                data = json.loads(response_json)
+                self.write({
+                    'company_name': data.get('company_name', self.company_name or 'Unknown Vendor'),
+                    'contact_person': data.get('contact_person', 'N/A'),
+                    'email': data.get('email', 'noreply@example.com'),
+                    'phone': data.get('phone', ''),
+                    'website': data.get('website', ''),
+                })
+        except Exception as e:
+            _logger.error(f"Failed to extract vendor info: {e}")
+
+        # Trigger scoring analysis
+        self._trigger_analysis_job()
+
+    def _trigger_analysis_job(self):
+        """Trigger proposal analysis as a queue job."""
+        if hasattr(self.env['rfp.proposal'], 'with_delay'):
+            # Queue job available
+            self.with_delay().analyze_proposal_job()
+        else:
+            # Fallback to immediate execution
+            self.analyze_proposal_job()
+
+    @staticmethod
+    def _extract_text_from_pdf(file_bytes):
+        """Extract text from PDF."""
+        import io
+        import PyPDF2
+        reader = PyPDF2.PdfReader(io.BytesIO(file_bytes))
+        parts = []
+        for page in reader.pages:
+            text = page.extract_text()
+            if text:
+                parts.append(text)
+        return '\n'.join(parts)
+
+    @staticmethod
+    def _extract_text_from_docx(file_bytes):
+        """Extract text from DOCX."""
+        import io
+        import zipfile
+        from xml.etree import ElementTree
+        ns = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
+        paragraphs = []
+        with zipfile.ZipFile(io.BytesIO(file_bytes)) as zf:
+            with zf.open('word/document.xml') as doc_xml:
+                tree = ElementTree.parse(doc_xml)
+                for p in tree.getroot().iter(f'{{{ns}}}p'):
+                    texts = [t.text for t in p.iter(f'{{{ns}}}t') if t.text]
+                    if texts:
+                        paragraphs.append(''.join(texts))
+        return '\n'.join(paragraphs)

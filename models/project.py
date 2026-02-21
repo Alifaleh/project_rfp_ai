@@ -76,9 +76,9 @@ class RfpProject(models.Model):
     initial_research = fields.Text(string="Initial Best Practices", readonly=True, help="Broad research before gathering.")
     refined_practices = fields.Text(string="Refined Best Practices", readonly=True, help="Specific research after gathering.")
 
-    # Publishing Fields
-    published_id = fields.Many2one('rfp.published', string="Published RFP", readonly=True, copy=False)
-    is_published = fields.Boolean(string="Is Published", compute='_compute_is_published')
+    # Export Fields
+    published_id = fields.Many2one('rfp.published', string="Exported RFP", readonly=True, copy=False)
+    is_published = fields.Boolean(string="Is Exported", compute='_compute_is_published')
 
 
 
@@ -1389,16 +1389,16 @@ class RfpProject(models.Model):
         for rec in self:
             rec.is_published = bool(rec.published_id and rec.published_id.active)
 
-    def action_publish(self):
-        """Publish or update the RFP for public viewing."""
+    def action_export_rfp(self):
+        """Export the RFP for download (no public submission)."""
         self.ensure_one()
-        
+
         if self.published_id:
-            # Update existing published record
+            # Update existing export record
             self.published_id.copy_content_from_project()
             self.published_id.active = True
         else:
-            # Create new published record
+            # Create new export record
             published = self.env['rfp.published'].sudo().create({
                 'project_id': self.id,
                 'title': self.name,
@@ -1407,11 +1407,11 @@ class RfpProject(models.Model):
             })
             published.copy_content_from_project()
             self.published_id = published.id
-        
+
         return self.published_id.get_public_url()
 
-    def action_unpublish(self):
-        """Take down the published RFP."""
+    def action_delete_export(self):
+        """Delete the exported RFP."""
         self.ensure_one()
         if self.published_id:
             self.published_id.active = False
