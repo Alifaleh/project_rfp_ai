@@ -825,5 +825,141 @@ Return valid JSON matching the schema. If a field is not found, use:
             </field>
         </record>
 
+        <!-- KB Structure Extractor (Step 1 of 2) -->
+        <record id="prompt_kb_structure_extractor" model="rfp.prompt">
+            <field name="name">KB: Structure Extractor</field>
+            <field name="code">kb_structure_extractor</field>
+            <field name="ai_model_id" ref="model_gemini_3_pro_preview"/>
+            <field name="template_text">
+<![CDATA[
+You are an Expert Solution Architect specializing in RFP analysis.
+
+**GOAL**
+Analyze the attached document to extract its structural outline. Identify every major section of this RFP and classify each one.
+
+**PART 1: DOMAIN SELECTION**
+- The Domain must represent the **Vendor's Expertise** required (e.g. "Software Development", "Logistics"), NOT the client's industry.
+- **Available Domains:**
+{available_domains}
+- Select the best fit from the list. If none fit, propose a new, broadly applicable service domain.
+
+**PART 2: SUMMARY**
+Write a concise 2-4 sentence summary describing:
+- What domain expertise this document covers
+- The key focus areas and requirements
+- Any notable compliance or industry standards mentioned
+
+**PART 3: SECTION EXTRACTION**
+Extract every major section from the document. For each section:
+1. **title**: The section title as it appears (or a clear inferred title if the document lacks headings)
+2. **section_type**: Classify into one of: introduction, functional, technical, compliance, security, timeline, budget, evaluation, support, appendix
+
+**Rules:**
+- Extract ALL major sections, not just a few
+- If the document has numbered sections (e.g. "1. Introduction", "2. Scope"), use those
+- If the document lacks clear sections, infer logical divisions from the content
+- Order sections as they appear in the document
+]]>
+            </field>
+        </record>
+
+        <!-- KB Content Extractor (Step 2 of 2) -->
+        <record id="prompt_kb_content_extractor" model="rfp.prompt">
+            <field name="name">KB: Content Extractor</field>
+            <field name="code">kb_content_extractor</field>
+            <field name="ai_model_id" ref="model_gemini_3_pro_preview"/>
+            <field name="template_text">
+<![CDATA[
+You are an Expert Solution Architect specializing in RFP best practices.
+
+**GOAL**
+For each section listed below, analyze the attached document and extract generalized best practices, standard content patterns, and key topics.
+
+**SECTIONS TO ANALYZE:**
+{section_list}
+
+**CRITICAL RULES:**
+1. **GENERALIZE everything.** Do NOT include client-specific names, dates, project names, or vendor names.
+   - *Bad:* "The system must integrate with Federal Authority for Identity."
+   - *Good:* "The solution must support integration with National Identity Providers for user verification."
+
+2. For each section, provide:
+   - **description**: A comprehensive guide of best practices for writing this type of section in an RFP. Include what content should be covered, what standards to follow, and what pitfalls to avoid. This should be detailed enough (3-8 paragraphs) to guide someone writing a similar section from scratch.
+   - **key_topics**: A list of specific topics, standards, or requirements that should be addressed in this section.
+
+3. Focus on REUSABLE knowledge that applies to any similar RFP in this domain, not just this specific document.
+
+**OUTPUT FORMAT**
+Return a JSON object with a "sections" array. Each element must have "title" (matching the section titles above), "description", and "key_topics".
+]]>
+            </field>
+        </record>
+
+        <!-- KB Project Generalizer -->
+        <record id="prompt_kb_project_generalizer" model="rfp.prompt">
+            <field name="name">KB: Project Generalizer</field>
+            <field name="code">kb_project_generalizer</field>
+            <field name="ai_model_id" ref="model_gemini_3_pro_preview"/>
+            <field name="template_text">
+<![CDATA[
+You are an Expert Solution Architect specializing in RFP best practices.
+
+**GOAL**
+You are given the sections of a completed RFP project. Your task is to:
+1. Classify each section into a category
+2. Generalize the content into reusable best practices
+3. Write a summary of the overall knowledge base
+
+**PROJECT SECTIONS:**
+{sections_context}
+
+**CRITICAL RULES:**
+1. **GENERALIZE everything.** Remove ALL client-specific names, dates, project names, vendor names, and specific figures.
+2. Transform specific requirements into industry best practices.
+3. For each section, provide:
+   - **title**: Keep the original section title
+   - **section_type**: Classify as one of: introduction, functional, technical, compliance, security, timeline, budget, evaluation, support, appendix
+   - **description**: Generalized best practices (3-8 paragraphs) for writing this type of section
+   - **key_topics**: List of key topics covered
+
+**SUMMARY**
+Write a 2-4 sentence summary describing what domain expertise and section coverage this knowledge base provides.
+]]>
+            </field>
+        </record>
+
+        <!-- KB Selector -->
+        <record id="prompt_kb_selector" model="rfp.prompt">
+            <field name="name">KB: Smart Selector</field>
+            <field name="code">kb_selector</field>
+            <field name="ai_model_id" ref="model_gemini_3_pro_preview"/>
+            <field name="template_text">
+<![CDATA[
+You are an Expert Solution Architect helping to select the most relevant Knowledge Bases for a new RFP project.
+
+**NEW PROJECT:**
+- Name: {project_name}
+- Description: {project_description}
+- Domain: {project_domain}
+
+**CANDIDATE KNOWLEDGE BASES:**
+{kb_candidates}
+
+**TASK:**
+Select the 1-3 Knowledge Bases that are most relevant and useful for generating this RFP project. Consider:
+1. Domain match (most important)
+2. Section coverage relevance
+3. Complementary value (if selecting multiple KBs, they should cover different aspects)
+
+**Rules:**
+- Select at least 1 KB if any candidate is reasonably relevant
+- Select up to 3 KBs maximum
+- Return the IDs in order of relevance (most relevant first)
+- If no KB is truly relevant, return an empty list
+- Explain your reasoning briefly
+]]>
+            </field>
+        </record>
+
     </data>
 </odoo>

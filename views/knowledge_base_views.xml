@@ -5,7 +5,7 @@
         <field name="arch" type="xml">
             <form string="Knowledge Base">
                 <header>
-                    <button name="action_analyze" string="Analyze Document" type="object" class="oe_highlight" invisible="state != 'draft'"/>
+                    <button name="action_analyze" string="Analyze Document" type="object" class="oe_highlight" invisible="state != 'draft' or source_type != 'document'"/>
                     <button name="action_activate" string="Activate" type="object" class="oe_highlight" invisible="state != 'ready'"/>
                     <button name="action_deactivate" string="Deactivate" type="object" invisible="state != 'active'"/>
                     <button name="action_set_draft" string="Reset to Draft" type="object" invisible="state not in ['ready', 'inactive', 'failed']"/>
@@ -13,9 +13,12 @@
                 </header>
                 <sheet>
                     <div class="oe_button_box" name="button_box">
+                        <button name="action_view_sections" class="oe_stat_button" icon="fa-list" type="object" invisible="section_count == 0">
+                            <field name="section_count" widget="statinfo" string="Sections"/>
+                        </button>
                     </div>
                     <div class="alert alert-info" role="alert" invisible="state != 'analyzing'">
-                        <i class="fa fa-spinner fa-spin"/> Analying document... This may take a few moments.
+                        <i class="fa fa-spinner fa-spin"/> Analyzing document... This may take a few moments.
                     </div>
                     <div class="oe_title">
                         <h1>
@@ -24,13 +27,28 @@
                     </div>
                     <group>
                         <group>
-                            <field name="document" filename="filename"/>
+                            <field name="source_type" readonly="state != 'draft'"/>
+                            <field name="document" filename="filename" invisible="source_type != 'document'"/>
                             <field name="filename" invisible="1"/>
                             <field name="mimetype" invisible="1"/>
-                            <field name="domain_id" invisible="not domain_id" readonly="1"/>
+                            <field name="source_project_id" invisible="source_type != 'project'" readonly="state != 'draft'"/>
+                            <field name="domain_id" readonly="state not in ['draft']"/>
+                        </group>
+                        <group>
+                            <field name="summary" readonly="1" invisible="not summary"/>
                         </group>
                     </group>
-                    <notebook invisible="not domain_id">
+                    <notebook invisible="state == 'draft'">
+                        <page string="Sections" invisible="section_count == 0">
+                            <field name="section_ids" readonly="1">
+                                <list>
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="title"/>
+                                    <field name="section_type" widget="badge"/>
+                                    <field name="description" optional="hide"/>
+                                </list>
+                            </field>
+                        </page>
                         <page string="Extracted Practices">
                             <field name="extracted_practices" readonly="1"/>
                         </page>
@@ -48,6 +66,8 @@
             <list string="Knowledge Base">
                 <field name="name"/>
                 <field name="domain_id"/>
+                <field name="source_type" widget="badge"/>
+                <field name="section_count"/>
                 <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-warning="state == 'analyzing'" decoration-success="state == 'active'"/>
             </list>
         </field>
@@ -57,5 +77,51 @@
         <field name="name">Knowledge Base</field>
         <field name="res_model">rfp.knowledge.base</field>
         <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- KB Section Views -->
+    <record id="view_rfp_kb_section_list" model="ir.ui.view">
+        <field name="name">rfp.kb.section.list</field>
+        <field name="model">rfp.kb.section</field>
+        <field name="arch" type="xml">
+            <list string="KB Sections">
+                <field name="sequence" widget="handle"/>
+                <field name="title"/>
+                <field name="section_type" widget="badge"/>
+                <field name="kb_id"/>
+                <field name="description" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_rfp_kb_section_form" model="ir.ui.view">
+        <field name="name">rfp.kb.section.form</field>
+        <field name="model">rfp.kb.section</field>
+        <field name="arch" type="xml">
+            <form string="KB Section">
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="title"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="kb_id"/>
+                            <field name="section_type"/>
+                            <field name="sequence"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Description">
+                            <field name="description"/>
+                        </page>
+                        <page string="Key Topics">
+                            <field name="key_topics"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
     </record>
 </odoo>

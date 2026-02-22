@@ -31,6 +31,12 @@ PROMPT_ANALYZE_PROPOSAL_CRITERIA = 'analyze_proposal_criteria'
 PROMPT_DOCUMENT_AUTO_FILLER = 'document_auto_filler'
 PROMPT_PROPOSAL_EXTRACTOR = 'proposal_extractor'
 
+# KB Prompts
+PROMPT_KB_STRUCTURE_EXTRACTOR = 'kb_structure_extractor'
+PROMPT_KB_CONTENT_EXTRACTOR = 'kb_content_extractor'
+PROMPT_KB_PROJECT_GENERALIZER = 'kb_project_generalizer'
+PROMPT_KB_SELECTOR = 'kb_selector'
+
 # Generation Status
 STATUS_PENDING = 'pending'
 STATUS_QUEUED = 'queued'

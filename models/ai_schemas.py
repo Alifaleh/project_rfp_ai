@@ -160,6 +160,7 @@ def get_domain_identification_schema():
     )
 
 def get_kb_analysis_schema():
+    """Legacy schema kept for backward compatibility."""
     if not types:
         return None
     return types.Schema(
@@ -177,6 +178,152 @@ def get_kb_analysis_schema():
             )
         },
         required=['suggested_domain_name', 'extracted_practices']
+    )
+
+
+def get_kb_structure_extraction_schema():
+    """Step 1: Extract section structure + summary from KB document."""
+    if not types:
+        return None
+    return types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            'suggested_domain_name': types.Schema(
+                type=types.Type.STRING,
+                description='The best fitting vendor expertise domain for this document '
+                            '(e.g., "Healthcare", "Logistics", "Software Development").',
+            ),
+            'summary': types.Schema(
+                type=types.Type.STRING,
+                description='A concise 2-4 sentence summary of what this document covers, '
+                            'including domain expertise areas, key focus areas, and compliance standards.',
+            ),
+            'sections': types.Schema(
+                type=types.Type.ARRAY,
+                items=types.Schema(
+                    type=types.Type.OBJECT,
+                    required=['title', 'section_type'],
+                    properties={
+                        'title': types.Schema(
+                            type=types.Type.STRING,
+                            description='Section title as found or inferred from the document.',
+                        ),
+                        'section_type': types.Schema(
+                            type=types.Type.STRING,
+                            enum=['introduction', 'functional', 'technical', 'compliance',
+                                  'security', 'timeline', 'budget', 'evaluation',
+                                  'support', 'appendix'],
+                            description='Category of this section.',
+                        ),
+                    }
+                ),
+            ),
+        },
+        required=['suggested_domain_name', 'summary', 'sections']
+    )
+
+
+def get_kb_content_extraction_schema():
+    """Step 2: Extract content descriptions and best practices per section."""
+    if not types:
+        return None
+    return types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            'sections': types.Schema(
+                type=types.Type.ARRAY,
+                items=types.Schema(
+                    type=types.Type.OBJECT,
+                    required=['title', 'description'],
+                    properties={
+                        'title': types.Schema(
+                            type=types.Type.STRING,
+                            description='Section title (must match the titles from Step 1).',
+                        ),
+                        'description': types.Schema(
+                            type=types.Type.STRING,
+                            description='Generalized best practices, standard content patterns, and guidance '
+                                        'for writing this section. Do NOT include client-specific details or names.',
+                        ),
+                        'key_topics': types.Schema(
+                            type=types.Type.ARRAY,
+                            items=types.Schema(type=types.Type.STRING),
+                            description='List of key topics and subjects covered in this section.',
+                        ),
+                    }
+                ),
+            ),
+        },
+        required=['sections']
+    )
+
+
+def get_kb_project_generalization_schema():
+    """Schema for generalizing sections from a completed project into KB content."""
+    if not types:
+        return None
+    return types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            'summary': types.Schema(
+                type=types.Type.STRING,
+                description='A concise 2-4 sentence summary of what this knowledge base covers.',
+            ),
+            'sections': types.Schema(
+                type=types.Type.ARRAY,
+                items=types.Schema(
+                    type=types.Type.OBJECT,
+                    required=['title', 'section_type', 'description'],
+                    properties={
+                        'title': types.Schema(
+                            type=types.Type.STRING,
+                            description='Section title (match the original section title).',
+                        ),
+                        'section_type': types.Schema(
+                            type=types.Type.STRING,
+                            enum=['introduction', 'functional', 'technical', 'compliance',
+                                  'security', 'timeline', 'budget', 'evaluation',
+                                  'support', 'appendix'],
+                            description='Category of this section.',
+                        ),
+                        'description': types.Schema(
+                            type=types.Type.STRING,
+                            description='Generalized best practices extracted from this section content. '
+                                        'Remove all client-specific details, names, and dates. '
+                                        'Focus on reusable patterns and standards.',
+                        ),
+                        'key_topics': types.Schema(
+                            type=types.Type.ARRAY,
+                            items=types.Schema(type=types.Type.STRING),
+                            description='List of key topics covered in this section.',
+                        ),
+                    }
+                ),
+            ),
+        },
+        required=['summary', 'sections']
+    )
+
+
+def get_kb_selection_schema():
+    """Schema for AI-based KB selection/ranking."""
+    if not types:
+        return None
+    return types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            'selected_kb_ids': types.Schema(
+                type=types.Type.ARRAY,
+                items=types.Schema(type=types.Type.INTEGER),
+                description='List of Knowledge Base IDs most relevant to this project, '
+                            'ordered by relevance. Select 1-3 KBs maximum.',
+            ),
+            'reasoning': types.Schema(
+                type=types.Type.STRING,
+                description='Brief explanation of why these KBs were selected and how they relate to the project.',
+            ),
+        },
+        required=['selected_kb_ids', 'reasoning']
     )
 
 def get_document_extraction_schema():

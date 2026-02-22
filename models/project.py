@@ -1,5 +1,6 @@
 from odoo import models, fields, api
 from odoo.exceptions import ValidationError
+from markupsafe import Markup
 import json
 import logging
 import base64
@@ -75,6 +76,14 @@ class RfpProject(models.Model):
     # Research Fields
     initial_research = fields.Text(string="Initial Best Practices", readonly=True, help="Broad research before gathering.")
     refined_practices = fields.Text(string="Refined Best Practices", readonly=True, help="Specific research after gathering.")
+
+    # Knowledge Base
+    kb_ids = fields.Many2many('rfp.knowledge.base', string="Selected Knowledge Bases",
+        help="Knowledge bases selected by AI as relevant for this project")
+    has_kb_entry = fields.Boolean(
+        string="Has KB Entry", compute='_compute_has_kb_entry')
+    kb_count = fields.Integer(
+        string="KB Count", compute='_compute_kb_count')
 
     # Export Fields
     published_id = fields.Many2one('rfp.published', string="Exported RFP", readonly=True, copy=False)
@@ -510,34 +519,155 @@ class RfpProject(models.Model):
                      "extracted %d field values",
                      self.id, self.source_filename, len(extractions))
 
+    def _select_knowledge_bases(self):
+        """Smart KB selection: domain filter + AI ranking.
+        Returns selected KB recordset and stores in self.kb_ids.
+        """
+        self.ensure_one()
+        KB = self.env['rfp.knowledge.base']
+
+        # Stage A: Domain filter (free SQL query)
+        candidates = KB.search([
+            ('state', '=', 'active'),
+            '|',
+            ('domain_id', '=', self.domain_id.id),
+            ('domain_id', '=', False),
+        ])
+
+        if not candidates:
+            return KB  # Empty recordset
+
+        if len(candidates) == 1:
+            self.kb_ids = [(6, 0, candidates.ids)]
+            return candidates
+
+        # Stage B: AI ranking (only when 2+ candidates)
+        from odoo.addons.project_rfp_ai.models.ai_schemas import get_kb_selection_schema
+        from odoo.addons.project_rfp_ai.const import PROMPT_KB_SELECTOR
+
+        prompt = self.env['rfp.prompt'].search(
+            [('code', '=', PROMPT_KB_SELECTOR)], limit=1)
+
+        if not prompt:
+            # Fallback: just use all domain-matching KBs
+            self.kb_ids = [(6, 0, candidates.ids)]
+            return candidates
+
+        # Build candidate summaries for AI
+        kb_summaries = []
+        for kb in candidates:
+            kb_summaries.append(
+                f"ID: {kb.id} | Name: {kb.name} | "
+                f"Domain: {kb.domain_id.name if kb.domain_id else 'General'} | "
+                f"Sections: {kb.section_count} | "
+                f"Summary: {kb.summary or (kb.extracted_practices or '')[:300]}"
+            )
+
+        system_prompt = prompt.template_text.replace(
+            '{project_name}', self.name or ''
+        ).replace(
+            '{project_description}', self.description or ''
+        ).replace(
+            '{project_domain}', self.domain_id.name if self.domain_id else 'Unknown'
+        ).replace(
+            '{kb_candidates}', "\n".join(kb_summaries)
+        )
+
+        try:
+            response = self.env['rfp.ai.log'].execute_request(
+                system_prompt=system_prompt,
+                user_context=f"Select the best Knowledge Bases for project: {self.name}",
+                env=self.env,
+                mode='json',
+                schema=get_kb_selection_schema(),
+                prompt_record=prompt,
+            )
+
+            if response:
+                data = json.loads(response)
+                selected_ids = data.get('selected_kb_ids', [])
+                # Validate IDs exist in candidates
+                valid_ids = [kid for kid in selected_ids if kid in candidates.ids]
+                if valid_ids:
+                    self.kb_ids = [(6, 0, valid_ids)]
+                    _logger.info("KB selection for project %s: %s (reason: %s)",
+                                 self.id, valid_ids, data.get('reasoning', ''))
+                    return KB.browse(valid_ids)
+        except Exception as e:
+            _logger.warning("KB selection AI call failed for project %s: %s", self.id, e)
+
+        # Fallback: use all candidates
+        self.kb_ids = [(6, 0, candidates.ids)]
+        return candidates
+
+    def _build_kb_context(self, selected_kbs):
+        """Build structured KB context for downstream prompts."""
+        kb_context = {'source': 'Knowledge Base', 'knowledge_bases': []}
+        for kb in selected_kbs:
+            kb_data = {
+                'name': kb.name,
+                'domain': kb.domain_id.name if kb.domain_id else 'General',
+                'sections': []
+            }
+            for section in kb.section_ids.sorted('sequence'):
+                sec_data = {
+                    'title': section.title,
+                    'type': section.section_type,
+                    'description': section.description or '',
+                }
+                if section.key_topics:
+                    try:
+                        sec_data['key_topics'] = json.loads(section.key_topics)
+                    except json.JSONDecodeError:
+                        pass
+                kb_data['sections'].append(sec_data)
+            kb_context['knowledge_bases'].append(kb_data)
+        return kb_context
+
     def _run_initial_research(self):
         self.ensure_one()
-        
-        # 1. Knowledge Base Check
-        kb_records = self.env['rfp.knowledge.base'].search([
-            ('domain_id', '=', self.domain_id.id),
-            ('state', '=', 'active')
-        ])
-        
-        if kb_records:
-            # Use KB Material
-            practices_text = "\n\n".join([kb.extracted_practices for kb in kb_records if kb.extracted_practices])
-            self.initial_research = f"Source: Knowledge Base\n\n{practices_text}"
-            return 
 
-        # 2. Existing AI Search Logic (Fallback)
+        # 1. Smart Knowledge Base Selection
+        selected_kbs = self._select_knowledge_bases()
+
+        if selected_kbs:
+            # Build structured KB context (JSON)
+            kb_context = self._build_kb_context(selected_kbs)
+            self.initial_research = f"Source: Knowledge Base\n\n{json.dumps(kb_context, indent=2)}"
+
+            # Log KB selection in chatter
+            kb_names = ", ".join([f"<b>{kb.name}</b> ({kb.section_count} sections)" for kb in selected_kbs])
+            self.message_post(
+                body=Markup(
+                    "Knowledge Base selected for this project: %s. "
+                    "KB content will be used to guide TOC structure, section writing, and practices gap analysis."
+                ) % Markup(kb_names),
+                message_type='comment',
+                subtype_xmlid='mail.mt_note',
+            )
+            return
+
+        # No KB found — log and fall back
+        self.message_post(
+            body="No active Knowledge Base found matching this project's domain. "
+                 "Falling back to Google Search for initial research.",
+            message_type='comment',
+            subtype_xmlid='mail.mt_note',
+        )
+
+        # 2. Fallback: Google Search
         try:
             from google.genai import types
             search_tool = [types.Tool(google_search=types.GoogleSearch())]
         except ImportError:
-            search_tool = None 
-        
+            search_tool = None
+
         prompt_record = self.env['rfp.prompt'].search([('code', '=', PROMPT_RESEARCH_INITIAL)], limit=1)
         if not prompt_record:
-            return 
-            
+            return
+
         system_prompt = prompt_record.template_text.format(domain=self.domain_id.name, project_name=self.name)
-        
+
         response_text = self.env['rfp.ai.log'].execute_request(
             system_prompt=system_prompt,
             user_context=f"Project Description: {self.description}",
@@ -916,6 +1046,24 @@ class RfpProject(models.Model):
             if project.source_extracted_text:
                 context_data["source_document_excerpt"] = project.source_extracted_text[:5000]
 
+            # Include KB compliance checklist if KBs are selected
+            if project.kb_ids:
+                kb_checklist = []
+                for kb in project.kb_ids:
+                    for section in kb.section_ids.sorted('sequence'):
+                        topics = []
+                        if section.key_topics:
+                            try:
+                                topics = json.loads(section.key_topics)
+                            except json.JSONDecodeError:
+                                pass
+                        kb_checklist.append({
+                            'topic': section.title,
+                            'type': section.section_type,
+                            'required_coverage': topics,
+                        })
+                context_data['kb_compliance_checklist'] = kb_checklist
+
             # Scope Key = 'practices'
             is_ongoing = project._execute_interview_round(PROMPT_INTERVIEWER_PRACTICES, 'rfp.practice.input', context_data, scope_key='practices')
             
@@ -958,13 +1106,32 @@ class RfpProject(models.Model):
             
             context_str = "\n".join(context_data["q_and_a"])
 
+            # Inject KB reference structures for TOC guidance
+            kb_reference_str = ""
+            if project.kb_ids:
+                kb_ref_parts = []
+                for kb in project.kb_ids:
+                    sections = kb.section_ids.sorted('sequence')
+                    if sections:
+                        sec_list = "\n".join([
+                            f"  - {s.title} [{s.section_type}]" for s in sections
+                        ])
+                        kb_ref_parts.append(f"KB: {kb.name}\n{sec_list}")
+                if kb_ref_parts:
+                    kb_reference_str = (
+                        "\n\n**Knowledge Base Reference Structures:**\n"
+                        "Use these proven section structures as a TEMPLATE for your TOC. "
+                        "Adapt to this project's needs but follow the proven ordering and coverage.\n\n"
+                        + "\n\n".join(kb_ref_parts)
+                    )
+
             # Clear existing logic
             project.document_section_ids.unlink()
 
             prompt_record = self.env['rfp.prompt'].search([('code', '=', PROMPT_WRITER_TOC_ARCHITECT)], limit=1)
             if not prompt_record:
                 raise ValueError(f"System Prompt '{PROMPT_WRITER_TOC_ARCHITECT}' not found.")
-            
+
             architect_prompt = prompt_record.template_text.format(
                  project_name=project.name,
                  domain=project.domain_id.name or 'General',
@@ -974,7 +1141,7 @@ class RfpProject(models.Model):
             try:
                 toc_json_str = self.env['rfp.ai.log'].execute_request(
                     system_prompt=architect_prompt,
-                    user_context=context_str,
+                    user_context=context_str + kb_reference_str,
                     env=self.env,
                     mode='json',
                     schema=get_toc_structure_schema(),
@@ -1041,13 +1208,35 @@ class RfpProject(models.Model):
 
             section_writer_template = self.env['rfp.prompt'].search([('code', '=', PROMPT_WRITER_SECTION)], limit=1).template_text
 
+            # Build KB reference for section writers
+            kb_sections_ref = []
+            if project.kb_ids:
+                for kb in project.kb_ids:
+                    for kb_sec in kb.section_ids.sorted('sequence'):
+                        if kb_sec.description:
+                            kb_sections_ref.append({
+                                'kb_name': kb.name,
+                                'section_title': kb_sec.title,
+                                'section_type': kb_sec.section_type,
+                                'best_practices': kb_sec.description,
+                            })
+
+            kb_reference_text = ""
+            if kb_sections_ref:
+                kb_reference_text = (
+                    "\n\n**Knowledge Base Reference (Best Practices):**\n"
+                    "Use the following reference material to ensure your content "
+                    "follows established best practices and industry standards.\n\n"
+                    + json.dumps(kb_sections_ref, indent=2)
+                )
+
             for section_record in project.document_section_ids:
                 if section_record.content_html:
                     continue
 
                 section_title = section_record.section_title
                 section_intent = "Write comprehensive details matching the project context."
-                
+
                 writer_prompt = section_writer_template.format(
                     project_name=project.name,
                     domain=project.domain_id.name or 'General',
@@ -1057,7 +1246,7 @@ class RfpProject(models.Model):
                     context_str=context_str
                 )
 
-                user_context = f"Project Context:\n{context_str}\n\nPlease write the {section_title} section now."
+                user_context = f"Project Context:\n{context_str}\n\nPlease write the {section_title} section now.{kb_reference_text}"
                 
                 job = section_record.with_delay(channel='root.rfp_generation').generate_content_job(
                     system_prompt=writer_prompt,
@@ -1389,6 +1578,29 @@ class RfpProject(models.Model):
         for rec in self:
             rec.is_published = bool(rec.published_id and rec.published_id.active)
 
+    def _compute_has_kb_entry(self):
+        KB = self.env['rfp.knowledge.base']
+        for rec in self:
+            rec.has_kb_entry = bool(KB.search_count([
+                ('source_project_id', '=', rec.id),
+                ('source_type', '=', 'project'),
+            ]))
+
+    def _compute_kb_count(self):
+        for rec in self:
+            rec.kb_count = len(rec.kb_ids)
+
+    def action_view_knowledge_bases(self):
+        """Open the selected knowledge bases for this project."""
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': f'Knowledge Bases — {self.name}',
+            'res_model': 'rfp.knowledge.base',
+            'view_mode': 'list,form',
+            'domain': [('id', 'in', self.kb_ids.ids)],
+        }
+
     def action_export_rfp(self):
         """Export the RFP for download (no public submission)."""
         self.ensure_one()
@@ -1416,6 +1628,43 @@ class RfpProject(models.Model):
         if self.published_id:
             self.published_id.active = False
         return True
+
+    def action_create_kb_from_project(self):
+        """Create a Knowledge Base entry from this completed project's sections."""
+        self.ensure_one()
+        KnowledgeBase = self.env['rfp.knowledge.base']
+        KbSection = self.env['rfp.kb.section']
+
+        kb = KnowledgeBase.create({
+            'name': f"KB: {self.name}",
+            'domain_id': self.domain_id.id if self.domain_id else False,
+            'source_type': 'project',
+            'source_project_id': self.id,
+            'state': 'analyzing',
+        })
+
+        # Pre-create sections from the project's document sections
+        for section in self.document_section_ids.sorted('sequence'):
+            KbSection.create({
+                'kb_id': kb.id,
+                'title': section.section_title,
+                'section_type': 'functional',  # Will be classified by AI
+                'sequence': section.sequence,
+            })
+
+        # Queue AI generalization job
+        kb.with_delay(
+            channel='root.rfp_generation',
+            description=f"KB Generalization: {kb.name}"
+        )._run_project_analysis_job()
+
+        return {
+            'type': 'ir.actions.act_window',
+            'res_model': 'rfp.knowledge.base',
+            'res_id': kb.id,
+            'view_mode': 'form',
+            'target': 'current',
+        }
 
     def action_duplicate_for_adaptation(self, new_name=None):
         """
