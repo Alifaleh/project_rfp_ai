@@ -893,18 +893,13 @@
                                 <i class="fa fa-upload me-1"/> Upload Proposal
                             </button>
 
-                            <!-- Proposals Link (if any exist) -->
-                            <t t-if="rfp_project.is_published and rfp_project.published_id.proposal_count > 0">
-                                <a t-attf-href="/rfp/proposals/#{rfp_project.id}" class="btn btn-rfp-gold-outline py-1 px-3">
-                                    <i class="fa fa-inbox me-1"/> Proposals
+                            <!-- Proposals Link -->
+                            <a t-attf-href="/rfp/proposals/#{rfp_project.id}" class="btn btn-rfp-gold-outline py-1 px-3">
+                                <i class="fa fa-inbox me-1"/> Proposals
+                                <t t-if="rfp_project.is_published and rfp_project.published_id.proposal_count > 0">
                                     <span class="badge bg-rfp-gold ms-1" t-esc="rfp_project.published_id.proposal_count"/>
-                                </a>
-                            </t>
-                            <t t-elif="rfp_project.is_published">
-                                <a t-attf-href="/rfp/proposals/#{rfp_project.id}" class="btn btn-rfp-gold-outline py-1 px-3">
-                                    <i class="fa fa-inbox me-1"/> Proposals
-                                </a>
-                            </t>
+                                </t>
+                            </a>
 
                             <div class="vr" style="height: 28px; opacity: 0.2;"></div>
 
@@ -975,76 +970,6 @@
                     </div>
                 </t>
 
-                <!-- Required Documents Configuration Panel -->
-                <div class="card shadow-sm border-0 mb-4" style="border-left: 4px solid var(--rfp-gold) !important;">
-                    <div class="card-header bg-white d-flex justify-content-between align-items-center py-3"
-                         style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#required_docs_panel" aria-expanded="false">
-                        <div class="d-flex align-items-center">
-                            <i class="fa fa-file-text me-2 text-rfp-gold"/>
-                            <h6 class="mb-0 fw-bold">Required Documents</h6>
-                            <span class="badge bg-rfp-gold ms-2" id="required_docs_count"><t t-esc="len(rfp_project.required_document_ids)"/></span>
-                        </div>
-                        <div class="d-flex align-items-center gap-2">
-                            <small class="text-muted">Configure what vendors must submit</small>
-                            <i class="fa fa-chevron-down"/>
-                        </div>
-                    </div>
-                    <div class="collapse" id="required_docs_panel">
-                        <div class="card-body p-4">
-                            <p class="text-muted small mb-3">
-                                Define the document types vendors must upload with their proposals.
-                                When no documents are configured, vendors see a single generic file upload.
-                            </p>
-
-                            <div id="required_docs_container" t-att-data-project-id="rfp_project.id">
-                                <t t-foreach="rfp_project.required_document_ids.sorted('sequence')" t-as="rdoc">
-                                    <div class="card border mb-2 required-doc-card" t-att-data-doc-id="rdoc.id">
-                                        <div class="card-body py-2 px-3">
-                                            <div class="row align-items-center">
-                                                <div class="col-md-3">
-                                                    <input type="text" class="form-control form-control-sm fw-bold rdoc-name"
-                                                           t-att-value="rdoc.name" placeholder="Document name"/>
-                                                </div>
-                                                <div class="col-md-3">
-                                                    <input type="text" class="form-control form-control-sm rdoc-description"
-                                                           t-att-value="rdoc.description or ''"
-                                                           placeholder="Description / instructions"/>
-                                                </div>
-                                                <div class="col-md-2">
-                                                    <input type="text" class="form-control form-control-sm rdoc-accept-types"
-                                                           t-att-value="rdoc.accept_types or '.pdf,.doc,.docx'"
-                                                           placeholder=".pdf,.doc,.docx"/>
-                                                </div>
-                                                <div class="col-md-2 text-center">
-                                                    <label class="form-label small text-muted mb-0 d-block">Required</label>
-                                                    <div class="form-check form-switch d-inline-block">
-                                                        <input class="form-check-input rdoc-required" type="checkbox"
-                                                               t-att-checked="'checked' if rdoc.is_required else None"/>
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-2 text-end">
-                                                    <button class="btn btn-sm btn-outline-danger btn-delete-rdoc" type="button">
-                                                        <i class="fa fa-trash"></i>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </t>
-                            </div>
-
-                            <div class="d-flex justify-content-between mt-3">
-                                <button type="button" class="btn btn-sm btn-outline-primary" id="btn_add_rdoc">
-                                    <i class="fa fa-plus me-1"></i> Add Document Type
-                                </button>
-                                <button type="button" class="btn btn-sm btn-rfp-gold" id="btn_save_rdocs">
-                                    <i class="fa fa-save me-1"></i> Save
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Evaluation Criteria Panel -->
                 <div class="card shadow-sm border-0 mb-4" style="border-left: 4px solid var(--rfp-gold) !important;">
                     <div class="card-header bg-white d-flex justify-content-between align-items-center py-3"
@@ -1064,7 +989,7 @@
                             </t>
                         </div>
                         <div class="d-flex align-items-center gap-2">
-                            <small class="text-muted">Scoring rubric for vendor proposals</small>
+                            <small class="text-muted">Scoring rubric for proposals</small>
                             <i class="fa fa-chevron-down"/>
                         </div>
                     </div>
@@ -1560,6 +1485,7 @@
                 <!-- Upload Proposal Modal -->
                 <t t-call="project_rfp_ai.proposal_upload_modal">
                     <t t-set="required_docs" t-value="rfp_project.required_document_ids.sorted('sequence')"/>
+                    <t t-set="modal_project" t-value="rfp_project"/>
                 </t>
             </div>
         </t>
@@ -1731,8 +1657,10 @@
                             <h2 class="mb-2">Proposals for <t t-esc="project.name"/></h2>
                             <p class="mb-0">
                                 <t t-esc="len(proposals)"/> proposal(s) received
-                                <span class="mx-2">|</span>
-                                Published: <t t-esc="published.published_date" t-options="{'widget': 'date'}"/>
+                                <t t-if="published">
+                                    <span class="mx-2">|</span>
+                                    Published: <t t-esc="published.published_date" t-options="{'widget': 'date'}"/>
+                                </t>
                             </p>
                         </div>
                         <div class="col-md-4 text-md-end mt-3 mt-md-0">
@@ -1785,6 +1713,76 @@
                     </div>
                 </div>
                 
+                <!-- Submission Requirements Panel -->
+                <div class="card shadow-sm border-0 mb-4" style="border-left: 4px solid var(--rfp-gold) !important;">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center py-3"
+                         style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#required_docs_panel" aria-expanded="false">
+                        <div class="d-flex align-items-center">
+                            <i class="fa fa-file-text me-2 text-rfp-gold"/>
+                            <h6 class="mb-0 fw-bold">Submission Requirements</h6>
+                            <span class="badge bg-rfp-gold ms-2" id="required_docs_count"><t t-esc="len(project.required_document_ids)"/></span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <small class="text-muted">Configure what must be submit</small>
+                            <i class="fa fa-chevron-down"/>
+                        </div>
+                    </div>
+                    <div class="collapse" id="required_docs_panel">
+                        <div class="card-body p-4">
+                            <p class="text-muted small mb-3">
+                                Define the document types that must be uploaded with the proposals.
+                                When no documents are configured, proposals see a single generic file upload.
+                            </p>
+
+                            <div id="required_docs_container" t-att-data-project-id="project.id">
+                                <t t-foreach="project.required_document_ids.sorted('sequence')" t-as="rdoc">
+                                    <div class="card border mb-2 required-doc-card" t-att-data-doc-id="rdoc.id">
+                                        <div class="card-body py-2 px-3">
+                                            <div class="row align-items-center">
+                                                <div class="col-md-3">
+                                                    <input type="text" class="form-control form-control-sm fw-bold rdoc-name"
+                                                           t-att-value="rdoc.name" placeholder="Document name"/>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <input type="text" class="form-control form-control-sm rdoc-description"
+                                                           t-att-value="rdoc.description or ''"
+                                                           placeholder="Description / instructions"/>
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <input type="text" class="form-control form-control-sm rdoc-accept-types"
+                                                           t-att-value="rdoc.accept_types or '.pdf,.doc,.docx'"
+                                                           placeholder=".pdf,.doc,.docx"/>
+                                                </div>
+                                                <div class="col-md-2 text-center">
+                                                    <label class="form-label small text-muted mb-0 d-block">Required</label>
+                                                    <div class="form-check form-switch d-inline-block">
+                                                        <input class="form-check-input rdoc-required" type="checkbox"
+                                                               t-att-checked="'checked' if rdoc.is_required else None"/>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-2 text-end">
+                                                    <button class="btn btn-sm btn-outline-danger btn-delete-rdoc" type="button">
+                                                        <i class="fa fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </t>
+                            </div>
+
+                            <div class="d-flex justify-content-between mt-3">
+                                <button type="button" class="btn btn-sm btn-outline-primary" id="btn_add_rdoc">
+                                    <i class="fa fa-plus me-1"></i> Add Document Type
+                                </button>
+                                <button type="button" class="btn btn-sm btn-rfp-gold" id="btn_save_rdocs">
+                                    <i class="fa fa-save me-1"></i> Save
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Upload Proposal Action -->
                 <div class="alert alert-success mb-4 d-flex align-items-center justify-content-between">
                     <div>
@@ -1856,6 +1854,7 @@
                 <!-- Upload Proposal Modal -->
                 <t t-call="project_rfp_ai.proposal_upload_modal">
                     <t t-set="required_docs" t-value="project.required_document_ids.sorted('sequence')"/>
+                    <t t-set="modal_project" t-value="project"/>
                 </t>
             </div>
         </t>
@@ -2454,6 +2453,20 @@
 
                     <!-- Scrollable Body -->
                     <div class="modal-body px-4 py-3">
+                        <!-- Evaluation Criteria Note -->
+                        <t t-if="modal_project and modal_project.eval_criteria_status in (False, 'not_started')">
+                            <div class="alert alert-warning d-flex align-items-start mb-3 py-2 px-3" role="alert">
+                                <i class="fa fa-lightbulb-o me-2 mt-1 text-warning"/>
+                                <div class="flex-grow-1">
+                                    <small class="fw-semibold d-block">No evaluation criteria set up yet</small>
+                                    <small class="text-muted">Define scoring criteria to let AI evaluate and rank proposals automatically.</small>
+                                </div>
+                                <a t-attf-href="/rfp/eval/setup/#{modal_project.id}" class="btn btn-sm btn-outline-warning ms-2 text-nowrap">
+                                    <i class="fa fa-balance-scale me-1"/> Set Up Criteria
+                                </a>
+                            </div>
+                        </t>
+
                         <!-- Form State -->
                         <div id="proposal_form_state">
                             <!-- Vendor name -->

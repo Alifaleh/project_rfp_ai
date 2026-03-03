@@ -637,13 +637,10 @@ class RfpCustomerPortal(CustomerPortal):
         if not Project.exists() or Project.user_id.id != request.env.user.id:
             return request.redirect('/my')
         
-        if not Project.published_id:
-            return request.redirect(f'/rfp/editor/{project_id}')
-        
         values = {
             'project': Project,
             'published': Project.published_id,
-            'proposals': Project.published_id.proposal_ids.sorted(lambda p: p.submitted_date, reverse=True),
+            'proposals': Project.published_id.proposal_ids.sorted(lambda p: p.submitted_date, reverse=True) if Project.published_id else [],
         }
         return request.render("project_rfp_ai.portal_rfp_proposals_list", values)
 
