@@ -1490,7 +1490,7 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
                                 '<div class="bg-light rounded p-3">' +
                                     '<label class="form-label small fw-bold">Description</label>' +
                                     '<textarea class="form-control form-control-sm mb-3 criterion-description" rows="2" placeholder="Describe what this criterion evaluates..."></textarea>' +
-                                    '<label class="form-label small fw-bold">Scoring Guidance</label>' +
+                                    '<label class="form-label small fw-bold">Evaluation Guidance</label>' +
                                     '<textarea class="form-control form-control-sm criterion-scoring-guidance" rows="2" placeholder="What constitutes high, medium, and low scores..."></textarea>' +
                                 '</div>' +
                             '</div>' +

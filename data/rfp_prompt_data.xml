@@ -663,7 +663,7 @@ You are evaluating a vendor proposal using a **project-specific scoring rubric**
 ## RFP DOCUMENT (Requirements):
 {rfp_content}
 
-## EVALUATION CRITERIA (Scoring Rubric):
+## EVALUATION CRITERIA (Evaluation Rubric):
 {evaluation_criteria}
 
 ## VENDOR PROPOSAL FROM: {company_name}
