@@ -42,7 +42,7 @@ class RfpPublished(models.Model):
     def get_public_url(self):
         self.ensure_one()
         base_url = self.env['ir.config_parameter'].sudo().get_param('web.base.url')
-        return f"{base_url}/rfp/public/{self.uuid}"
+        return f"{base_url}/rfp/export/view/{self.uuid}"
 
     def copy_content_from_project(self):
         """Copy or update content from source project."""
@@ -145,6 +145,14 @@ class RfpProposal(models.Model):
         ('review', 'Review'),
         ('reject', 'Reject'),
     ], string="AI Recommendation")
+
+    # Multi-document support
+    document_ids = fields.One2many('rfp.proposal.document', 'proposal_id', string="Submitted Documents")
+
+    # Criteria-based analysis fields
+    criteria_scores = fields.Text(string="Per-Criterion Scores (JSON)")
+    weighted_score = fields.Float(string="Weighted Score", help="Calculated from criteria weights (0-100)")
+    has_must_have_failure = fields.Boolean(string="Must-Have Failure", default=False)
     
     @api.model
     def create(self, vals):
@@ -179,37 +187,62 @@ class RfpProposal(models.Model):
         import base64
         self.ensure_one()
         self.write({'analysis_status': 'processing'})
-        
+
         try:
             # Get RFP content
             published = self.published_id
             rfp_content = f"# {published.title}\n\n{published.description or ''}\n\n"
             for section in published.section_ids.sorted(lambda s: s.sequence):
                 rfp_content += f"## {section.title}\n{section.content_html or ''}\n\n"
-            
+
             # Get proposal content
             proposal_content = f"Company: {self.company_name}\n"
             proposal_content += f"Contact: {self.contact_person} ({self.email})\n"
             if self.notes:
                 proposal_content += f"Notes: {self.notes}\n"
-            
-            # If PDF, extract text (simplified - just use filename as indicator)
+
             if self.proposal_file and self.proposal_filename:
                 proposal_content += f"\n[Attached file: {self.proposal_filename}]\n"
-                # For PDF content extraction, we'd need a PDF library
-                # For now, we pass the file info
-            
-            # Build the prompt
-            prompt_record = self.env['rfp.prompt'].browse(prompt_record_id) if prompt_record_id else None
-            
-            if prompt_record and prompt_record.template_text:
-                user_context = prompt_record.template_text.format(
-                    rfp_content=rfp_content,
-                    proposal_content=proposal_content,
-                    company_name=self.company_name
-                )
+
+            # Include multi-document filenames
+            for doc in self.document_ids:
+                if doc.file_data and doc.filename:
+                    proposal_content += f"\n[Attached document - {doc.name}: {doc.filename}]\n"
+
+            # Check if project has finalized evaluation criteria
+            project = published.project_id
+            use_criteria = (
+                project
+                and project.eval_criteria_status == 'finalized'
+                and project.evaluation_criterion_ids
+            )
+
+            if use_criteria:
+                self._analyze_with_criteria(rfp_content, proposal_content, project)
             else:
-                user_context = f"""
+                self._analyze_generic(rfp_content, proposal_content, prompt_record_id)
+
+        except Exception as e:
+            self.write({
+                'analysis_status': 'failed',
+                'analysis_result': json.dumps({'error': str(e)})
+            })
+
+    def _analyze_generic(self, rfp_content, proposal_content, prompt_record_id=None):
+        """Original generic proposal analysis (backward compatible)."""
+        import json
+        from odoo.addons.project_rfp_ai.models.ai_schemas import get_proposal_analysis_schema
+
+        prompt_record = self.env['rfp.prompt'].browse(prompt_record_id) if prompt_record_id else None
+
+        if prompt_record and prompt_record.template_text:
+            user_context = prompt_record.template_text.format(
+                rfp_content=rfp_content,
+                proposal_content=proposal_content,
+                company_name=self.company_name
+            )
+        else:
+            user_context = f"""
 Analyze this vendor proposal against the RFP requirements.
 
 ## RFP CONTENT:
@@ -220,42 +253,217 @@ Analyze this vendor proposal against the RFP requirements.
 
 Provide a comprehensive analysis in the required JSON format.
 """
-            
-            # Get schema
-            from odoo.addons.project_rfp_ai.models.ai_schemas import get_proposal_analysis_schema
-            
-            system_prompt = """You are an expert procurement analyst. Analyze vendor proposals against RFP requirements.
+
+        system_prompt = """You are an expert procurement analyst. Analyze vendor proposals against RFP requirements.
 Provide objective, actionable insights to help decision-makers evaluate proposals effectively.
 Be specific about what's covered, what's missing, and what risks exist."""
-            
-            # Call AI
-            response_json_str = self.env['rfp.ai.log'].execute_request(
+
+        response_json_str = self.env['rfp.ai.log'].execute_request(
+            system_prompt=system_prompt,
+            user_context=user_context,
+            env=self.env,
+            mode='json',
+            schema=get_proposal_analysis_schema(),
+            prompt_record=prompt_record
+        )
+
+        try:
+            data = json.loads(response_json_str)
+        except json.JSONDecodeError:
+            data = {}
+
+        self.write({
+            'analysis_status': 'done',
+            'analysis_result': response_json_str,
+            'coverage_score': data.get('coverage_score', 0),
+            'overall_rating': data.get('overall_rating', 'Unknown'),
+            'ai_recommendation': data.get('recommendation', '').lower() if data.get('recommendation') else None,
+        })
+
+    def _analyze_with_criteria(self, rfp_content, proposal_content, project):
+        """Criteria-based proposal analysis with per-criterion scoring."""
+        import json
+        from odoo.addons.project_rfp_ai.models.ai_schemas import get_criteria_proposal_analysis_schema
+
+        # Build criteria data for the prompt
+        criteria_list = []
+        for c in project.evaluation_criterion_ids.filtered('active').sorted('sequence'):
+            criteria_list.append({
+                'name': c.name,
+                'description': c.description or '',
+                'category': c.category,
+                'weight': c.weight,
+                'is_must_have': c.is_must_have,
+                'scoring_guidance': c.scoring_guidance or '',
+            })
+
+        # Get the criteria-based prompt
+        prompt_record = self.env['rfp.prompt'].search([('code', '=', 'analyze_proposal_criteria')], limit=1)
+
+        if prompt_record and prompt_record.template_text:
+            user_context = prompt_record.template_text.format(
+                rfp_content=rfp_content,
+                proposal_content=proposal_content,
+                company_name=self.company_name,
+                evaluation_criteria=json.dumps(criteria_list, indent=2)
+            )
+        else:
+            user_context = f"""
+Analyze this vendor proposal against the RFP requirements and evaluation criteria.
+
+## RFP CONTENT:
+{rfp_content}
+
+## EVALUATION CRITERIA:
+{json.dumps(criteria_list, indent=2)}
+
+## PROPOSAL FROM: {self.company_name}
+{proposal_content}
+
+Score each criterion and provide a comprehensive analysis in the required JSON format.
+"""
+
+        system_prompt = """You are an expert procurement analyst. Evaluate vendor proposals against specific evaluation criteria with weighted scoring.
+Be objective, evidence-based, and score each criterion according to its scoring guidance."""
+
+        response_json_str = self.env['rfp.ai.log'].execute_request(
+            system_prompt=system_prompt,
+            user_context=user_context,
+            env=self.env,
+            mode='json',
+            schema=get_criteria_proposal_analysis_schema(),
+            prompt_record=prompt_record
+        )
+
+        try:
+            data = json.loads(response_json_str)
+        except json.JSONDecodeError:
+            data = {}
+
+        # Check must-have failures
+        must_have_failures = data.get('must_have_failures', [])
+        has_failure = len(must_have_failures) > 0
+
+        self.write({
+            'analysis_status': 'done',
+            'analysis_result': response_json_str,
+            'coverage_score': data.get('coverage_score', 0),
+            'overall_rating': data.get('overall_rating', 'Unknown'),
+            'ai_recommendation': data.get('recommendation', '').lower() if data.get('recommendation') else None,
+            'criteria_scores': json.dumps(data.get('criteria_scores', [])),
+            'weighted_score': data.get('weighted_total_score', 0),
+            'has_must_have_failure': has_failure,
+        })
+
+    def action_extract_and_analyze(self):
+        """Extract vendor info from uploaded proposal and trigger scoring."""
+        self.ensure_one()
+        import json
+        import base64
+        import io
+        import logging
+        _logger = logging.getLogger(__name__)
+
+        from odoo.addons.project_rfp_ai.models.ai_schemas import get_proposal_extraction_schema
+        from odoo.addons.project_rfp_ai.const import PROMPT_PROPOSAL_EXTRACTOR
+        from odoo.exceptions import ValidationError
+
+        # Decode file
+        if not self.proposal_file:
+            _logger.warning("No proposal file to extract from")
+            self._trigger_analysis_job()
+            return
+
+        file_bytes = base64.b64decode(self.proposal_file)
+        filename = self.proposal_filename or ''
+
+        # Extract text
+        try:
+            if filename.lower().endswith('.pdf'):
+                text = self._extract_text_from_pdf(file_bytes)
+            elif filename.lower().endswith('.docx'):
+                text = self._extract_text_from_docx(file_bytes)
+            else:
+                _logger.warning(f"Unsupported file type: {filename}")
+                self._trigger_analysis_job()
+                return
+        except Exception as e:
+            _logger.error(f"Failed to extract text from {filename}: {e}")
+            self._trigger_analysis_job()
+            return
+
+        # Build prompt for vendor extraction
+        prompt_record = self.env['rfp.prompt'].search([('code', '=', PROMPT_PROPOSAL_EXTRACTOR)], limit=1)
+        if not prompt_record:
+            _logger.warning("Proposal extractor prompt not found")
+            self._trigger_analysis_job()
+            return
+
+        system_prompt = prompt_record.template_text.replace(
+            '{proposal_text}', text[:10000]  # Truncate for safety
+        )
+
+        # Call AI
+        try:
+            response_json = self.env['rfp.ai.log'].execute_request(
                 system_prompt=system_prompt,
-                user_context=user_context,
+                user_context="Extract vendor information from the above proposal.",
                 env=self.env,
                 mode='json',
-                schema=get_proposal_analysis_schema(),
+                schema=get_proposal_extraction_schema(),
                 prompt_record=prompt_record
             )
-            
-            # Parse response
-            try:
-                data = json.loads(response_json_str)
-            except json.JSONDecodeError:
-                data = {}
-            
-            # Store results
-            self.write({
-                'analysis_status': 'done',
-                'analysis_result': response_json_str,
-                'coverage_score': data.get('coverage_score', 0),
-                'overall_rating': data.get('overall_rating', 'Unknown'),
-                'ai_recommendation': data.get('recommendation', '').lower() if data.get('recommendation') else None,
-            })
-            
+
+            if response_json:
+                data = json.loads(response_json)
+                self.write({
+                    'company_name': data.get('company_name', self.company_name or 'Unknown Vendor'),
+                    'contact_person': data.get('contact_person', 'N/A'),
+                    'email': data.get('email', 'noreply@example.com'),
+                    'phone': data.get('phone', ''),
+                    'website': data.get('website', ''),
+                })
         except Exception as e:
-            self.write({
-                'analysis_status': 'failed',
-                'analysis_result': json.dumps({'error': str(e)})
-            })
-            raise e
+            _logger.error(f"Failed to extract vendor info: {e}")
+
+        # Trigger scoring analysis
+        self._trigger_analysis_job()
+
+    def _trigger_analysis_job(self):
+        """Trigger proposal analysis as a queue job."""
+        if hasattr(self.env['rfp.proposal'], 'with_delay'):
+            # Queue job available
+            self.with_delay().analyze_proposal_job()
+        else:
+            # Fallback to immediate execution
+            self.analyze_proposal_job()
+
+    @staticmethod
+    def _extract_text_from_pdf(file_bytes):
+        """Extract text from PDF."""
+        import io
+        import PyPDF2
+        reader = PyPDF2.PdfReader(io.BytesIO(file_bytes))
+        parts = []
+        for page in reader.pages:
+            text = page.extract_text()
+            if text:
+                parts.append(text)
+        return '\n'.join(parts)
+
+    @staticmethod
+    def _extract_text_from_docx(file_bytes):
+        """Extract text from DOCX."""
+        import io
+        import zipfile
+        from xml.etree import ElementTree
+        ns = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
+        paragraphs = []
+        with zipfile.ZipFile(io.BytesIO(file_bytes)) as zf:
+            with zf.open('word/document.xml') as doc_xml:
+                tree = ElementTree.parse(doc_xml)
+                for p in tree.getroot().iter(f'{{{ns}}}p'):
+                    texts = [t.text for t in p.iter(f'{{{ns}}}t') if t.text]
+                    if texts:
+                        paragraphs.append(''.join(texts))
+        return '\n'.join(paragraphs)

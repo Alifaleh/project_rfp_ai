@@ -12,6 +12,8 @@ access_rfp_section_diagram_portal,rfp.section.diagram,model_rfp_section_diagram,
 access_rfp_ai_log,rfp.ai.log,model_rfp_ai_log,base.group_user,1,1,1,0
 access_rfp_ai_model,rfp.ai.model,model_rfp_ai_model,base.group_user,1,1,1,1
 access_rfp_knowledge_base,rfp.knowledge.base,model_rfp_knowledge_base,base.group_user,1,1,1,1
+access_rfp_kb_section_user,rfp.kb.section,model_rfp_kb_section,base.group_user,1,1,1,1
+access_rfp_kb_section_portal,rfp.kb.section,model_rfp_kb_section,base.group_portal,1,0,0,0
 access_rfp_ai_model_system,rfp.ai.model,model_rfp_ai_model,base.group_system,1,1,1,1
 access_rfp_ai_model_tag,rfp.ai.model.tag,model_rfp_ai_model_tag,base.group_user,1,0,0,0
 access_rfp_ai_model_tag_system,rfp.ai.model.tag,model_rfp_ai_model_tag,base.group_system,1,1,1,1
@@ -38,4 +40,14 @@ access_rfp_published_diagram_portal,rfp.published.diagram,model_rfp_published_di
 access_rfp_published_diagram_public,rfp.published.diagram,model_rfp_published_diagram,base.group_public,1,0,0,0
 access_rfp_proposal_user,rfp.proposal,model_rfp_proposal,base.group_user,1,1,1,1
 access_rfp_proposal_portal,rfp.proposal,model_rfp_proposal,base.group_portal,1,1,1,0
-access_rfp_proposal_public,rfp.proposal,model_rfp_proposal,base.group_public,0,0,1,0
+access_rfp_proposal_public,rfp.proposal,model_rfp_proposal,base.group_public,0,0,0,0
+access_rfp_eval_input_user,rfp.eval.input,model_rfp_eval_input,base.group_user,1,1,1,1
+access_rfp_eval_input_portal,rfp.eval.input,model_rfp_eval_input,base.group_portal,1,0,0,0
+access_rfp_evaluation_criterion_user,rfp.evaluation.criterion,model_rfp_evaluation_criterion,base.group_user,1,1,1,1
+access_rfp_evaluation_criterion_portal,rfp.evaluation.criterion,model_rfp_evaluation_criterion,base.group_portal,1,0,0,0
+access_rfp_required_document_user,rfp.required.document,model_rfp_required_document,base.group_user,1,1,1,1
+access_rfp_required_document_portal,rfp.required.document,model_rfp_required_document,base.group_portal,1,0,0,0
+access_rfp_required_document_public,rfp.required.document,model_rfp_required_document,base.group_public,1,0,0,0
+access_rfp_proposal_document_user,rfp.proposal.document,model_rfp_proposal_document,base.group_user,1,1,1,1
+access_rfp_proposal_document_portal,rfp.proposal.document,model_rfp_proposal_document,base.group_portal,1,1,1,0
+access_rfp_proposal_document_public,rfp.proposal.document,model_rfp_proposal_document,base.group_public,0,0,0,0

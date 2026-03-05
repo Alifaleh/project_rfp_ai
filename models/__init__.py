@@ -10,6 +10,11 @@ from . import ai_model
 from . import rfp_document_section
 from . import rfp_prompt
 from . import knowledge_base
+from . import kb_section
 from . import rfp_custom_field
 from . import rfp_practice_input
 from . import rfp_published
+from . import rfp_eval_input
+from . import rfp_evaluation_criterion
+from . import rfp_required_document
+from . import rfp_proposal_document

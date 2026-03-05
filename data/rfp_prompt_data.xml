@@ -65,6 +65,63 @@ Instructions:
             </field>
         </record>
 
+        <!-- Phase 2b: Scope Assessment (Dynamic Round Limits) -->
+        <record id="prompt_scope_assessor" model="rfp.prompt">
+            <field name="name">Phase 2b: Scope Assessment</field>
+            <field name="code">scope_assessor</field>
+            <field name="ai_model_id" ref="model_gemini_3_pro_preview"/>
+            <field name="description">Analyzes project signals to determine interview depth (round limits).</field>
+            <field name="template_text">
+<![CDATA[
+# System Prompt: Scope Assessment (Interview Depth Calibration)
+
+**Role:** You are a Senior Project Estimator and Scope Analyst.
+**Goal:** Analyze the initial project signals to determine how many interview rounds are appropriate before the RFP document can be drafted.
+
+**Input Signals:**
+- Project Name: {project_name}
+- Project Description: {description}
+- Domain: {domain}
+- Company Size: {company_size}
+- Estimated Budget: {budget_range}
+- Project Type: {project_type}
+- Target Audience: {target_audience}
+- Primary Goal: {primary_goal}
+- Initial Research Summary (Best Practices): {initial_research_summary}
+
+**Assessment Guidelines:**
+
+1. **Low Complexity** (warn_round: 6-8, max_round: 10-12):
+   - Startup with small budget (< $20k)
+   - Simple/standard project type (e.g., basic website, simple internal tool)
+   - Single audience segment, few integrations expected
+
+2. **Medium Complexity** (warn_round: 10-14, max_round: 16-22):
+   - SMB with moderate budget ($20k-$100k)
+   - Standard SaaS or migration project
+   - Multiple audience segments, moderate integrations
+
+3. **High Complexity** (warn_round: 14-18, max_round: 22-28):
+   - Enterprise with substantial budget (> $100k)
+   - Legacy rewrite or complex platform
+   - Multiple audiences, compliance requirements, extensive integrations
+
+4. **Very High Complexity** (warn_round: 18-22, max_round: 28-35):
+   - Enterprise with large budget
+   - Mission-critical, multi-module platform with heavy compliance
+   - Government/Healthcare/Financial with strict regulatory needs
+
+**Rules:**
+- `warn_round` must always be less than `max_round`.
+- `max_round` must be at least 4 rounds greater than `warn_round`.
+- Consider the domain's inherent complexity (e.g., Healthcare has compliance overhead).
+- If the description mentions many distinct modules or subsystems, lean toward higher limits.
+
+**Output:** Return ONLY valid JSON matching the schema.
+]]>
+            </field>
+        </record>
+
         <!-- Phase 3: Information Gathering -->
         <record id="prompt_interviewer_main" model="rfp.prompt">
             <field name="name">Phase 3: Information Gathering (Project Specifics)</field>
@@ -104,17 +161,21 @@ Instructions:
     *   Do NOT ask more than 5 questions per round.
 *   **Time Awareness**:
     *   You are currently in **Round {{round_count}}**.
-    *   If **Round > 15**: You are running long. Stop asking nice-to-have questions. Only ask **CRITICAL BLOCKERS**.
-    *   If **Round > 25**: AGGRESSIVELY Wrap up. Unless there is a fatal missing piece of info, set `is_gathering_complete=True`.
+    *   If **Round > {{warn_round}}**: You are running long. Stop asking nice-to-have questions. Only ask **CRITICAL BLOCKERS**.
+    *   If **Round > {{max_round}}**: AGGRESSIVELY Wrap up. Unless there is a fatal missing piece of info, set `is_gathering_complete=True`.
+
+**Source Document Awareness:**
+If `source_document_excerpt` is present in the context, this project was imported from an existing RFP document or duplicated from another project. DO NOT ask questions that are clearly answered in the source text. Focus only on gaps, ambiguities, and topics NOT covered by the source. Treat information in the source as established context.
 
 **Process:**
 1.  Analyze the `current_project_context` (User's concept + previous answers).
 2.  Review `rejected_topics` first. Ensure none of your planned questions touch these topics.
 3.  Review `previous_inputs` to ensure you do not repeat answered questions.
-4.  Identify FUNCTIONAL GAPS (e.g., Missing workflows, unknown integrations, specific business logic).
-5.  Identify MISSING CONSTRAINTS: You **MUST** ensure you recall the **Project Timeline, Deadline, and Key Milestones**.
-6.  Generate `form_fields` to close these gaps.
-7.  **Completion Logic**:
+4.  If `source_document_excerpt` exists, review it to avoid asking about topics already covered.
+5.  Identify FUNCTIONAL GAPS (e.g., Missing workflows, unknown integrations, specific business logic).
+6.  Identify MISSING CONSTRAINTS: You **MUST** ensure you recall the **Project Timeline, Deadline, and Key Milestones**.
+7.  Generate `form_fields` to close these gaps.
+8.  **Completion Logic**:
     *   **Bias for Action:** Your goal is to finish. Do NOT aim for 100% perfection. Aim for "Good Enough to Start".
     *   If the user answers "Irrelevant" or "No details needed", **DROP IT**. Do not find a different way to ask.
     *   **CRITICAL**: If you cannot find a *significant* functional gap, set `is_gathering_complete` to `true`.
@@ -179,11 +240,19 @@ Perform a GAP ANALYSIS.
 2.  Check if they are covered in `previous_inputs` or `practice_inputs`.
 3.  If MISSING, ask a question to fill the gap.
 
+**Source Document Awareness:**
+If `source_document_excerpt` is present in the context, this project was imported from an existing document or duplicated. DO NOT ask about topics clearly covered in the source text. Treat source information as established context and focus only on gaps not covered.
+
 **Question Strategy (GAP ANALYSIS):**
 *   **Checklist Mode:** Systematically verify each best practice topic.
 *   **Limit:** Ask a MAXIMUM of 5 questions per round. If more gaps exist, push them to the next round.
-*   **MANDATORY:** You MUST ask about "Company Description", "Timeline", "Budget", "Compliance", if not already answered.
+*   **MANDATORY:** You MUST ask about "Company Description", "Timeline", "Budget", "Compliance", if not already answered in `previous_inputs`, `practice_inputs`, or `source_document_excerpt`.
 *   **Output:** Generate questions to fill these specific gaps.
+
+**Time Awareness:**
+*   You are currently in **Round {{round_count}}**.
+*   If **Round > {{warn_round}}**: Focus only on CRITICAL compliance gaps. Skip nice-to-have best practice items.
+*   If **Round > {{max_round}}**: Set `is_gathering_complete=True` unless a critical regulatory compliance gap remains.
 
 **Rules:**
 *   **Do NOT** ask about project functional logic (already done).
@@ -494,5 +563,403 @@ Analyze how well this proposal addresses the RFP requirements. Provide:
 ]]>
             </field>
         </record>
+        <!-- Evaluation Criteria Interview -->
+        <record id="prompt_interviewer_eval_criteria" model="rfp.prompt">
+            <field name="name">Evaluation Criteria Interviewer</field>
+            <field name="code">interviewer_eval_criteria</field>
+            <field name="ai_model_id" ref="model_gemini_3_pro_preview"/>
+            <field name="description">Interviews the user to understand their proposal evaluation priorities for this project.</field>
+            <field name="template_text">
+<![CDATA[
+# System Prompt: Evaluation Criteria Interview
+
+**Role:** You are a Senior Procurement Specialist and Evaluation Framework Designer.
+**Goal:** Interview the project owner to understand what matters most when evaluating vendor proposals for this specific project. Your questions will guide the creation of a weighted evaluation scorecard.
+
+**Project Context:**
+- Project Name: {project_name}
+- Domain: {domain}
+- Description: {description}
+- Document Sections: {section_titles}
+
+**Previous Evaluation Inputs:**
+{previous_eval_inputs}
+
+**Your Interview Objectives:**
+1. Understand the RELATIVE IMPORTANCE of different evaluation dimensions for THIS project:
+   - Technical capability and approach
+   - Vendor experience and track record
+   - Commercial terms and pricing
+   - Timeline and delivery capability
+   - Compliance and regulatory adherence
+   - Innovation and creative approach
+   - Support, maintenance, and SLAs
+   - Methodology and project management
+2. Identify MUST-HAVE criteria (automatic rejection if not met)
+3. Understand scoring priorities (what separates a great proposal from a good one)
+
+**Rules:**
+*   **Smart Defaults**: Based on the project domain and description, you should already have a sense of what matters. Ask targeted questions, not generic ones.
+*   **No Repetition**: Check `previous_eval_inputs` before asking. Do NOT re-ask answered questions.
+*   **Concise**: Ask a MAXIMUM of 4 questions per round. This interview should complete in 2-3 rounds.
+*   **Suggestions**: For ALL textual questions (`text_input`, `textarea`), provide `suggested_answers` based on the project domain.
+*   **Time Awareness**:
+    *   You are currently in **Round {{round_count}}**.
+    *   If **Round > 3**: Wrap up. Set `is_gathering_complete=True` unless critical evaluation priorities are still unknown.
+*   **Completion**: When you have enough information to generate 5-12 meaningful evaluation criteria with weights, set `is_gathering_complete=True`.
+
+**Output:** Return ONLY valid JSON matching the schema.
+]]>
+            </field>
+        </record>
+
+        <!-- Generate Evaluation Criteria from Interview -->
+        <record id="prompt_generate_eval_criteria" model="rfp.prompt">
+            <field name="name">Generate Evaluation Criteria</field>
+            <field name="code">generate_eval_criteria</field>
+            <field name="ai_model_id" ref="model_gemini_3_pro_preview"/>
+            <field name="description">Generates structured evaluation criteria from interview answers.</field>
+            <field name="template_text">
+<![CDATA[
+# System Prompt: Generate Evaluation Criteria
+
+**Role:** You are a Senior Procurement Specialist designing a weighted evaluation scorecard.
+**Goal:** Based on the interview answers below, generate a comprehensive set of evaluation criteria for scoring vendor proposals.
+
+**Project Context:**
+- Project Name: {project_name}
+- Domain: {domain}
+- Description: {description}
+
+**Interview Answers:**
+{eval_interview_answers}
+
+**Generation Rules:**
+1. Generate between 5 and 12 criteria.
+2. **Weights MUST sum to exactly 100.** Distribute weights based on the user's stated priorities.
+3. Mark criteria as `is_must_have: true` ONLY if the user explicitly stated something is mandatory or a dealbreaker.
+4. Each criterion needs clear `scoring_guidance` explaining what constitutes high (80-100), medium (50-79), and low (0-49) scores.
+5. Use appropriate categories: technical, commercial, experience, compliance, timeline, methodology, support, innovation, other.
+6. Criteria should be SPECIFIC to this project, not generic boilerplate.
+7. Order criteria by weight (highest first).
+
+**Output:** Return ONLY valid JSON matching the schema.
+]]>
+            </field>
+        </record>
+
+        <!-- Criteria-based Proposal Analysis -->
+        <record id="prompt_analyze_proposal_criteria" model="rfp.prompt">
+            <field name="name">Analyze Proposal Against Criteria</field>
+            <field name="code">analyze_proposal_criteria</field>
+            <field name="ai_model_id" ref="model_gemini_3_pro_preview"/>
+            <field name="description">Evaluates a vendor proposal against project-specific evaluation criteria with per-criterion scoring.</field>
+            <field name="template_text">
+<![CDATA[
+# Criteria-Based Proposal Analysis
+
+You are evaluating a vendor proposal using a **project-specific scoring rubric**.
+
+## RFP DOCUMENT (Requirements):
+{rfp_content}
+
+## EVALUATION CRITERIA (Evaluation Rubric):
+{evaluation_criteria}
+
+## VENDOR PROPOSAL FROM: {company_name}
+{proposal_content}
+
+## YOUR TASK:
+Score this proposal against EACH evaluation criterion individually, then compute the weighted total.
+
+**For each criterion:**
+1. Read the scoring guidance carefully.
+2. Assign a score from 0-100 based on how well the proposal addresses it.
+3. Provide a brief justification (1-2 sentences).
+4. For must-have criteria: set `met` to true/false. If the criterion is fundamentally not addressed, set `met: false`.
+
+**Weighted Total Score:**
+- Calculate: sum(criterion_score * criterion_weight / 100) for all criteria.
+- Round to nearest integer.
+
+**Must-Have Failures:**
+- List the names of any must-have criteria where `met: false`.
+- If ANY must-have fails, the recommendation should generally be "Reject" regardless of the total score.
+
+**Also provide:**
+- Overall coverage score (0-100)
+- Overall rating (Excellent/Good/Fair/Poor)
+- Executive summary (2-3 sentences)
+- Key strengths and weaknesses
+- Final recommendation (Shortlist/Review/Reject) with reason
+- Questions for vendor
+
+## ANALYSIS GUIDELINES:
+- Be objective and evidence-based
+- Reference specific parts of the proposal
+- The weighted_total_score should reflect the criteria weights faithfully
+- If a must-have criterion is not met, recommend "Reject" and explain why
+]]>
+            </field>
+        </record>
+        <!-- Document Analyzer: Extract data from uploaded RFP -->
+        <record id="prompt_document_analyzer" model="rfp.prompt">
+            <field name="name">Document Analyzer: Extract RFP Data</field>
+            <field name="code">document_analyzer</field>
+            <field name="ai_model_id" ref="model_gemini_3_pro_preview"/>
+            <field name="description">Analyzes an uploaded RFP document and extracts structured project data.</field>
+            <field name="template_text">
+<![CDATA[
+# System Prompt: RFP Document Analyzer
+
+**Role:** You are an expert RFP analyst tasked with extracting structured data from an existing RFP document.
+**Goal:** Analyze the attached document and extract key project information.
+
+**Available Domains in System:**
+{available_domains_str}
+
+**Instructions:**
+
+1. **Project Name:** Extract or derive a concise, descriptive project name from the document title or content.
+
+2. **Description:** Write a 2-4 sentence professional summary of the RFP's purpose and scope.
+   - **DATA PRESERVATION (ZERO TOLERANCE):** Preserve EVERY specific fact, date, number, constraint, and technical requirement found in the document.
+   - Do NOT invent new requirements. Only summarize what is stated.
+
+3. **Domain Selection:**
+   - Select the best-matching domain from the Available Domains list.
+   - **CRITICAL:** The domain represents the **Vendor's Expertise** required (e.g., if the RFP asks for software development services, the domain is "Software Development", not the client's industry like "Healthcare").
+   - If no existing domain fits, suggest a broadly applicable service domain name.
+
+4. **Field Extraction:**
+   For each field listed below, attempt to extract the relevant value from the document.
+   - Only include fields where you found meaningful, explicit information.
+   - For radio/select fields with defined options, use the exact option value when possible.
+   - For text fields, provide a concise extracted value.
+   - If information is not found or ambiguous, omit that field from the output.
+
+**Fields to Extract:**
+{field_definitions}
+
+**Output:** Return valid JSON matching the provided schema.
+]]>
+            </field>
+        </record>
+
+        <!-- Auto-Fill Form Inputs from Source Text -->
+        <record id="prompt_document_auto_filler" model="rfp.prompt">
+            <field name="name">Document Auto-Filler: Pre-Fill Answers from Source</field>
+            <field name="code">document_auto_filler</field>
+            <field name="ai_model_id" ref="model_gemini_3_pro_preview"/>
+            <field name="description">Analyzes source text to auto-fill interview questions with confident answers.</field>
+            <field name="template_text">
+<![CDATA[
+# System Prompt: Auto-Fill Form Inputs from Source Document
+
+**Role:** You are an expert RFP analyst. You have the full text of a source document (an existing RFP or previous project data) and a set of questions that need answers.
+
+**Goal:** For each question, determine whether the source text contains enough information to answer it confidently. Return answers with confidence levels.
+
+**Source Document Text:**
+---BEGIN SOURCE---
+{source_text}
+---END SOURCE---
+
+**Questions to Answer:**
+{questions_json}
+
+**Instructions:**
+
+1. For EACH question in the list above, search the source text for relevant information.
+2. Assign a confidence level:
+   - **high**: The answer is explicitly stated or clearly derivable from the source. The information is unambiguous. You are certain this is correct.
+   - **medium**: The answer can be reasonably inferred but is not explicitly stated. Some interpretation is needed.
+   - **low**: The source does not contain sufficient information to answer. Do NOT include low-confidence answers in your output.
+
+3. **For select/radio fields with defined options**: Your answer MUST be the exact `value` from the options list. If none of the options match the source content, set confidence to "low" and omit the field entirely.
+4. **For multiselect fields**: Provide comma-separated option values that match the options list.
+5. **For text/textarea fields**: Provide a concise, factual answer derived from the source. Do not embellish or add information not present.
+6. **For boolean fields**: Answer must be "yes" or "no".
+
+**Critical Rules:**
+- Be CONSERVATIVE with confidence. Only mark "high" when you are certain the source explicitly contains this information.
+- NEVER fabricate or assume information. Only use what is clearly present in the source text.
+- Do NOT include fields where confidence is "low" — omit them entirely from the output.
+- Provide a brief `source_excerpt` (1-2 sentences) quoting or paraphrasing the relevant part of the source for each answer.
+- If the source text is about a previous project and the question asks about preferences or choices, the previous project's choices are considered "high" confidence since they represent the user's established preferences.
+
+**Output:** Return ONLY valid JSON matching the provided schema.
+]]>
+            </field>
+        </record>
+
+        <!-- Proposal Vendor Info Extractor -->
+        <record id="prompt_proposal_extractor" model="rfp.prompt">
+            <field name="name">Proposal Extractor: Extract Vendor Info</field>
+            <field name="code">proposal_extractor</field>
+            <field name="ai_model_id" ref="model_gemini_3_pro_preview"/>
+            <field name="description">Extracts vendor information from uploaded proposal documents.</field>
+            <field name="template_text">
+<![CDATA[
+# System Prompt: Extract Vendor Information from Proposal
+
+You are analyzing a vendor proposal document. Extract the following information:
+
+**Proposal Text:**
+{proposal_text}
+
+**Instructions:**
+1. Find the vendor's company name
+2. Find the contact person name
+3. Find the email address
+4. Find the phone number (if present)
+5. Find the company website (if present)
+
+Return valid JSON matching the schema. If a field is not found, use:
+- company_name: "Unknown Vendor"
+- contact_person: "N/A"
+- email: "noreply@example.com"
+- phone: "" (empty string if not found)
+- website: "" (empty string if not found)
+]]>
+            </field>
+        </record>
+
+        <!-- KB Structure Extractor (Step 1 of 2) -->
+        <record id="prompt_kb_structure_extractor" model="rfp.prompt">
+            <field name="name">KB: Structure Extractor</field>
+            <field name="code">kb_structure_extractor</field>
+            <field name="ai_model_id" ref="model_gemini_3_pro_preview"/>
+            <field name="template_text">
+<![CDATA[
+You are an Expert Solution Architect specializing in RFP analysis.
+
+**GOAL**
+Analyze the attached document to extract its structural outline. Identify every major section of this RFP and classify each one.
+
+**PART 1: DOMAIN SELECTION**
+- The Domain must represent the **Vendor's Expertise** required (e.g. "Software Development", "Logistics"), NOT the client's industry.
+- **Available Domains:**
+{available_domains}
+- Select the best fit from the list. If none fit, propose a new, broadly applicable service domain.
+
+**PART 2: SUMMARY**
+Write a concise 2-4 sentence summary describing:
+- What domain expertise this document covers
+- The key focus areas and requirements
+- Any notable compliance or industry standards mentioned
+
+**PART 3: SECTION EXTRACTION**
+Extract every major section from the document. For each section:
+1. **title**: The section title as it appears (or a clear inferred title if the document lacks headings)
+2. **section_type**: Classify into one of: introduction, functional, technical, compliance, security, timeline, budget, evaluation, support, appendix
+
+**Rules:**
+- Extract ALL major sections, not just a few
+- If the document has numbered sections (e.g. "1. Introduction", "2. Scope"), use those
+- If the document lacks clear sections, infer logical divisions from the content
+- Order sections as they appear in the document
+]]>
+            </field>
+        </record>
+
+        <!-- KB Content Extractor (Step 2 of 2) -->
+        <record id="prompt_kb_content_extractor" model="rfp.prompt">
+            <field name="name">KB: Content Extractor</field>
+            <field name="code">kb_content_extractor</field>
+            <field name="ai_model_id" ref="model_gemini_3_pro_preview"/>
+            <field name="template_text">
+<![CDATA[
+You are an Expert Solution Architect specializing in RFP best practices.
+
+**GOAL**
+For each section listed below, analyze the attached document and extract generalized best practices, standard content patterns, and key topics.
+
+**SECTIONS TO ANALYZE:**
+{section_list}
+
+**CRITICAL RULES:**
+1. **GENERALIZE everything.** Do NOT include client-specific names, dates, project names, or vendor names.
+   - *Bad:* "The system must integrate with Federal Authority for Identity."
+   - *Good:* "The solution must support integration with National Identity Providers for user verification."
+
+2. For each section, provide:
+   - **description**: A comprehensive guide of best practices for writing this type of section in an RFP. Include what content should be covered, what standards to follow, and what pitfalls to avoid. This should be detailed enough (3-8 paragraphs) to guide someone writing a similar section from scratch.
+   - **key_topics**: A list of specific topics, standards, or requirements that should be addressed in this section.
+
+3. Focus on REUSABLE knowledge that applies to any similar RFP in this domain, not just this specific document.
+
+**OUTPUT FORMAT**
+Return a JSON object with a "sections" array. Each element must have "title" (matching the section titles above), "description", and "key_topics".
+]]>
+            </field>
+        </record>
+
+        <!-- KB Project Generalizer -->
+        <record id="prompt_kb_project_generalizer" model="rfp.prompt">
+            <field name="name">KB: Project Generalizer</field>
+            <field name="code">kb_project_generalizer</field>
+            <field name="ai_model_id" ref="model_gemini_3_pro_preview"/>
+            <field name="template_text">
+<![CDATA[
+You are an Expert Solution Architect specializing in RFP best practices.
+
+**GOAL**
+You are given the sections of a completed RFP project. Your task is to:
+1. Classify each section into a category
+2. Generalize the content into reusable best practices
+3. Write a summary of the overall knowledge base
+
+**PROJECT SECTIONS:**
+{sections_context}
+
+**CRITICAL RULES:**
+1. **GENERALIZE everything.** Remove ALL client-specific names, dates, project names, vendor names, and specific figures.
+2. Transform specific requirements into industry best practices.
+3. For each section, provide:
+   - **title**: Keep the original section title
+   - **section_type**: Classify as one of: introduction, functional, technical, compliance, security, timeline, budget, evaluation, support, appendix
+   - **description**: Generalized best practices (3-8 paragraphs) for writing this type of section
+   - **key_topics**: List of key topics covered
+
+**SUMMARY**
+Write a 2-4 sentence summary describing what domain expertise and section coverage this knowledge base provides.
+]]>
+            </field>
+        </record>
+
+        <!-- KB Selector -->
+        <record id="prompt_kb_selector" model="rfp.prompt">
+            <field name="name">KB: Smart Selector</field>
+            <field name="code">kb_selector</field>
+            <field name="ai_model_id" ref="model_gemini_3_pro_preview"/>
+            <field name="template_text">
+<![CDATA[
+You are an Expert Solution Architect helping to select the most relevant Knowledge Bases for a new RFP project.
+
+**NEW PROJECT:**
+- Name: {project_name}
+- Description: {project_description}
+- Domain: {project_domain}
+
+**CANDIDATE KNOWLEDGE BASES:**
+{kb_candidates}
+
+**TASK:**
+Select the 1-3 Knowledge Bases that are most relevant and useful for generating this RFP project. Consider:
+1. Domain match (most important)
+2. Section coverage relevance
+3. Complementary value (if selecting multiple KBs, they should cover different aspects)
+
+**Rules:**
+- Select at least 1 KB if any candidate is reasonably relevant
+- Select up to 3 KBs maximum
+- Return the IDs in order of relevance (most relevant first)
+- If no KB is truly relevant, return an empty list
+- Explain your reasoning briefly
+]]>
+            </field>
+        </record>
+
     </data>
 </odoo>

@@ -1,8 +1,12 @@
 from odoo import models, fields, api
 from odoo.exceptions import ValidationError
+from markupsafe import Markup
 import json
 import logging
 import base64
+import zipfile
+import io
+from xml.etree import ElementTree
 from odoo.addons.project_rfp_ai.const import *
 
 _logger = logging.getLogger(__name__)
@@ -39,7 +43,6 @@ class RfpProject(models.Model):
         (STAGE_DOCUMENT_LOCKED, 'Document Locked'),
         (STAGE_COMPLETED_WITH_ERRORS, 'Completed With Errors'),
         (STAGE_COMPLETED, 'Completed'),
-        (STAGE_COMPLETED, 'Completed'),
     ], string="Current Stage", default=STAGE_DRAFT, tracking=False, group_expand='_expand_stages')
 
     image_generation_progress = fields.Integer(string="Image Gen Progress", default=0, help="Transient field for progress bar")
@@ -50,13 +53,41 @@ class RfpProject(models.Model):
     practice_input_ids = fields.One2many('rfp.practice.input', 'project_id', string="Practice Inputs")
     document_section_ids = fields.One2many('rfp.document.section', 'project_id', string="Generated Sections")
 
+    # Evaluation Criteria
+    eval_input_ids = fields.One2many('rfp.eval.input', 'project_id', string="Evaluation Inputs")
+    evaluation_criterion_ids = fields.One2many('rfp.evaluation.criterion', 'project_id', string="Evaluation Criteria")
+    eval_criteria_status = fields.Selection([
+        ('not_started', 'Not Started'),
+        ('gathering', 'Gathering'),
+        ('generated', 'Generated'),
+        ('finalized', 'Finalized'),
+    ], string="Eval Criteria Status", default='not_started')
+
+    # Required Document Types (for vendor submissions)
+    required_document_ids = fields.One2many('rfp.required.document', 'project_id', string="Required Documents")
+
+    # Source Document (for uploaded RFP imports)
+    source_document = fields.Binary(string="Source Document", attachment=True)
+    source_filename = fields.Char(string="Source Filename")
+    source_mimetype = fields.Char(string="Source MIME Type")
+    source_extracted_text = fields.Text(string="Source Extracted Text",
+        help="Full text extracted from uploaded document or source project, used for auto-fill and interview context")
+
     # Research Fields
     initial_research = fields.Text(string="Initial Best Practices", readonly=True, help="Broad research before gathering.")
     refined_practices = fields.Text(string="Refined Best Practices", readonly=True, help="Specific research after gathering.")
 
-    # Publishing Fields
-    published_id = fields.Many2one('rfp.published', string="Published RFP", readonly=True, copy=False)
-    is_published = fields.Boolean(string="Is Published", compute='_compute_is_published')
+    # Knowledge Base
+    kb_ids = fields.Many2many('rfp.knowledge.base', string="Selected Knowledge Bases",
+        help="Knowledge bases selected by AI as relevant for this project")
+    has_kb_entry = fields.Boolean(
+        string="Has KB Entry", compute='_compute_has_kb_entry')
+    kb_count = fields.Integer(
+        string="KB Count", compute='_compute_kb_count')
+
+    # Export Fields
+    published_id = fields.Many2one('rfp.published', string="Exported RFP", readonly=True, copy=False)
+    is_published = fields.Boolean(string="Is Exported", compute='_compute_is_published')
 
 
 
@@ -165,34 +196,478 @@ class RfpProject(models.Model):
             
             project.current_stage = STAGE_INITIALIZED
 
+    @staticmethod
+    def _extract_text_from_docx(file_bytes):
+        """Extract plain text from a DOCX file using built-in Python modules."""
+        ns = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
+        paragraphs = []
+        with zipfile.ZipFile(io.BytesIO(file_bytes)) as zf:
+            with zf.open('word/document.xml') as doc_xml:
+                tree = ElementTree.parse(doc_xml)
+                for p in tree.getroot().iter(f'{{{ns}}}p'):
+                    texts = [t.text for t in p.iter(f'{{{ns}}}t') if t.text]
+                    if texts:
+                        paragraphs.append(''.join(texts))
+        return '\n'.join(paragraphs)
+
+    @staticmethod
+    def _extract_text_from_pdf(file_bytes):
+        """Extract plain text from a PDF file using PyPDF2."""
+        try:
+            import PyPDF2
+            reader = PyPDF2.PdfReader(io.BytesIO(file_bytes))
+            parts = []
+            for page in reader.pages:
+                text = page.extract_text()
+                if text:
+                    parts.append(text)
+            return '\n'.join(parts)
+        except Exception:
+            return ''
+
+    def _auto_fill_from_source(self):
+        """
+        Auto-fill form input answers from source_extracted_text.
+        High-confidence answers → user_value (question disappears from form).
+        Medium-confidence answers → prepended to suggested_answers.
+        Non-fatal: if AI call fails, user answers manually.
+        """
+        self.ensure_one()
+        from odoo.addons.project_rfp_ai.models.ai_schemas import get_auto_fill_schema
+
+        source_text = self.source_extracted_text
+        if not source_text or len(source_text.strip()) < 50:
+            _logger.info("Project %s: No meaningful source text for auto-fill", self.id)
+            return
+
+        # 1. Get all unanswered form_inputs
+        unanswered = self.form_input_ids.filtered(
+            lambda i: not i.user_value and not i.is_irrelevant
+        )
+        if not unanswered:
+            _logger.info("Project %s: No unanswered form inputs for auto-fill", self.id)
+            return
+
+        # 2. Build question list for AI
+        questions = []
+        for inp in unanswered:
+            q = {
+                "field_key": inp.field_key,
+                "label": inp.label,
+                "component_type": inp.component_type,
+            }
+            if inp.options:
+                try:
+                    q["options"] = json.loads(inp.options)
+                except Exception:
+                    pass
+            if inp.suggested_answers:
+                try:
+                    q["existing_suggestions"] = json.loads(inp.suggested_answers)
+                except Exception:
+                    pass
+            questions.append(q)
+
+        questions_json = json.dumps(questions, indent=2)
+
+        # 3. Truncate source text if needed (context window safety)
+        max_source_chars = 50000
+        truncated_source = source_text[:max_source_chars]
+        if len(source_text) > max_source_chars:
+            truncated_source += "\n\n[... Source text truncated for length ...]"
+
+        # 4. Build prompt
+        prompt_record = self.env['rfp.prompt'].search(
+            [('code', '=', PROMPT_DOCUMENT_AUTO_FILLER)], limit=1
+        )
+        if not prompt_record:
+            _logger.warning("Auto-filler prompt not found. Skipping auto-fill for project %s.", self.id)
+            return
+
+        system_prompt = prompt_record.template_text.format(
+            source_text=truncated_source,
+            questions_json=questions_json
+        )
+
+        # 5. Call AI
+        try:
+            response_json_str = self.env['rfp.ai.log'].execute_request(
+                system_prompt=system_prompt,
+                user_context="Auto-fill the above questions from the source text.",
+                env=self.env,
+                mode='json',
+                schema=get_auto_fill_schema(),
+                prompt_record=prompt_record
+            )
+        except Exception as e:
+            _logger.warning("Auto-fill AI call failed for project %s: %s", self.id, e)
+            return
+
+        if not response_json_str:
+            return
+
+        try:
+            data = json.loads(response_json_str)
+        except json.JSONDecodeError:
+            _logger.warning("Auto-fill AI returned invalid JSON for project %s", self.id)
+            return
+
+        # 6. Apply results
+        auto_fill_count = 0
+        suggestion_count = 0
+        input_map = {inp.field_key: inp for inp in unanswered}
+
+        for field_result in data.get('auto_filled_fields', []):
+            field_key = field_result.get('field_key')
+            answer = field_result.get('answer')
+            confidence = field_result.get('confidence', 'low')
+
+            if not field_key or not answer or field_key not in input_map:
+                continue
+
+            inp = input_map[field_key]
+
+            # Validate select/radio answers against options
+            if confidence == 'high' and inp.component_type in ('select', 'radio'):
+                try:
+                    options = json.loads(inp.options) if inp.options else []
+                    valid_values = [
+                        o['value'] if isinstance(o, dict) else o
+                        for o in options
+                    ]
+                    if answer not in valid_values:
+                        confidence = 'medium'  # Demote: doesn't match options
+                except Exception:
+                    confidence = 'medium'
+
+            if confidence == 'high':
+                inp.write({
+                    'user_value': answer,
+                    'is_auto_filled': True,
+                })
+                auto_fill_count += 1
+            elif confidence == 'medium':
+                try:
+                    suggestions = json.loads(inp.suggested_answers) if inp.suggested_answers else []
+                except Exception:
+                    suggestions = []
+                if answer not in suggestions:
+                    suggestions.insert(0, answer)
+                inp.write({
+                    'suggested_answers': json.dumps(suggestions)
+                })
+                suggestion_count += 1
+
+        _logger.info(
+            "Auto-fill for project %s: %d high-confidence fills, %d medium-confidence suggestions",
+            self.id, auto_fill_count, suggestion_count
+        )
+
+    def action_initialize_from_document(self):
+        """
+        Initialize project from an uploaded RFP document.
+        Sends document to AI for extraction of project metadata and init field values.
+        Creates form_input records with extracted values as suggested_answers.
+        """
+        self.ensure_one()
+        from odoo.addons.project_rfp_ai.models.ai_schemas import get_document_extraction_schema
+
+        # 1. Build field definitions string from init custom fields
+        init_fields = self.env['rfp.custom.field'].search([('phase', '=', 'init')])
+        field_defs_lines = []
+        for cf in init_fields:
+            line = f"- `{cf.code}` ({cf.input_type}): {cf.name}"
+            options = cf.option_ids
+            if options:
+                opts = ", ".join([o.label for o in options])
+                line += f" [Options: {opts}]"
+            suggestions = cf.suggestion_ids
+            if suggestions:
+                suggs = ", ".join([s.name for s in suggestions])
+                line += f" [Examples: {suggs}]"
+            field_defs_lines.append(line)
+        field_definitions = "\n".join(field_defs_lines)
+
+        # 2. Build prompt
+        existing_domains = self.env['rfp.project.domain'].search([])
+        available_domains_str = "\n".join([f"- {d.name}" for d in existing_domains])
+
+        prompt_record = self.env['rfp.prompt'].search(
+            [('code', '=', 'document_analyzer')], limit=1)
+        if not prompt_record:
+            raise ValidationError("System Prompt 'document_analyzer' not found.")
+
+        system_prompt = prompt_record.template_text.format(
+            available_domains_str=available_domains_str,
+            field_definitions=field_definitions
+        )
+
+        # 3. Prepare file content — Gemini supports PDF natively but NOT DOCX
+        file_content = base64.b64decode(self.source_document)
+        attachments = None
+        user_context = f"Analyze the attached RFP document: {self.source_filename}"
+
+        if self.source_mimetype == 'application/pdf':
+            attachments = [{'data': file_content, 'mime_type': 'application/pdf'}]
+            # Extract text for auto-fill (PyPDF2)
+            self.source_extracted_text = self._extract_text_from_pdf(file_content)
+        else:
+            # DOCX: extract text using built-in zipfile (DOCX is a ZIP of XML)
+            extracted_text = self._extract_text_from_docx(file_content)
+            self.source_extracted_text = extracted_text
+            user_context = (
+                f"Analyze the following RFP document content (extracted from {self.source_filename}):\n\n"
+                f"---BEGIN DOCUMENT---\n{extracted_text}\n---END DOCUMENT---"
+            )
+
+        # 4. Call AI
+        try:
+            response_json_str = self.env['rfp.ai.log'].execute_request(
+                system_prompt=system_prompt,
+                user_context=user_context,
+                env=self.env,
+                mode='json',
+                schema=get_document_extraction_schema(),
+                prompt_record=prompt_record,
+                attachments=attachments
+            )
+        except Exception as e:
+            raise ValidationError(f"AI Document Analysis Failed: {str(e)}")
+
+        if not response_json_str:
+            raise ValidationError("AI returned no response for document analysis.")
+
+        try:
+            data = json.loads(response_json_str)
+        except json.JSONDecodeError:
+            raise ValidationError("AI returned invalid JSON for document analysis.")
+
+        # 5. Apply project metadata
+        suggested_name = data.get('suggested_name', '')
+        if self.name == 'Untitled Upload' and suggested_name:
+            self.name = suggested_name
+
+        refined_desc = data.get('refined_description', '')
+        if refined_desc:
+            self.description = refined_desc
+
+        # Domain handling (same pattern as action_initialize_project)
+        suggested_domain = data.get('suggested_domain_name')
+        if suggested_domain:
+            match = next((d for d in existing_domains
+                          if d.name.lower() == suggested_domain.lower()), None)
+            if match:
+                self.domain_id = match.id
+            else:
+                new_domain = self.env['rfp.project.domain'].create(
+                    {'name': suggested_domain})
+                self.domain_id = new_domain.id
+
+        # 6. Initial research (same as normal init)
+        self._run_initial_research()
+
+        # 7. Build extraction lookup: {field_key: extracted_value}
+        extractions = {}
+        for item in data.get('field_extractions', []):
+            key = item.get('field_key')
+            val = item.get('extracted_value')
+            if key and val:
+                extractions[key] = val
+
+        # Fallback: if PDF text extraction was empty, build source text from AI extraction
+        if not self.source_extracted_text:
+            parts = [f"Project: {self.name}", f"Description: {self.description}"]
+            for item in data.get('field_extractions', []):
+                k, v = item.get('field_key', ''), item.get('extracted_value', '')
+                if k and v:
+                    parts.append(f"{k}: {v}")
+            self.source_extracted_text = "\n\n".join(parts)
+
+        # 8. Create form_input records with extracted values as suggestions
+        for cf in init_fields:
+            existing = self.form_input_ids.filtered(
+                lambda i, code=cf.code: i.field_key == code)
+            if existing:
+                continue
+
+            # Start with default suggestions from custom field
+            suggestions = list(cf.suggestion_ids.mapped('name'))
+
+            # Add extracted value at the top if found
+            extracted_val = extractions.get(cf.code)
+            if extracted_val and extracted_val not in suggestions:
+                suggestions.insert(0, extracted_val)
+
+            self.env['rfp.form.input'].create({
+                'project_id': self.id,
+                'field_key': cf.code,
+                'label': cf.name,
+                'component_type': cf.input_type,
+                'user_value': False,
+                'sequence': cf.sequence,
+                'suggested_answers': json.dumps(suggestions),
+                'options': json.dumps([{'value': o.value, 'label': o.label}
+                                       for o in cf.option_ids]),
+                'specify_triggers': cf.specify_triggers or '[]',
+            })
+
+        # 9. Auto-fill answers from source text
+        self._auto_fill_from_source()
+
+        self.current_stage = STAGE_INITIALIZED
+        _logger.info("Initialized project %s from document '%s', "
+                     "extracted %d field values",
+                     self.id, self.source_filename, len(extractions))
+
+    def _select_knowledge_bases(self):
+        """Smart KB selection: domain filter + AI ranking.
+        Returns selected KB recordset and stores in self.kb_ids.
+        """
+        self.ensure_one()
+        KB = self.env['rfp.knowledge.base']
+
+        # Stage A: Domain filter (free SQL query)
+        candidates = KB.search([
+            ('state', '=', 'active'),
+            '|',
+            ('domain_id', '=', self.domain_id.id),
+            ('domain_id', '=', False),
+        ])
+
+        if not candidates:
+            return KB  # Empty recordset
+
+        if len(candidates) == 1:
+            self.kb_ids = [(6, 0, candidates.ids)]
+            return candidates
+
+        # Stage B: AI ranking (only when 2+ candidates)
+        from odoo.addons.project_rfp_ai.models.ai_schemas import get_kb_selection_schema
+        from odoo.addons.project_rfp_ai.const import PROMPT_KB_SELECTOR
+
+        prompt = self.env['rfp.prompt'].search(
+            [('code', '=', PROMPT_KB_SELECTOR)], limit=1)
+
+        if not prompt:
+            # Fallback: just use all domain-matching KBs
+            self.kb_ids = [(6, 0, candidates.ids)]
+            return candidates
+
+        # Build candidate summaries for AI
+        kb_summaries = []
+        for kb in candidates:
+            kb_summaries.append(
+                f"ID: {kb.id} | Name: {kb.name} | "
+                f"Domain: {kb.domain_id.name if kb.domain_id else 'General'} | "
+                f"Sections: {kb.section_count} | "
+                f"Summary: {kb.summary or (kb.extracted_practices or '')[:300]}"
+            )
+
+        system_prompt = prompt.template_text.replace(
+            '{project_name}', self.name or ''
+        ).replace(
+            '{project_description}', self.description or ''
+        ).replace(
+            '{project_domain}', self.domain_id.name if self.domain_id else 'Unknown'
+        ).replace(
+            '{kb_candidates}', "\n".join(kb_summaries)
+        )
+
+        try:
+            response = self.env['rfp.ai.log'].execute_request(
+                system_prompt=system_prompt,
+                user_context=f"Select the best Knowledge Bases for project: {self.name}",
+                env=self.env,
+                mode='json',
+                schema=get_kb_selection_schema(),
+                prompt_record=prompt,
+            )
+
+            if response:
+                data = json.loads(response)
+                selected_ids = data.get('selected_kb_ids', [])
+                # Validate IDs exist in candidates
+                valid_ids = [kid for kid in selected_ids if kid in candidates.ids]
+                if valid_ids:
+                    self.kb_ids = [(6, 0, valid_ids)]
+                    _logger.info("KB selection for project %s: %s (reason: %s)",
+                                 self.id, valid_ids, data.get('reasoning', ''))
+                    return KB.browse(valid_ids)
+        except Exception as e:
+            _logger.warning("KB selection AI call failed for project %s: %s", self.id, e)
+
+        # Fallback: use all candidates
+        self.kb_ids = [(6, 0, candidates.ids)]
+        return candidates
+
+    def _build_kb_context(self, selected_kbs):
+        """Build structured KB context for downstream prompts."""
+        kb_context = {'source': 'Knowledge Base', 'knowledge_bases': []}
+        for kb in selected_kbs:
+            kb_data = {
+                'name': kb.name,
+                'domain': kb.domain_id.name if kb.domain_id else 'General',
+                'sections': []
+            }
+            for section in kb.section_ids.sorted('sequence'):
+                sec_data = {
+                    'title': section.title,
+                    'type': section.section_type,
+                    'description': section.description or '',
+                }
+                if section.key_topics:
+                    try:
+                        sec_data['key_topics'] = json.loads(section.key_topics)
+                    except json.JSONDecodeError:
+                        pass
+                kb_data['sections'].append(sec_data)
+            kb_context['knowledge_bases'].append(kb_data)
+        return kb_context
+
     def _run_initial_research(self):
         self.ensure_one()
-        
-        # 1. Knowledge Base Check
-        kb_records = self.env['rfp.knowledge.base'].search([
-            ('domain_id', '=', self.domain_id.id),
-            ('state', '=', 'active')
-        ])
-        
-        if kb_records:
-            # Use KB Material
-            practices_text = "\n\n".join([kb.extracted_practices for kb in kb_records if kb.extracted_practices])
-            self.initial_research = f"Source: Knowledge Base\n\n{practices_text}"
-            return 
 
-        # 2. Existing AI Search Logic (Fallback)
+        # 1. Smart Knowledge Base Selection
+        selected_kbs = self._select_knowledge_bases()
+
+        if selected_kbs:
+            # Build structured KB context (JSON)
+            kb_context = self._build_kb_context(selected_kbs)
+            self.initial_research = f"Source: Knowledge Base\n\n{json.dumps(kb_context, indent=2)}"
+
+            # Log KB selection in chatter
+            kb_names = ", ".join([f"<b>{kb.name}</b> ({kb.section_count} sections)" for kb in selected_kbs])
+            self.message_post(
+                body=Markup(
+                    "Knowledge Base selected for this project: %s. "
+                    "KB content will be used to guide TOC structure, section writing, and practices gap analysis."
+                ) % Markup(kb_names),
+                message_type='comment',
+                subtype_xmlid='mail.mt_note',
+            )
+            return
+
+        # No KB found — log and fall back
+        self.message_post(
+            body="No active Knowledge Base found matching this project's domain. "
+                 "Falling back to Google Search for initial research.",
+            message_type='comment',
+            subtype_xmlid='mail.mt_note',
+        )
+
+        # 2. Fallback: Google Search
         try:
             from google.genai import types
             search_tool = [types.Tool(google_search=types.GoogleSearch())]
         except ImportError:
-            search_tool = None 
-        
+            search_tool = None
+
         prompt_record = self.env['rfp.prompt'].search([('code', '=', PROMPT_RESEARCH_INITIAL)], limit=1)
         if not prompt_record:
-            return 
-            
+            return
+
         system_prompt = prompt_record.template_text.format(domain=self.domain_id.name, project_name=self.name)
-        
+
         response_text = self.env['rfp.ai.log'].execute_request(
             system_prompt=system_prompt,
             user_context=f"Project Description: {self.description}",
@@ -202,6 +677,117 @@ class RfpProject(models.Model):
             prompt_record=prompt_record
         )
         self.initial_research = response_text
+
+    def _run_scope_assessment(self):
+        """
+        Run ONCE before the first interview round.
+        Analyzes budget + company size + project complexity to determine
+        dynamic round limits (warn_round, max_round).
+        Stores results in ai_context_blob under 'scope_assessment'.
+        """
+        self.ensure_one()
+        from odoo.addons.project_rfp_ai.models.ai_schemas import get_scope_assessment_schema
+
+        # Guard: Only run once
+        blob = self.get_context_data()
+        if blob.get('scope_assessment'):
+            return
+
+        # Gather init field values
+        init_inputs = {inp.field_key: inp.user_value for inp in self.form_input_ids if inp.user_value}
+
+        prompt_record = self.env['rfp.prompt'].search([('code', '=', PROMPT_SCOPE_ASSESSOR)], limit=1)
+        if not prompt_record:
+            _logger.warning("Scope assessor prompt not found. Using default limits.")
+            blob['scope_assessment'] = {
+                'complexity_rating': 'medium',
+                'reasoning': 'Default limits (prompt not found).',
+                'warn_round': 15,
+                'max_round': 25,
+            }
+            self.ai_context_blob = json.dumps(blob, indent=4)
+            return
+
+        system_prompt = prompt_record.template_text.format(
+            project_name=self.name,
+            description=self.description,
+            domain=self.domain_id.name or 'General',
+            company_size=init_inputs.get('company_size', 'Unknown'),
+            budget_range=init_inputs.get('budget_range', 'Unknown'),
+            project_type=init_inputs.get('project_type', 'Unknown'),
+            target_audience=init_inputs.get('target_audience', 'Unknown'),
+            primary_goal=init_inputs.get('primary_goal', 'Unknown'),
+            initial_research_summary=(self.initial_research or 'No research available.')[:2000],
+        )
+
+        user_context = f"Project: {self.name}\nAssess the interview depth required."
+
+        try:
+            response_json_str = self.env['rfp.ai.log'].execute_request(
+                system_prompt=system_prompt,
+                user_context=user_context,
+                env=self.env,
+                mode='json',
+                schema=get_scope_assessment_schema(),
+                prompt_record=prompt_record
+            )
+        except Exception as e:
+            _logger.warning(f"Scope assessment AI call failed: {e}. Using defaults.")
+            blob['scope_assessment'] = {
+                'complexity_rating': 'medium',
+                'reasoning': f'Default limits (AI call failed).',
+                'warn_round': 15,
+                'max_round': 25,
+            }
+            self.ai_context_blob = json.dumps(blob, indent=4)
+            return
+
+        if not response_json_str:
+            blob['scope_assessment'] = {
+                'complexity_rating': 'medium',
+                'reasoning': 'Default limits (empty AI response).',
+                'warn_round': 15,
+                'max_round': 25,
+            }
+            self.ai_context_blob = json.dumps(blob, indent=4)
+            return
+
+        try:
+            assessment = json.loads(response_json_str)
+        except json.JSONDecodeError:
+            assessment = {
+                'complexity_rating': 'medium',
+                'reasoning': 'Default limits (invalid JSON).',
+                'warn_round': 15,
+                'max_round': 25,
+            }
+
+        # Validate and enforce constraints
+        warn_round = assessment.get('warn_round', 15)
+        max_round = assessment.get('max_round', 25)
+        warn_round = max(5, min(warn_round, 30))
+        max_round = max(warn_round + 4, min(max_round, 40))
+
+        assessment['warn_round'] = warn_round
+        assessment['max_round'] = max_round
+
+        blob['scope_assessment'] = assessment
+        self.ai_context_blob = json.dumps(blob, indent=4)
+        _logger.info(
+            f"Scope assessment for project {self.id}: "
+            f"complexity={assessment.get('complexity_rating')}, "
+            f"warn={warn_round}, max={max_round}"
+        )
+
+    def _get_round_limits(self):
+        """Retrieve dynamic round limits from ai_context_blob."""
+        self.ensure_one()
+        blob = self.get_context_data()
+        assessment = blob.get('scope_assessment', {})
+        return {
+            'warn_round': assessment.get('warn_round', 15),
+            'max_round': assessment.get('max_round', 25),
+        }
 
     def action_refine_practices(self):
         """
@@ -257,8 +843,12 @@ class RfpProject(models.Model):
         if not prompt_record:
             raise ValueError(f"System Prompt '{prompt_code}' not found.")
         
-        # Inject Round Count
-        prompt_template = prompt_record.template_text.replace("{{round_count}}", str(context_data.get('current_round', 1)))
+        # Inject Round Count and Dynamic Limits
+        limits = self._get_round_limits()
+        prompt_template = prompt_record.template_text
+        prompt_template = prompt_template.replace("{{round_count}}", str(context_data.get('current_round', 1)))
+        prompt_template = prompt_template.replace("{{warn_round}}", str(limits['warn_round']))
+        prompt_template = prompt_template.replace("{{max_round}}", str(limits['max_round']))
         context_str = json.dumps(context_data, indent=2)
         
         try:
@@ -359,6 +949,9 @@ class RfpProject(models.Model):
         Phase 3: Information Gathering (Project Specifics)
         """
         for project in self:
+            # Run scope assessment ONCE (before first interview round)
+            project._run_scope_assessment()
+
             # Context Building
             previous_inputs = []
             for inp in project.form_input_ids.sorted('id'):
@@ -371,10 +964,14 @@ class RfpProject(models.Model):
                 "project_name": project.name,
                 "description": project.description,
                 "domain": project.domain_id.name or 'General',
-                "initial_best_practices": project.initial_research or "No research found.", 
+                "initial_best_practices": project.initial_research or "No research found.",
                 "previous_inputs": previous_inputs,
                 "current_round": (len(previous_inputs) // 4) + 1
             }
+
+            # Include source document text to avoid redundant questions
+            if project.source_extracted_text:
+                context_data["source_document_excerpt"] = project.source_extracted_text[:5000]
 
             is_ongoing = project._execute_interview_round(PROMPT_INTERVIEWER_PROJECT, 'rfp.form.input', context_data, scope_key='project')
             
@@ -445,6 +1042,28 @@ class RfpProject(models.Model):
                 "current_round": (len(practice_inputs) // 4) + 1
             }
 
+            # Include source document text to avoid redundant questions
+            if project.source_extracted_text:
+                context_data["source_document_excerpt"] = project.source_extracted_text[:5000]
+
+            # Include KB compliance checklist if KBs are selected
+            if project.kb_ids:
+                kb_checklist = []
+                for kb in project.kb_ids:
+                    for section in kb.section_ids.sorted('sequence'):
+                        topics = []
+                        if section.key_topics:
+                            try:
+                                topics = json.loads(section.key_topics)
+                            except json.JSONDecodeError:
+                                pass
+                        kb_checklist.append({
+                            'topic': section.title,
+                            'type': section.section_type,
+                            'required_coverage': topics,
+                        })
+                context_data['kb_compliance_checklist'] = kb_checklist
+
             # Scope Key = 'practices'
             is_ongoing = project._execute_interview_round(PROMPT_INTERVIEWER_PRACTICES, 'rfp.practice.input', context_data, scope_key='practices')
             
@@ -487,13 +1106,32 @@ class RfpProject(models.Model):
             
             context_str = "\n".join(context_data["q_and_a"])
 
+            # Inject KB reference structures for TOC guidance
+            kb_reference_str = ""
+            if project.kb_ids:
+                kb_ref_parts = []
+                for kb in project.kb_ids:
+                    sections = kb.section_ids.sorted('sequence')
+                    if sections:
+                        sec_list = "\n".join([
+                            f"  - {s.title} [{s.section_type}]" for s in sections
+                        ])
+                        kb_ref_parts.append(f"KB: {kb.name}\n{sec_list}")
+                if kb_ref_parts:
+                    kb_reference_str = (
+                        "\n\n**Knowledge Base Reference Structures:**\n"
+                        "Use these proven section structures as a TEMPLATE for your TOC. "
+                        "Adapt to this project's needs but follow the proven ordering and coverage.\n\n"
+                        + "\n\n".join(kb_ref_parts)
+                    )
+
             # Clear existing logic
             project.document_section_ids.unlink()
 
             prompt_record = self.env['rfp.prompt'].search([('code', '=', PROMPT_WRITER_TOC_ARCHITECT)], limit=1)
             if not prompt_record:
                 raise ValueError(f"System Prompt '{PROMPT_WRITER_TOC_ARCHITECT}' not found.")
-            
+
             architect_prompt = prompt_record.template_text.format(
                  project_name=project.name,
                  domain=project.domain_id.name or 'General',
@@ -503,7 +1141,7 @@ class RfpProject(models.Model):
             try:
                 toc_json_str = self.env['rfp.ai.log'].execute_request(
                     system_prompt=architect_prompt,
-                    user_context=context_str,
+                    user_context=context_str + kb_reference_str,
                     env=self.env,
                     mode='json',
                     schema=get_toc_structure_schema(),
@@ -570,13 +1208,35 @@ class RfpProject(models.Model):
 
             section_writer_template = self.env['rfp.prompt'].search([('code', '=', PROMPT_WRITER_SECTION)], limit=1).template_text
 
+            # Build KB reference for section writers
+            kb_sections_ref = []
+            if project.kb_ids:
+                for kb in project.kb_ids:
+                    for kb_sec in kb.section_ids.sorted('sequence'):
+                        if kb_sec.description:
+                            kb_sections_ref.append({
+                                'kb_name': kb.name,
+                                'section_title': kb_sec.title,
+                                'section_type': kb_sec.section_type,
+                                'best_practices': kb_sec.description,
+                            })
+
+            kb_reference_text = ""
+            if kb_sections_ref:
+                kb_reference_text = (
+                    "\n\n**Knowledge Base Reference (Best Practices):**\n"
+                    "Use the following reference material to ensure your content "
+                    "follows established best practices and industry standards.\n\n"
+                    + json.dumps(kb_sections_ref, indent=2)
+                )
+
             for section_record in project.document_section_ids:
                 if section_record.content_html:
                     continue
 
                 section_title = section_record.section_title
                 section_intent = "Write comprehensive details matching the project context."
-                
+
                 writer_prompt = section_writer_template.format(
                     project_name=project.name,
                     domain=project.domain_id.name or 'General',
@@ -586,7 +1246,7 @@ class RfpProject(models.Model):
                     context_str=context_str
                 )
 
-                user_context = f"Project Context:\n{context_str}\n\nPlease write the {section_title} section now."
+                user_context = f"Project Context:\n{context_str}\n\nPlease write the {section_title} section now.{kb_reference_text}"
                 
                 job = section_record.with_delay(channel='root.rfp_generation').generate_content_job(
                     system_prompt=writer_prompt,
@@ -658,7 +1318,120 @@ class RfpProject(models.Model):
         for project in self:
             project.current_stage = 'completed'
 
+    # ========== EVALUATION CRITERIA METHODS ==========
 
+    def action_gather_eval_criteria(self):
+        """AI interview loop to gather evaluation priorities from the user."""
+        self.ensure_one()
+        import json
+
+        # Build context for the eval criteria interviewer
+        previous_eval_inputs = []
+        for inp in self.eval_input_ids.filtered(lambda i: i.user_value):
+            previous_eval_inputs.append({
+                'question': inp.label,
+                'answer': inp.user_value,
+            })
+
+        section_titles = [s.section_title for s in self.document_section_ids] if self.document_section_ids else []
+
+        current_input_count = len(self.eval_input_ids)
+        current_round = (current_input_count // 5) + 1
+
+        context_data = {
+            'project_name': self.name,
+            'description': self.description,
+            'domain': self.domain_id.name if self.domain_id else 'General',
+            'section_titles': json.dumps(section_titles),
+            'previous_eval_inputs': json.dumps(previous_eval_inputs, indent=2),
+            'current_round': current_round,
+        }
+
+        is_ongoing = self._execute_interview_round(
+            PROMPT_INTERVIEWER_EVAL_CRITERIA,
+            'rfp.eval.input',
+            context_data,
+            scope_key='eval_criteria'
+        )
+
+        if not is_ongoing:
+            # Interview complete — generate criteria from answers
+            self._generate_eval_criteria()
+            self.eval_criteria_status = 'generated'
+        else:
+            self.eval_criteria_status = 'gathering'
+
+        return is_ongoing
+
+    def _generate_eval_criteria(self):
+        """After eval interview completes, call AI to generate structured criteria."""
+        self.ensure_one()
+        import json
+        from odoo.addons.project_rfp_ai.models.ai_schemas import get_eval_criteria_schema
+
+        # Collect all eval inputs with answers
+        eval_qa = []
+        for inp in self.eval_input_ids.filtered(lambda i: i.user_value and not i.is_irrelevant):
+            eval_qa.append({'question': inp.label, 'answer': inp.user_value})
+
+        section_titles = [s.section_title for s in self.document_section_ids] if self.document_section_ids else []
+
+        context_data = {
+            'project_name': self.name,
+            'domain': self.domain_id.name if self.domain_id else 'General',
+            'description': self.description,
+            'eval_interview_answers': json.dumps(eval_qa, indent=2),
+            'section_titles': json.dumps(section_titles),
+        }
+
+        prompt_record = self.env['rfp.prompt'].search([('code', '=', PROMPT_GENERATE_EVAL_CRITERIA)], limit=1)
+        if not prompt_record:
+            raise ValidationError(f"Prompt '{PROMPT_GENERATE_EVAL_CRITERIA}' not found.")
+
+        try:
+            response_json_str = self.env['rfp.ai.log'].execute_request(
+                system_prompt=prompt_record.template_text,
+                user_context=json.dumps(context_data, indent=2),
+                env=self.env,
+                mode='json',
+                schema=get_eval_criteria_schema(),
+                prompt_record=prompt_record
+            )
+        except Exception as e:
+            raise ValidationError(f"AI criteria generation failed: {str(e)}")
+
+        if not response_json_str:
+            raise ValidationError("AI returned no response for criteria generation.")
+
+        try:
+            data = json.loads(response_json_str)
+        except json.JSONDecodeError:
+            raise ValidationError("AI returned invalid JSON for criteria generation.")
+
+        # Clear existing criteria and create new ones
+        self.evaluation_criterion_ids.unlink()
+
+        for idx, c in enumerate(data.get('criteria', [])):
+            category = c.get('category', 'other')
+            valid_categories = ['technical', 'commercial', 'experience', 'compliance', 'timeline', 'methodology', 'support', 'innovation', 'other']
+            if category not in valid_categories:
+                category = 'other'
+
+            self.env['rfp.evaluation.criterion'].create({
+                'project_id': self.id,
+                'name': c.get('name', f'Criterion {idx + 1}'),
+                'description': c.get('description', ''),
+                'category': category,
+                'weight': max(1, min(100, c.get('weight', 10))),
+                'is_must_have': c.get('is_must_have', False),
+                'scoring_guidance': c.get('scoring_guidance', ''),
+                'sequence': (idx + 1) * 10,
+            })
+
+    def action_finalize_eval_criteria(self):
+        """Called after user reviews/edits criteria. Marks as finalized."""
+        self.ensure_one()
+        self.eval_criteria_status = 'finalized'
 
     def get_context_data(self):
         """Helper to parse the context blob (Text) back into a Dict for views."""
@@ -805,16 +1578,39 @@ class RfpProject(models.Model):
         for rec in self:
             rec.is_published = bool(rec.published_id and rec.published_id.active)
 
-    def action_publish(self):
-        """Publish or update the RFP for public viewing."""
+    def _compute_has_kb_entry(self):
+        KB = self.env['rfp.knowledge.base']
+        for rec in self:
+            rec.has_kb_entry = bool(KB.search_count([
+                ('source_project_id', '=', rec.id),
+                ('source_type', '=', 'project'),
+            ]))
+
+    def _compute_kb_count(self):
+        for rec in self:
+            rec.kb_count = len(rec.kb_ids)
+
+    def action_view_knowledge_bases(self):
+        """Open the selected knowledge bases for this project."""
         self.ensure_one()
-        
+        return {
+            'type': 'ir.actions.act_window',
+            'name': f'Knowledge Bases — {self.name}',
+            'res_model': 'rfp.knowledge.base',
+            'view_mode': 'list,form',
+            'domain': [('id', 'in', self.kb_ids.ids)],
+        }
+
+    def action_export_rfp(self):
+        """Export the RFP for download (no public submission)."""
+        self.ensure_one()
+
         if self.published_id:
-            # Update existing published record
+            # Update existing export record
             self.published_id.copy_content_from_project()
             self.published_id.active = True
         else:
-            # Create new published record
+            # Create new export record
             published = self.env['rfp.published'].sudo().create({
                 'project_id': self.id,
                 'title': self.name,
@@ -823,12 +1619,163 @@ class RfpProject(models.Model):
             })
             published.copy_content_from_project()
             self.published_id = published.id
-        
+
         return self.published_id.get_public_url()
 
-    def action_unpublish(self):
-        """Take down the published RFP."""
+    def action_delete_export(self):
+        """Delete the exported RFP."""
         self.ensure_one()
         if self.published_id:
             self.published_id.active = False
         return True
+
+    def action_create_kb_from_project(self):
+        """Create a Knowledge Base entry from this completed project's sections."""
+        self.ensure_one()
+        KnowledgeBase = self.env['rfp.knowledge.base']
+        KbSection = self.env['rfp.kb.section']
+
+        kb = KnowledgeBase.create({
+            'name': f"KB: {self.name}",
+            'domain_id': self.domain_id.id if self.domain_id else False,
+            'source_type': 'project',
+            'source_project_id': self.id,
+            'state': 'analyzing',
+        })
+
+        # Pre-create sections from the project's document sections
+        for section in self.document_section_ids.sorted('sequence'):
+            KbSection.create({
+                'kb_id': kb.id,
+                'title': section.section_title,
+                'section_type': 'functional',  # Will be classified by AI
+                'sequence': section.sequence,
+            })
+
+        # Queue AI generalization job
+        kb.with_delay(
+            channel='root.rfp_generation',
+            description=f"KB Generalization: {kb.name}"
+        )._run_project_analysis_job()
+
+        return {
+            'type': 'ir.actions.act_window',
+            'res_model': 'rfp.knowledge.base',
+            'res_id': kb.id,
+            'view_mode': 'form',
+            'target': 'current',
+        }
+
+    def action_duplicate_for_adaptation(self, new_name=None):
+        """
+        Create a copy of this project for adaptation.
+        Copies: interview answers, eval criteria, required docs, AI context.
+        Clears: generated sections, published record, research, user_value on inputs.
+        Resets stage to 'initialized' so user can review/modify answers.
+
+        Note: Odoo 18 defaults One2many copy=False, so we must manually copy child records.
+        """
+        self.ensure_one()
+        FormInput = self.env['rfp.form.input']
+        PracticeInput = self.env['rfp.practice.input']
+        EvalCriterion = self.env['rfp.evaluation.criterion']
+        RequiredDoc = self.env['rfp.required.document']
+
+        # Reset ai_context_blob: keep scope_assessment (interview limits), clear everything else
+        old_blob = self.get_context_data() if self.ai_context_blob else {}
+        new_blob = {}
+        if 'scope_assessment' in old_blob:
+            new_blob['scope_assessment'] = old_blob['scope_assessment']
+
+        new_project = self.copy(default={
+            'name': new_name or f"{self.name} - Copy",
+            'current_stage': STAGE_INITIALIZED,
+            'published_id': False,
+            'initial_research': False,
+            'refined_practices': False,
+            'image_generation_progress': 0,
+            'ai_context_blob': json.dumps(new_blob) if new_blob else '{}',
+        })
+
+        # Build source text from original project's answers for auto-fill
+        source_parts = [f"Project: {self.name}", f"Description: {self.description}"]
+        if self.domain_id:
+            source_parts.append(f"Domain: {self.domain_id.name}")
+        for inp in self.form_input_ids.filtered(lambda i: i.user_value):
+            source_parts.append(f"Q: {inp.label}\nA: {inp.user_value}")
+        for inp in self.practice_input_ids.filtered(lambda i: i.user_value):
+            source_parts.append(f"Q: {inp.label}\nA: {inp.user_value}")
+        new_project.source_extracted_text = "\n\n".join(source_parts)
+
+        # Manually copy form_input_ids with cleared user_value
+        for inp in self.form_input_ids:
+            # Build suggested_answers: preserve original answer as a suggestion
+            suggestions = []
+            try:
+                suggestions = json.loads(inp.suggested_answers) if inp.suggested_answers else []
+            except Exception:
+                suggestions = []
+            if inp.user_value and inp.user_value not in suggestions:
+                suggestions.insert(0, inp.user_value)
+
+            FormInput.create({
+                'project_id': new_project.id,
+                'field_key': inp.field_key,
+                'label': inp.label,
+                'component_type': inp.component_type,
+                'options': inp.options,
+                'user_value': False,  # Cleared for re-interview
+                'data_type': inp.data_type,
+                'description_tooltip': inp.description_tooltip,
+                'round_number': inp.round_number,
+                'suggested_answers': json.dumps(suggestions) if suggestions else inp.suggested_answers,
+                'depends_on': inp.depends_on,
+                'is_irrelevant': False,
+                'irrelevant_reason': False,
+                'specify_triggers': inp.specify_triggers,
+                'sequence': inp.sequence,
+            })
+
+        # Manually copy practice_input_ids with cleared user_value
+        for inp in self.practice_input_ids:
+            suggestions = []
+            try:
+                suggestions = json.loads(inp.suggested_answers) if inp.suggested_answers else []
+            except Exception:
+                suggestions = []
+            if inp.user_value and inp.user_value not in suggestions:
+                suggestions.insert(0, inp.user_value)
+
+            PracticeInput.create({
+                'project_id': new_project.id,
+                'field_key': inp.field_key,
+                'label': inp.label,
+                'component_type': inp.component_type,
+                'options': inp.options,
+                'user_value': False,
+                'data_type': inp.data_type,
+                'description_tooltip': inp.description_tooltip,
+                'round_number': inp.round_number,
+                'suggested_answers': json.dumps(suggestions) if suggestions else inp.suggested_answers,
+                'depends_on': inp.depends_on,
+                'is_irrelevant': False,
+                'irrelevant_reason': False,
+                'specify_triggers': inp.specify_triggers,
+                'sequence': inp.sequence,
+            })
+
+        # Copy evaluation criteria as-is
+        for crit in self.evaluation_criterion_ids:
+            crit.copy(default={'project_id': new_project.id})
+
+        # Copy required documents as-is
+        for doc in self.required_document_ids:
+            doc.copy(default={'project_id': new_project.id})
+
+        # Auto-fill from source text (original project's answers)
+        new_project._auto_fill_from_source()
+
+        _logger.info(f"Duplicated project {self.id} → new project {new_project.id} ({new_project.name}), "
+                     f"copied {len(self.form_input_ids)} form inputs, {len(self.practice_input_ids)} practice inputs, "
+                     f"{len(self.evaluation_criterion_ids)} eval criteria, {len(self.required_document_ids)} required docs")
+        return new_project.id

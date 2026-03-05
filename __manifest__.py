@@ -27,7 +27,6 @@
         'views/rfp_prompt_views.xml',
         'views/rfp_custom_field_views.xml',
         'views/res_config_settings_views.xml',
-        'views/menu_views.xml',
         'views/ai_model_views.xml',
         'views/rfp_ai_log_views.xml',
         'data/queue_data.xml',

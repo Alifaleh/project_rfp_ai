@@ -18,10 +18,20 @@
                     
                     <button name="action_generate_diagram_images" string="Generate Diagram Images" type="object" invisible="current_stage not in ['content_generated', 'generating_images']"/>
                     <button name="action_mark_completed" string="Force Complete" type="object" invisible="current_stage not in ['content_generated', 'images_generated', 'completed_with_errors']"/>
-                    
+                    <field name="has_kb_entry" invisible="1"/>
+                    <button name="action_create_kb_from_project" string="Add to Knowledge Base" type="object" class="btn-secondary" invisible="current_stage not in ['document_locked', 'completed', 'images_generated', 'content_generated'] or has_kb_entry"/>
+
                     <field name="current_stage" widget="statusbar" statusbar_visible="draft,initialized,info_gathered,practices_refined,specifications_gathered,practices_gap_gathered,sections_generated,generating_content,content_generated,generating_images,images_generated,document_locked" options="{'clickable': '1'}"/>
                 </header>
                 <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_knowledge_bases" class="oe_stat_button" icon="fa-book" type="object" invisible="kb_count == 0">
+                            <field name="kb_count" widget="statinfo" string="Knowledge Bases"/>
+                        </button>
+                    </div>
+                    <div class="alert alert-success" role="alert" invisible="kb_count == 0">
+                        <i class="fa fa-check-circle"/> This project is using <field name="kb_count" readonly="1" class="d-inline"/> Knowledge Base(s) to guide RFP generation (structure, content, and practices analysis).
+                    </div>
                     <div class="oe_title">
                         <h1>
                             <field name="name" placeholder="Project Name"/>
@@ -70,11 +80,48 @@
                                 </list>
                             </field>
                         </page>
+                        <page string="Evaluation Inputs">
+                            <group>
+                                <field name="eval_criteria_status" readonly="1"/>
+                            </group>
+                            <field name="eval_input_ids">
+                                <list editable="bottom">
+                                    <field name="field_key"/>
+                                    <field name="label"/>
+                                    <field name="user_value"/>
+                                    <field name="data_type"/>
+                                    <field name="round_number"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Evaluation Criteria">
+                            <field name="evaluation_criterion_ids">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="name"/>
+                                    <field name="category" widget="badge" decoration-primary="category == 'technical'" decoration-success="category == 'commercial'" decoration-info="category == 'experience'" decoration-warning="category == 'compliance'"/>
+                                    <field name="weight"/>
+                                    <field name="is_must_have"/>
+                                    <field name="description" optional="hide"/>
+                                    <field name="scoring_guidance" optional="hide"/>
+                                    <field name="active" invisible="1"/>
+                                </list>
+                            </field>
+                        </page>
                         <page string="Research &amp; Best Practices">
                             <group>
                                 <field name="initial_research"/>
                                 <field name="refined_practices"/>
                             </group>
+                            <separator string="Selected Knowledge Bases"/>
+                            <field name="kb_ids" readonly="1">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="domain_id"/>
+                                    <field name="section_count"/>
+                                    <field name="state" widget="badge"/>
+                                </list>
+                            </field>
                         </page>
                         <page string="AI Context" name="ai_context">
                             <field name="ai_context_blob" readonly="0"/>

@@ -58,7 +58,15 @@
             .btn-rfp-gold:active {
                 transform: translateY(0);
             }
-            
+            .btn-rfp-gold:disabled, .btn-rfp-gold[disabled] {
+                background: var(--rfp-gold-gradient) !important;
+                color: var(--rfp-dark) !important;
+                opacity: 0.45;
+                cursor: not-allowed;
+                transform: none;
+                box-shadow: none;
+            }
+
             /* Gold Outline Button */
             .btn-rfp-gold-outline {
                 background: transparent;
@@ -289,10 +297,16 @@
                             <h2 class="mb-2">My RFP Projects</h2>
                             <p class="mb-0">Create and manage your AI-powered Request for Proposals</p>
                         </div>
-                        <div class="col-md-4 text-md-end mt-3 mt-md-0">
-                            <a href="/rfp/start" class="btn btn-rfp-gold btn-lg">
-                                <i class="fa fa-plus me-2"/> Start New Project
-                            </a>
+                        <div class="col-md-4 mt-3 mt-md-0">
+                            <div class="d-flex flex-wrap gap-2 justify-content-md-end">
+                                <a href="/rfp/start" class="btn btn-rfp-gold">
+                                    <i class="fa fa-plus me-1"/> Start New Project
+                                </a>
+                                <button class="btn btn-rfp-gold-outline btn-upload-rfp"
+                                        title="Upload an existing RFP document">
+                                    <i class="fa fa-upload me-1"/> Upload RFP
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -317,14 +331,127 @@
                                         <span class="badge bg-rfp-gold rounded-pill" t-field="project.current_stage"/>
                                     </div>
                                     <p class="text-muted small mb-3 text-truncate" style="max-height: 40px;" t-field="project.description"/>
-                                    <a t-attf-href="/rfp/interface/#{project.id}" class="btn btn-rfp-gold-outline btn-sm w-100">
-                                        <i class="fa fa-arrow-right me-1"/> Continue
-                                    </a>
+                                    <div class="d-flex gap-2">
+                                        <a t-attf-href="/rfp/interface/#{project.id}" class="btn btn-rfp-gold-outline btn-sm flex-fill">
+                                            <i class="fa fa-arrow-right me-1"/> Continue
+                                        </a>
+                                        <button class="btn btn-outline-secondary btn-sm btn-duplicate-project"
+                                                t-att-data-project-id="project.id"
+                                                t-att-data-project-name="project.name"
+                                                title="Duplicate this RFP">
+                                            <i class="fa fa-copy"/>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </t>
                     </div>
                 </t>
+
+                <!-- Duplicate Confirmation Modal (must be inside .rfp-portal-wrapper for widget events) -->
+                <div class="modal fade" id="modal_duplicate_confirm" tabindex="-1" role="dialog">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content border-0 shadow-lg">
+                            <div class="modal-body text-center py-5 px-4">
+                                <div class="mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle"
+                                     style="width: 64px; height: 64px; background: rgba(197, 168, 70, 0.15);">
+                                    <i class="fa fa-copy fa-2x text-rfp-gold"/>
+                                </div>
+                                <h5 class="fw-bold mb-2">Duplicate this RFP?</h5>
+                                <p class="text-muted mb-4">This will create a copy and use AI to pre-fill answers from your existing project. This may take 1-2 minutes.</p>
+                                <div class="mb-4 text-start">
+                                    <label class="form-label small fw-bold" for="duplicate_new_name">Project Name</label>
+                                    <input type="text" class="form-control" id="duplicate_new_name" placeholder="Enter name for the new project"/>
+                                </div>
+                                <div class="d-flex justify-content-center gap-3">
+                                    <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Cancel</button>
+                                    <button type="button" class="btn btn-rfp-gold px-4" id="btn_confirm_duplicate">
+                                        <i class="fa fa-copy me-1"/> Duplicate
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Upload RFP Modal (must be inside .rfp-portal-wrapper for widget events) -->
+                <div class="modal fade" id="modal_upload_rfp" tabindex="-1" role="dialog" data-bs-backdrop="static" data-bs-keyboard="false">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content border-0 shadow-lg">
+                            <div class="modal-body py-5 px-4">
+                                <!-- Form State -->
+                                <div id="upload_form_state">
+                                    <div class="text-center mb-4">
+                                        <div class="mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle"
+                                             style="width: 64px; height: 64px; background: rgba(197, 168, 70, 0.15);">
+                                            <i class="fa fa-upload fa-2x text-rfp-gold"/>
+                                        </div>
+                                        <h5 class="fw-bold mb-2">Upload Existing RFP</h5>
+                                        <p class="text-muted mb-0">Upload a PDF or DOCX file and our AI will extract key information to pre-populate your new project.</p>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-bold" for="rfp_upload_file">RFP Document <span class="text-danger">*</span></label>
+                                        <input type="file" class="form-control" id="rfp_upload_file" accept=".pdf,.docx"/>
+                                        <small class="text-muted">Accepted formats: PDF, DOCX (max 25 MB)</small>
+                                    </div>
+                                    <div id="upload_file_info" class="d-none mb-3">
+                                        <div class="alert alert-light border py-2 px-3 mb-0 d-flex align-items-center">
+                                            <i class="fa fa-file-text-o text-rfp-gold me-2"/>
+                                            <span id="upload_file_name" class="small fw-bold me-2"/>
+                                            <span id="upload_file_size" class="small text-muted"/>
+                                        </div>
+                                    </div>
+                                    <div id="upload_file_error" class="d-none mb-3">
+                                        <div class="alert alert-danger py-2 px-3 mb-0 small"/>
+                                    </div>
+
+                                    <div class="mb-4">
+                                        <label class="form-label small fw-bold" for="upload_project_name">Project Name <span class="text-muted fw-normal">(optional)</span></label>
+                                        <input type="text" class="form-control" id="upload_project_name" placeholder="Leave blank to auto-detect from document"/>
+                                    </div>
+
+                                    <div class="d-flex justify-content-center gap-3">
+                                        <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Cancel</button>
+                                        <button type="button" class="btn btn-rfp-gold px-4" id="btn_confirm_upload" disabled="disabled">
+                                            <i class="fa fa-upload me-1"/> Upload &amp; Analyze
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Processing State -->
+                                <div id="upload_processing_state" class="d-none text-center">
+                                    <div class="mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle"
+                                         style="width: 64px; height: 64px; background: rgba(197, 168, 70, 0.15);">
+                                        <i class="fa fa-cog fa-spin fa-2x text-rfp-gold"/>
+                                    </div>
+                                    <h5 class="fw-bold mb-2">Analyzing Your Document</h5>
+                                    <p class="text-muted mb-3">Our AI is reading your document, extracting information, and pre-filling answers. This may take 1-2 minutes.</p>
+                                    <div class="progress mb-3" style="height: 4px;">
+                                        <div class="progress-bar bg-rfp-gold progress-bar-striped progress-bar-animated" style="width: 100%;"/>
+                                    </div>
+                                    <small class="text-muted">Please do not close this window.</small>
+                                </div>
+
+                                <!-- Error State -->
+                                <div id="upload_error_state" class="d-none text-center">
+                                    <div class="mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle"
+                                         style="width: 64px; height: 64px; background: rgba(220, 53, 69, 0.15);">
+                                        <i class="fa fa-exclamation-triangle fa-2x text-danger"/>
+                                    </div>
+                                    <h5 class="fw-bold mb-2">Upload Failed</h5>
+                                    <p id="upload_error_message" class="text-muted mb-4"/>
+                                    <div class="d-flex justify-content-center gap-3">
+                                        <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Close</button>
+                                        <button type="button" class="btn btn-rfp-gold px-4" id="btn_retry_upload">
+                                            <i class="fa fa-refresh me-1"/> Try Again
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </t>
     </template>
@@ -467,7 +594,7 @@
                             <t t-set="opt_val" t-value="opt['value'] if isinstance(opt, dict) else opt"/>
                             <t t-set="opt_label" t-value="opt['label'] if isinstance(opt, dict) else opt"/>
                             <div class="form-check">
-                                <input class="form-check-input rfp-dynamic-input" type="radio" t-att-name="input_field.field_key" t-att-id="input_field.field_key + '_' + str(opt_index)" t-att-value="opt_val" t-att-required="input_field.depends_on == '{}' or ''"/>
+                                <input class="form-check-input rfp-dynamic-input" type="radio" t-att-name="input_field.field_key" t-att-id="input_field.field_key + '_' + str(opt_index)" t-att-value="opt_val" t-att-required="'required' if (not input_field.depends_on or input_field.depends_on == '{}') else False"/>
                                 <label class="form-check-label" t-att-for="input_field.field_key + '_' + str(opt_index)">
                                     <t t-esc="opt_label"/>
                                 </label>
@@ -560,14 +687,51 @@
 
                                 <!-- Progress Bar -->
                                 <t t-set="raw_score" t-value="rfp_project.get_context_data().get('analysis_meta', {}).get('completeness_score', 0)"/>
-                                <t t-set="completeness" t-value="raw_score if raw_score > 1 else raw_score * 100"/>
-                                <div t-if="rfp_project.current_stage == 'initialized' and rfp_project.ai_context_blob" class="mb-4">
+                                <t t-set="ai_completeness" t-value="raw_score if raw_score > 1 else raw_score * 100"/>
+                                <t t-set="total_inputs" t-value="len(rfp_project.form_input_ids)"/>
+                                <t t-set="answered_inputs" t-value="len(rfp_project.form_input_ids.filtered(lambda i: i.user_value or i.is_irrelevant))"/>
+                                <t t-set="fill_pct" t-value="int((answered_inputs / total_inputs) * 100) if total_inputs else 0"/>
+                                <t t-set="completeness" t-value="max(fill_pct, int(ai_completeness))"/>
+                                <div t-if="rfp_project.current_stage == 'initialized'" class="mb-4">
                                     <div class="d-flex justify-content-between mb-2">
                                         <small class="text-muted">Analysis Progress</small>
                                         <small class="fw-semibold text-rfp-gold"><t t-esc="int(completeness)"/>%</small>
                                     </div>
                                     <div class="progress" style="height: 12px;">
                                         <div class="progress-bar" role="progressbar" t-att-style="'width: ' + str(int(completeness)) + '%'" t-att-aria-valuenow="int(completeness)" aria-valuemin="0" aria-valuemax="100"/>
+                                    </div>
+                                </div>
+
+                                <!-- Auto-Filled Summary Banner -->
+                                <t t-set="auto_filled_inputs" t-value="rfp_project.form_input_ids.filtered(lambda i: i.is_auto_filled)"/>
+                                <div t-if="auto_filled_inputs" class="alert border-0 mb-4" style="background: linear-gradient(135deg, rgba(212,175,55,0.08), rgba(212,175,55,0.15)); border-left: 4px solid var(--rfp-gold) !important;">
+                                    <div class="d-flex align-items-center justify-content-between mb-1">
+                                        <div class="d-flex align-items-center">
+                                            <i class="fa fa-magic fa-lg me-2" style="color: var(--rfp-gold);"/>
+                                            <strong style="color: var(--rfp-gold);">
+                                                <t t-esc="len(auto_filled_inputs)"/> answers pre-filled from your document
+                                            </strong>
+                                        </div>
+                                        <a data-bs-toggle="collapse" href="#auto_filled_review" class="small" style="color: var(--rfp-gold); text-decoration: none;">
+                                            <i class="fa fa-chevron-down me-1"/> Review
+                                        </a>
+                                    </div>
+                                    <small class="text-muted">These were extracted automatically. You can undo any to re-answer manually.</small>
+                                    <div class="collapse mt-3" id="auto_filled_review">
+                                        <t t-foreach="auto_filled_inputs" t-as="af">
+                                            <div class="d-flex justify-content-between align-items-start py-2 border-bottom">
+                                                <div class="flex-grow-1 me-2">
+                                                    <small class="text-muted"><t t-esc="af.label"/></small>
+                                                    <div class="fw-semibold"><t t-esc="af.user_value"/></div>
+                                                </div>
+                                                <button class="btn btn-sm btn-outline-warning btn-clear-autofill"
+                                                        t-att-data-field-key="af.field_key"
+                                                        t-att-data-project-id="rfp_project.id"
+                                                        title="Clear this answer to re-answer manually">
+                                                    <i class="fa fa-undo"/>
+                                                </button>
+                                            </div>
+                                        </t>
                                     </div>
                                 </div>
 
@@ -692,79 +856,277 @@
 
             <div class="container-fluid py-4 rfp-portal-wrapper">
                 
-                <!-- Toolbar with gold accent -->
-                <div class="rfp-toolbar d-flex justify-content-between align-items-center mb-4 sticky-top p-3" style="z-index: 1000; top: 60px;">
-                    <div class="d-flex align-items-center gap-3">
-                        <i class="fa fa-file-text-o fa-lg text-rfp-gold"/>
-                        <h4 class="mb-0" t-field="rfp_project.name"/>
-                        <span t-if="rfp_project.current_stage == 'completed'" class="badge bg-rfp-gold">Ready</span>
-                        <span t-if="rfp_project.current_stage == 'document_locked'" class="badge bg-dark"><i class="fa fa-lock me-1"/> Locked</span>
-                    </div>
-                    
-                    <div class="d-flex gap-2">
-                         <a t-attf-href="/rfp/download/word/#{rfp_project.id}" class="btn btn-rfp-gold-outline">
-                            <i class="fa fa-file-word-o me-1"/> Word
-                        </a>
-                        <button onclick="window.print()" class="btn btn-outline-secondary">
-                            <i class="fa fa-print me-1"/> Print
-                        </button>
-                        
-                        <div class="vr mx-1"></div>
+                <!-- Toolbar -->
+                <div class="rfp-toolbar mb-4 sticky-top p-3" style="z-index: 1000; top: 60px;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <!-- Left: Title -->
+                        <div class="d-flex align-items-center gap-2" style="min-width: 0;">
+                            <i class="fa fa-file-text-o fa-lg text-rfp-gold"/>
+                            <h4 class="mb-0 text-truncate" t-field="rfp_project.name" style="max-width: 320px;"/>
+                            <span t-if="rfp_project.current_stage == 'completed'" class="badge bg-rfp-gold">Ready</span>
+                            <span t-if="rfp_project.current_stage == 'document_locked'" class="badge bg-dark"><i class="fa fa-lock me-1"/> Locked</span>
+                        </div>
 
-                        <t t-if="rfp_project.current_stage != 'document_locked'">
-                            <button id="btn_unified_save" class="btn btn-rfp-gold" t-att-data-project-id="rfp_project.id">
-                                <i class="fa fa-save me-1"/> Save
+                        <!-- Right: Actions -->
+                        <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                            <!-- Save / Lock -->
+                            <t t-if="rfp_project.current_stage != 'document_locked'">
+                                <button id="btn_unified_save" class="btn btn-rfp-gold py-1 px-3" t-att-data-project-id="rfp_project.id">
+                                    <i class="fa fa-save me-1"/> Save
+                                </button>
+                                <button id="btn_toggle_lock" class="btn btn-rfp-gold-outline py-1 px-3" t-att-data-project-id="rfp_project.id" data-locked="true"
+                                        title="Lock document">
+                                    <i class="fa fa-lock"/>
+                                </button>
+                            </t>
+                            <t t-else="">
+                                <button id="btn_toggle_lock" class="btn btn-rfp-gold-outline py-1 px-3" t-att-data-project-id="rfp_project.id" data-locked="false">
+                                    <i class="fa fa-unlock me-1"/> Unlock
+                                </button>
+                            </t>
+
+                            <div class="vr" style="height: 28px; opacity: 0.2;"></div>
+
+                            <!-- Upload Proposal -->
+                            <button type="button" class="btn btn-rfp-gold-outline py-1 px-3 btn-upload-proposal"
+                                    t-att-data-project-id="rfp_project.id">
+                                <i class="fa fa-upload me-1"/> Upload Proposal
                             </button>
-                            <button id="btn_toggle_lock" class="btn btn-outline-secondary" t-att-data-project-id="rfp_project.id" data-locked="true">
-                                <i class="fa fa-lock me-1"/> Lock
-                            </button>
-                        </t>
-                        <t t-else="">
-                            <button id="btn_toggle_lock" class="btn btn-rfp-gold-outline" t-att-data-project-id="rfp_project.id" data-locked="false">
-                                <i class="fa fa-unlock me-1"/> Unlock
-                            </button>
-                        </t>
-                        
-                        <div class="vr mx-1"></div>
-                        
-                        <!-- Publish Buttons -->
-                        <t t-if="rfp_project.is_published">
-                            <a t-attf-href="/rfp/proposals/#{rfp_project.id}" class="btn btn-outline-info">
+
+                            <!-- Proposals Link -->
+                            <a t-attf-href="/rfp/proposals/#{rfp_project.id}" class="btn btn-rfp-gold-outline py-1 px-3">
                                 <i class="fa fa-inbox me-1"/> Proposals
-                                <t t-if="rfp_project.published_id.proposal_count > 0">
-                                    <span class="badge bg-info ms-1" t-esc="rfp_project.published_id.proposal_count"/>
+                                <t t-if="rfp_project.is_published and rfp_project.published_id.proposal_count > 0">
+                                    <span class="badge bg-rfp-gold ms-1" t-esc="rfp_project.published_id.proposal_count"/>
                                 </t>
                             </a>
-                            <button id="btn_publish" class="btn btn-success" t-att-data-project-id="rfp_project.id" t-att-data-is-update="'true'">
-                                <i class="fa fa-refresh me-1"/> Update
-                            </button>
-                            <button id="btn_unpublish" class="btn btn-outline-danger" t-att-data-project-id="rfp_project.id">
-                                <i class="fa fa-eye-slash me-1"/> Unpublish
-                            </button>
-                        </t>
-                        <t t-else="">
-                            <button id="btn_publish" class="btn btn-success" t-att-data-project-id="rfp_project.id">
-                                <i class="fa fa-globe me-1"/> Publish
-                            </button>
-                        </t>
+
+                            <div class="vr" style="height: 28px; opacity: 0.2;"></div>
+
+                            <!-- More dropdown: Export, Word, Print, Duplicate -->
+                            <div class="dropdown">
+                                <button class="btn btn-rfp-gold-outline py-1 px-3 dropdown-toggle" type="button"
+                                        data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="fa fa-ellipsis-h"/>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                                    <t t-if="rfp_project.is_published">
+                                        <li>
+                                            <button id="btn_publish" class="dropdown-item" t-att-data-project-id="rfp_project.id" t-att-data-is-update="'true'">
+                                                <i class="fa fa-refresh me-2 text-rfp-gold"/> Re-Export RFP
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button id="btn_unpublish" class="dropdown-item text-danger" t-att-data-project-id="rfp_project.id">
+                                                <i class="fa fa-trash me-2"/> Delete Export
+                                            </button>
+                                        </li>
+                                        <li><hr class="dropdown-divider"/></li>
+                                    </t>
+                                    <t t-else="">
+                                        <li>
+                                            <button id="btn_publish" class="dropdown-item" t-att-data-project-id="rfp_project.id">
+                                                <i class="fa fa-download me-2 text-rfp-gold"/> Export RFP
+                                            </button>
+                                        </li>
+                                        <li><hr class="dropdown-divider"/></li>
+                                    </t>
+                                    <li>
+                                        <a t-attf-href="/rfp/download/word/#{rfp_project.id}" class="dropdown-item">
+                                            <i class="fa fa-file-word-o me-2 text-rfp-gold"/> Download Word
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <button class="dropdown-item" onclick="window.print()">
+                                            <i class="fa fa-print me-2"/> Print
+                                        </button>
+                                    </li>
+                                    <li>
+                                        <button class="dropdown-item btn-duplicate-project"
+                                                t-att-data-project-id="rfp_project.id"
+                                                t-att-data-project-name="rfp_project.name">
+                                            <i class="fa fa-copy me-2"/> Duplicate
+                                        </button>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Public URL Bar (when published) -->
+                <!-- Exported RFP Link (when exported) -->
                 <t t-if="rfp_project.is_published">
-                    <div class="alert alert-success d-flex align-items-center mb-4 py-2">
-                        <i class="fa fa-link me-2"></i>
-                        <span class="me-2"><strong>Public URL:</strong></span>
+                    <div class="alert alert-info d-flex align-items-center mb-4 py-2">
+                        <i class="fa fa-eye me-2"></i>
+                        <span class="me-2"><strong>Exported RFP:</strong></span>
                         <input type="text" id="editor_public_url" class="form-control form-control-sm me-2" style="max-width: 400px;"
                             t-att-value="rfp_project.published_id.get_public_url()" readonly="readonly"/>
-                        <button type="button" class="btn btn-sm btn-success me-2" id="btn_copy_editor_url">
+                        <button type="button" class="btn btn-sm btn-info me-2" id="btn_copy_editor_url">
                             <i class="fa fa-copy me-1"></i> Copy
                         </button>
-                        <a t-att-href="rfp_project.published_id.get_public_url()" target="_blank" class="btn btn-sm btn-outline-success">
-                            <i class="fa fa-external-link me-1"></i> Open
+                        <a t-att-href="rfp_project.published_id.get_public_url()" target="_blank" class="btn btn-sm btn-outline-info">
+                            <i class="fa fa-external-link me-1"></i> View
                         </a>
                     </div>
                 </t>
+
+                <!-- Evaluation Criteria Panel -->
+                <div class="card shadow-sm border-0 mb-4" style="border-left: 4px solid var(--rfp-gold) !important;">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center py-3"
+                         style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#eval_criteria_panel" aria-expanded="false">
+                        <div class="d-flex align-items-center">
+                            <i class="fa fa-balance-scale me-2 text-rfp-gold"/>
+                            <h6 class="mb-0 fw-bold">Evaluation Criteria</h6>
+                            <span class="badge bg-rfp-gold ms-2"><t t-esc="len(rfp_project.evaluation_criterion_ids.filtered('active'))"/></span>
+                            <t t-if="rfp_project.eval_criteria_status == 'finalized'">
+                                <span class="badge bg-success ms-2"><i class="fa fa-check me-1"/>Finalized</span>
+                            </t>
+                            <t t-elif="rfp_project.eval_criteria_status == 'generated'">
+                                <span class="badge bg-warning text-dark ms-2">Ready for Review</span>
+                            </t>
+                            <t t-elif="rfp_project.eval_criteria_status == 'not_started'">
+                                <span class="badge bg-secondary ms-2">Not Started</span>
+                            </t>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <small class="text-muted">Evaluation rubric for proposals</small>
+                            <i class="fa fa-chevron-down"/>
+                        </div>
+                    </div>
+                    <div class="collapse" id="eval_criteria_panel">
+                        <div class="card-body p-4">
+
+                            <t t-if="rfp_project.eval_criteria_status == 'not_started'">
+                                <div class="text-center py-3">
+                                    <i class="fa fa-balance-scale fa-3x text-muted mb-3" style="opacity: 0.3;"/>
+                                    <p class="text-muted">No evaluation criteria yet. Generate criteria based on your project requirements.</p>
+                                    <a t-attf-href="/rfp/eval/setup/#{rfp_project.id}" class="btn btn-rfp-gold">
+                                        <i class="fa fa-play me-1"/> Start Criteria Setup
+                                    </a>
+                                </div>
+                            </t>
+
+                            <t t-if="rfp_project.eval_criteria_status in ('generated', 'finalized')">
+                                <!-- Status Banner (hidden by default, shown by JS) -->
+                                <div id="eval_status_banner" class="alert d-none mb-3" role="alert">
+                                    <div class="d-flex align-items-center">
+                                        <i id="eval_status_icon" class="fa fa-2x me-3"/>
+                                        <div>
+                                            <strong id="eval_status_title"/>
+                                            <p id="eval_status_message" class="mb-0 small"/>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Weight Total Indicator -->
+                                <t t-set="eval_total_weight" t-value="sum(c.weight for c in rfp_project.evaluation_criterion_ids.filtered('active'))"/>
+                                <div class="alert mb-3 py-2" id="eval_weight_alert" t-att-class="'alert-success' if eval_total_weight == 100 else ('alert-warning' if abs(eval_total_weight - 100) &lt;= 10 else 'alert-danger')">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="small">
+                                            <i class="fa fa-pie-chart me-1"/>
+                                            Total Weight: <strong id="eval_total_weight"><t t-esc="eval_total_weight"/></strong> / 100
+                                            <span id="eval_weight_hint" t-if="eval_total_weight != 100" class="ms-1">(should equal 100)</span>
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <!-- Criteria Cards -->
+                                <div id="eval_criteria_container" t-att-data-project-id="rfp_project.id">
+                                    <t t-foreach="rfp_project.evaluation_criterion_ids.filtered('active').sorted('sequence')" t-as="c">
+                                        <div class="card border mb-2 eval-criterion-card" t-att-data-criterion-id="c.id">
+                                            <div class="card-body py-2 px-3">
+                                                <div class="row align-items-center">
+                                                    <!-- Name + Category -->
+                                                    <div class="col-md-4">
+                                                        <input type="text" class="form-control form-control-sm fw-bold criterion-name" t-att-value="c.name"/>
+                                                        <div class="mt-1">
+                                                            <span t-attf-class="badge bg-{{ 'primary' if c.category == 'technical' else ('success' if c.category == 'commercial' else ('info' if c.category == 'experience' else ('warning' if c.category == 'compliance' else 'secondary'))) }}"
+                                                                  t-esc="c.category" style="text-transform: capitalize; font-size: 0.7em;"/>
+                                                            <span t-if="c.is_must_have" class="badge bg-danger ms-1" style="font-size: 0.7em;">Must-Have</span>
+                                                        </div>
+                                                    </div>
+                                                    <!-- Weight Slider -->
+                                                    <div class="col-md-3">
+                                                        <label class="form-label small text-muted mb-0">Weight</label>
+                                                        <div class="d-flex align-items-center gap-2">
+                                                            <input type="range" class="form-range criterion-weight-slider" min="1" max="100" t-att-value="c.weight"/>
+                                                            <span class="badge bg-rfp-gold criterion-weight-display" style="min-width: 35px;"><t t-esc="c.weight"/></span>
+                                                        </div>
+                                                    </div>
+                                                    <!-- Must-Have Toggle -->
+                                                    <div class="col-md-2 text-center">
+                                                        <label class="form-label small text-muted mb-0 d-block">Must-Have</label>
+                                                        <div class="form-check form-switch d-inline-block">
+                                                            <input class="form-check-input criterion-must-have" type="checkbox" t-att-checked="'checked' if c.is_must_have else None"/>
+                                                        </div>
+                                                    </div>
+                                                    <!-- Actions -->
+                                                    <div class="col-md-3 text-end">
+                                                        <button class="btn btn-sm btn-outline-secondary me-1 btn-toggle-details" type="button" data-bs-toggle="collapse" t-attf-data-bs-target="#editor_detail_#{c.id}">
+                                                            <i class="fa fa-chevron-down"/>
+                                                        </button>
+                                                        <button class="btn btn-sm btn-outline-danger btn-delete-criterion" type="button">
+                                                            <i class="fa fa-trash"/>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <!-- Collapsible Details -->
+                                                <div class="collapse mt-2" t-attf-id="editor_detail_#{c.id}">
+                                                    <div class="bg-light rounded p-3">
+                                                        <label class="form-label small fw-bold">Description</label>
+                                                        <textarea class="form-control form-control-sm mb-2 criterion-description" rows="2"
+                                                                  placeholder="Describe what this criterion evaluates..."><t t-esc="c.description or ''"/></textarea>
+                                                        <label class="form-label small fw-bold">Evaluation Guidance</label>
+                                                        <textarea class="form-control form-control-sm criterion-scoring-guidance" rows="2"
+                                                                  placeholder="What constitutes high, medium, and low scores..."><t t-esc="c.scoring_guidance or ''"/></textarea>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </t>
+                                </div>
+
+                                <!-- Action Buttons -->
+                                <div class="d-flex justify-content-between mt-3">
+                                    <div>
+                                        <button type="button" class="btn btn-sm btn-outline-primary me-2" id="btn_add_criterion">
+                                            <i class="fa fa-plus me-1"/> Add Criterion
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" id="btn_regenerate_criteria">
+                                            <i class="fa fa-refresh me-1"/> Regenerate
+                                        </button>
+                                    </div>
+                                    <div>
+                                        <button type="button" class="btn btn-sm btn-rfp-gold-outline me-2" id="btn_save_criteria">
+                                            <i class="fa fa-save me-1"/> Save Changes
+                                        </button>
+                                        <t t-if="rfp_project.eval_criteria_status == 'finalized'">
+                                            <button type="button" class="btn btn-sm btn-outline-warning" id="btn_unfinalize_criteria">
+                                                <i class="fa fa-unlock me-1"/> Unlock
+                                            </button>
+                                        </t>
+                                        <t t-else="">
+                                            <button type="button" class="btn btn-sm btn-rfp-gold" id="btn_finalize_criteria">
+                                                <i class="fa fa-check me-1"/> Finalize
+                                            </button>
+                                        </t>
+                                    </div>
+                                </div>
+                            </t>
+
+                            <t t-if="rfp_project.eval_criteria_status == 'gathering'">
+                                <div class="text-center py-3">
+                                    <i class="fa fa-spinner fa-spin fa-2x text-rfp-gold mb-3"/>
+                                    <p class="text-muted">Criteria interview is in progress.</p>
+                                    <a t-attf-href="/rfp/eval/setup/#{rfp_project.id}" class="btn btn-rfp-gold-outline">
+                                        <i class="fa fa-arrow-right me-1"/> Continue Interview
+                                    </a>
+                                </div>
+                            </t>
+
+                        </div>
+                    </div>
+                </div>
 
                 <div class="row">
                     <!-- Main Editor Area -->
@@ -885,6 +1247,32 @@
                     </div>
                 </div>
         
+                <!-- Duplicate Confirmation Modal -->
+                <div class="modal fade" id="modal_duplicate_confirm" tabindex="-1" role="dialog">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content border-0 shadow-lg">
+                            <div class="modal-body text-center py-5 px-4">
+                                <div class="mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle"
+                                     style="width: 64px; height: 64px; background: rgba(197, 168, 70, 0.15);">
+                                    <i class="fa fa-copy fa-2x text-rfp-gold"/>
+                                </div>
+                                <h5 class="fw-bold mb-2">Duplicate this RFP?</h5>
+                                <p class="text-muted mb-4">This will create a copy and use AI to pre-fill answers from your existing project. This may take 1-2 minutes.</p>
+                                <div class="mb-4 text-start">
+                                    <label class="form-label small fw-bold" for="duplicate_new_name">Project Name</label>
+                                    <input type="text" class="form-control" id="duplicate_new_name" placeholder="Enter name for the new project"/>
+                                </div>
+                                <div class="d-flex justify-content-center gap-3">
+                                    <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Cancel</button>
+                                    <button type="button" class="btn btn-rfp-gold px-4" id="btn_confirm_duplicate">
+                                        <i class="fa fa-copy me-1"/> Duplicate
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Lock Confirmation Modal -->
                 <div class="modal fade" id="modal_lock_confirm" tabindex="-1" role="dialog">
                     <div class="modal-dialog modal-dialog-centered" role="document">
@@ -1031,18 +1419,18 @@
                     </div>
                 </div>
 
-                <!-- Publish Success Modal -->
+                <!-- Export Success Modal -->
                 <div class="modal fade" id="modal_publish_success" tabindex="-1" role="dialog">
                     <div class="modal-dialog modal-dialog-centered" role="document">
                         <div class="modal-content">
                             <div class="modal-body text-center py-5">
                                 <i class="fa fa-check-circle fa-4x text-success mb-4"></i>
-                                <h4 id="publish_success_title">Published!</h4>
-                                <p class="text-muted mb-4">Your RFP is now available at the following URL:</p>
+                                <h4 id="publish_success_title">Exported!</h4>
+                                <p class="text-muted mb-4">Download your RFP export:</p>
                                 <div class="input-group mb-3">
                                     <input type="text" id="publish_success_url" class="form-control text-center" readonly="readonly"/>
                                     <button class="btn btn-rfp-gold" type="button" id="btn_copy_publish_url">
-                                        <i class="fa fa-copy me-1"/> Copy URL
+                                        <i class="fa fa-copy me-1"/> Copy Link
                                     </button>
                                 </div>
                                 <a id="link_open_public" href="#" target="_blank" class="text-primary small">
@@ -1056,24 +1444,49 @@
                     </div>
                 </div>
 
-                <!-- Unpublish Confirm Modal -->
+                <!-- Delete Export Confirm Modal -->
                 <div class="modal fade" id="modal_unpublish_confirm" tabindex="-1" role="dialog">
                     <div class="modal-dialog modal-dialog-centered" role="document">
                         <div class="modal-content">
                             <div class="modal-body text-center py-5">
-                                <i class="fa fa-eye-slash fa-4x text-warning mb-4"></i>
-                                <h4>Take Down RFP?</h4>
-                                <p class="text-muted">The public URL will no longer be accessible.<br/>Existing proposals will be preserved.</p>
+                                <i class="fa fa-trash fa-4x text-warning mb-4"></i>
+                                <h4>Delete Export?</h4>
+                                <p class="text-muted">The download link will no longer be accessible.<br/>Existing proposals will be preserved.</p>
                             </div>
                             <div class="modal-footer justify-content-center border-0">
                                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
                                 <button type="button" class="btn btn-danger" id="btn_confirm_unpublish">
-                                    <i class="fa fa-eye-slash me-1"/> Yes, Unpublish
+                                    <i class="fa fa-trash me-1"/> Yes, Delete Export
                                 </button>
                             </div>
                         </div>
                     </div>
                 </div>
+
+                <!-- Eval Criteria Confirmation Modal (must be inside rfp-portal-wrapper) -->
+                <div class="modal fade" id="modal_eval_confirm" tabindex="-1">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content border-0 shadow-lg" style="border-radius: var(--rfp-radius);">
+                            <div class="modal-body text-center py-5 px-4">
+                                <div id="eval_confirm_icon_wrap" class="mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle" style="width: 64px; height: 64px;">
+                                    <i id="eval_confirm_icon" class="fa fa-3x"/>
+                                </div>
+                                <h5 id="eval_confirm_title" class="fw-bold mb-2"/>
+                                <p id="eval_confirm_message" class="text-muted mb-4"/>
+                                <div class="d-flex justify-content-center gap-3">
+                                    <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Cancel</button>
+                                    <button type="button" class="btn px-4" id="btn_eval_confirm_action">Confirm</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Upload Proposal Modal -->
+                <t t-call="project_rfp_ai.proposal_upload_modal">
+                    <t t-set="required_docs" t-value="rfp_project.required_document_ids.sorted('sequence')"/>
+                    <t t-set="modal_project" t-value="rfp_project"/>
+                </t>
             </div>
         </t>
 
@@ -1186,24 +1599,24 @@
         </t>
     </template>
 
-    <!-- ============ PUBLISHED RFP PUBLIC VIEW ============ -->
-    <template id="portal_rfp_public_view" name="Public RFP View">
-        <t t-call="website.layout">
+    <!-- ============ EXPORT VIEW (Owner only) ============ -->
+    <template id="portal_rfp_export_view" name="Export RFP View">
+        <t t-call="portal.portal_layout">
             <t t-call="project_rfp_ai.rfp_theme_styles"/>
             <div class="container py-5 rfp-portal-wrapper">
                 <!-- Header -->
                 <div class="text-center mb-5">
                     <h1 class="display-5 rfp-document-title" t-esc="published.title"/>
                     <p class="text-muted mt-4" t-if="published.description" t-esc="published.description"/>
-                    <div class="mt-4">
-                        <a t-attf-href="/rfp/public/#{published.uuid}/submit" class="btn btn-rfp-gold btn-lg">
-                            <i class="fa fa-paper-plane me-2"/> Submit Your Proposal
+                    <div class="mt-3">
+                        <a t-attf-href="/rfp/edit/#{published.project_id.id}" class="btn btn-rfp-gold">
+                            <i class="fa fa-arrow-left me-2"/> Back to Editor
                         </a>
                     </div>
                 </div>
-                
+
                 <hr class="my-4" style="border-color: var(--rfp-gold-light);"/>
-                
+
                 <!-- Content Sections -->
                 <div class="card shadow-lg border-0">
                     <div class="card-body p-5">
@@ -1211,7 +1624,7 @@
                             <div class="mb-5">
                                 <h2 class="mb-3" style="color: var(--rfp-dark); border-left: 4px solid var(--rfp-gold); padding-left: 1rem;" t-esc="section.title"/>
                                 <div class="rfp-section-content ps-4" t-raw="section.content_html"/>
-                                
+
                                 <!-- Diagrams -->
                                 <t t-if="section.diagram_ids">
                                     <div class="mt-4 ps-4">
@@ -1226,117 +1639,6 @@
                             </div>
                             <hr t-if="not section_last" style="border-color: var(--rfp-gold-light);"/>
                         </t>
-                    </div>
-                </div>
-                
-                <!-- CTA -->
-                <div class="text-center mt-5">
-                    <a t-attf-href="/rfp/public/#{published.uuid}/submit" class="btn btn-rfp-gold btn-lg">
-                        <i class="fa fa-paper-plane me-2"/> Submit Your Proposal
-                    </a>
-                </div>
-            </div>
-        </t>
-    </template>
-
-    <!-- ============ PROPOSAL SUBMISSION FORM ============ -->
-    <template id="portal_rfp_proposal_form" name="Proposal Submission Form">
-        <t t-call="website.layout">
-            <t t-call="project_rfp_ai.rfp_theme_styles"/>
-            <div class="container py-5 rfp-portal-wrapper">
-                <div class="row justify-content-center">
-                    <div class="col-lg-8">
-                        <div class="card shadow-lg border-0">
-                            <div class="card-body p-5">
-                                <div class="text-center mb-4">
-                                    <i class="fa fa-paper-plane fa-3x text-rfp-gold mb-3"/>
-                                    <h2>Submit Your Proposal</h2>
-                                    <p class="text-muted">For: <strong t-esc="published.title"/></p>
-                                </div>
-                                
-                                <hr class="my-4" style="border-color: var(--rfp-gold-light);"/>
-                                
-                                <form t-attf-action="/rfp/public/#{published.uuid}/submit" method="post" enctype="multipart/form-data">
-                                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
-                                    
-                                    <h5 class="mb-3"><i class="fa fa-building me-2 text-rfp-gold"/> Company Information</h5>
-                                    <div class="row">
-                                        <div class="col-md-6 mb-3">
-                                            <label class="form-label">Company Name <span class="text-danger">*</span></label>
-                                            <input type="text" name="company_name" class="form-control" required="required"/>
-                                        </div>
-                                        <div class="col-md-6 mb-3">
-                                            <label class="form-label">Website</label>
-                                            <input type="url" name="website" class="form-control" placeholder="https://..."/>
-                                        </div>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">LinkedIn URL</label>
-                                        <input type="url" name="linkedin" class="form-control" placeholder="https://linkedin.com/company/..."/>
-                                    </div>
-                                    
-                                    <hr class="my-4"/>
-                                    
-                                    <h5 class="mb-3"><i class="fa fa-user me-2 text-rfp-gold"/> Contact Person</h5>
-                                    <div class="row">
-                                        <div class="col-md-6 mb-3">
-                                            <label class="form-label">Contact Name <span class="text-danger">*</span></label>
-                                            <input type="text" name="contact_person" class="form-control" required="required"/>
-                                        </div>
-                                        <div class="col-md-6 mb-3">
-                                            <label class="form-label">Email <span class="text-danger">*</span></label>
-                                            <input type="email" name="email" class="form-control" required="required"/>
-                                        </div>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">Phone</label>
-                                        <input type="tel" name="phone" class="form-control"/>
-                                    </div>
-                                    
-                                    <hr class="my-4"/>
-                                    
-                                    <h5 class="mb-3"><i class="fa fa-file-pdf-o me-2 text-rfp-gold"/> Proposal Document</h5>
-                                    <div class="mb-3">
-                                        <label class="form-label">Upload Proposal (PDF)</label>
-                                        <input type="file" name="proposal_file" class="form-control" accept=".pdf,.doc,.docx"/>
-                                    </div>
-                                    <div class="mb-4">
-                                        <label class="form-label">Additional Notes</label>
-                                        <textarea name="notes" class="form-control" rows="4" placeholder="Any additional information..."/>
-                                    </div>
-                                    
-                                    <div class="d-grid">
-                                        <button type="submit" class="btn btn-rfp-gold btn-lg">
-                                            <i class="fa fa-send me-2"/> Submit Proposal
-                                        </button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </t>
-    </template>
-
-    <!-- ============ PROPOSAL SUCCESS ============ -->
-    <template id="portal_rfp_proposal_success" name="Proposal Submitted">
-        <t t-call="website.layout">
-            <t t-call="project_rfp_ai.rfp_theme_styles"/>
-            <div class="container py-5 rfp-portal-wrapper">
-                <div class="row justify-content-center">
-                    <div class="col-lg-6 text-center">
-                        <div class="card shadow-lg border-0">
-                            <div class="card-body p-5">
-                                <i class="fa fa-check-circle fa-5x text-success mb-4"/>
-                                <h2 class="mb-3">Proposal Submitted!</h2>
-                                <p class="text-muted">Thank you for your interest. Your proposal has been received and will be reviewed by the team.</p>
-                                <hr class="my-4"/>
-                                <a t-attf-href="/rfp/public/#{published.uuid}" class="btn btn-rfp-gold-outline">
-                                    <i class="fa fa-arrow-left me-2"/> Back to RFP
-                                </a>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -1355,8 +1657,10 @@
                             <h2 class="mb-2">Proposals for <t t-esc="project.name"/></h2>
                             <p class="mb-0">
                                 <t t-esc="len(proposals)"/> proposal(s) received
-                                <span class="mx-2">|</span>
-                                Published: <t t-esc="published.published_date" t-options="{'widget': 'date'}"/>
+                                <t t-if="published">
+                                    <span class="mx-2">|</span>
+                                    Published: <t t-esc="published.published_date" t-options="{'widget': 'date'}"/>
+                                </t>
                             </p>
                         </div>
                         <div class="col-md-4 text-md-end mt-3 mt-md-0">
@@ -1366,18 +1670,129 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Evaluation Criteria Banner -->
+                <div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, #f8f6f0 0%, #faf8f2 100%); border-left: 4px solid var(--rfp-gold) !important;">
+                    <div class="card-body py-3 d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center">
+                            <div class="rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 42px; height: 42px; background: var(--rfp-gold-light);">
+                                <i class="fa fa-balance-scale" style="color: var(--rfp-gold);"/>
+                            </div>
+                            <div>
+                                <span class="fw-bold" style="color: var(--rfp-dark);">Evaluation Criteria</span>
+                                <t t-if="project.eval_criteria_status == 'finalized'">
+                                    <span class="badge bg-success ms-2"><i class="fa fa-check me-1"/>Finalized</span>
+                                </t>
+                                <t t-elif="project.eval_criteria_status == 'generated'">
+                                    <span class="badge bg-warning text-dark ms-2"><i class="fa fa-pencil me-1"/>Ready for Review</span>
+                                </t>
+                                <t t-elif="project.eval_criteria_status == 'gathering'">
+                                    <span class="badge bg-info ms-2"><i class="fa fa-comments me-1"/>In Progress</span>
+                                </t>
+                                <t t-else="">
+                                    <span class="badge bg-secondary ms-2">Not Started</span>
+                                </t>
+                                <br/>
+                                <small class="text-muted">Define how proposals are scored and ranked</small>
+                            </div>
+                        </div>
+                        <a t-attf-href="/rfp/eval/setup/#{project.id}" class="btn btn-rfp-gold">
+                            <t t-if="project.eval_criteria_status in ('not_started', False)">
+                                <i class="fa fa-plus me-1"/> Setup Criteria
+                            </t>
+                            <t t-elif="project.eval_criteria_status == 'gathering'">
+                                <i class="fa fa-arrow-right me-1"/> Continue Setup
+                            </t>
+                            <t t-elif="project.eval_criteria_status == 'generated'">
+                                <i class="fa fa-pencil me-1"/> Review Criteria
+                            </t>
+                            <t t-else="">
+                                <i class="fa fa-eye me-1"/> View Criteria
+                            </t>
+                        </a>
+                    </div>
+                </div>
                 
-                <!-- Public URL -->
-                <div class="alert alert-info mb-4 d-flex align-items-center">
-                    <strong class="me-2">Public URL:</strong>
-                    <input type="text" id="proposals_public_url" class="form-control form-control-sm me-2" style="max-width: 400px;"
-                        t-att-value="published.get_public_url()" readonly="readonly"/>
-                    <button type="button" class="btn btn-sm btn-outline-primary me-2" id="btn_copy_proposals_url">
-                        <i class="fa fa-copy me-1"></i> Copy
+                <!-- Submission Requirements Panel -->
+                <div class="card shadow-sm border-0 mb-4" style="border-left: 4px solid var(--rfp-gold) !important;">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center py-3"
+                         style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#required_docs_panel" aria-expanded="false">
+                        <div class="d-flex align-items-center">
+                            <i class="fa fa-file-text me-2 text-rfp-gold"/>
+                            <h6 class="mb-0 fw-bold">Submission Requirements</h6>
+                            <span class="badge bg-rfp-gold ms-2" id="required_docs_count"><t t-esc="len(project.required_document_ids)"/></span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <small class="text-muted">Configure what must be submit</small>
+                            <i class="fa fa-chevron-down"/>
+                        </div>
+                    </div>
+                    <div class="collapse" id="required_docs_panel">
+                        <div class="card-body p-4">
+                            <p class="text-muted small mb-3">
+                                Define the document types that must be uploaded with the proposals.
+                                When no documents are configured, proposals see a single generic file upload.
+                            </p>
+
+                            <div id="required_docs_container" t-att-data-project-id="project.id">
+                                <t t-foreach="project.required_document_ids.sorted('sequence')" t-as="rdoc">
+                                    <div class="card border mb-2 required-doc-card" t-att-data-doc-id="rdoc.id">
+                                        <div class="card-body py-2 px-3">
+                                            <div class="row align-items-center">
+                                                <div class="col-md-3">
+                                                    <input type="text" class="form-control form-control-sm fw-bold rdoc-name"
+                                                           t-att-value="rdoc.name" placeholder="Document name"/>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <input type="text" class="form-control form-control-sm rdoc-description"
+                                                           t-att-value="rdoc.description or ''"
+                                                           placeholder="Description / instructions"/>
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <input type="text" class="form-control form-control-sm rdoc-accept-types"
+                                                           t-att-value="rdoc.accept_types or '.pdf,.doc,.docx'"
+                                                           placeholder=".pdf,.doc,.docx"/>
+                                                </div>
+                                                <div class="col-md-2 text-center">
+                                                    <label class="form-label small text-muted mb-0 d-block">Required</label>
+                                                    <div class="form-check form-switch d-inline-block">
+                                                        <input class="form-check-input rdoc-required" type="checkbox"
+                                                               t-att-checked="'checked' if rdoc.is_required else None"/>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-2 text-end">
+                                                    <button class="btn btn-sm btn-outline-danger btn-delete-rdoc" type="button">
+                                                        <i class="fa fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </t>
+                            </div>
+
+                            <div class="d-flex justify-content-between mt-3">
+                                <button type="button" class="btn btn-sm btn-outline-primary" id="btn_add_rdoc">
+                                    <i class="fa fa-plus me-1"></i> Add Document Type
+                                </button>
+                                <button type="button" class="btn btn-sm btn-rfp-gold" id="btn_save_rdocs">
+                                    <i class="fa fa-save me-1"></i> Save
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Upload Proposal Action -->
+                <div class="alert alert-success mb-4 d-flex align-items-center justify-content-between">
+                    <div>
+                        <i class="fa fa-upload me-2 fa-2x text-success"></i>
+                        <strong>Upload Vendor Proposals:</strong>
+                        <span class="text-muted ms-2">Upload proposals received from vendors for AI analysis and scoring</span>
+                    </div>
+                    <button type="button" class="btn btn-success btn-upload-proposal" t-att-data-project-id="project.id">
+                        <i class="fa fa-upload me-1"></i> Upload Proposal
                     </button>
-                    <a t-att-href="published.get_public_url()" target="_blank" class="btn btn-sm btn-primary">
-                        <i class="fa fa-external-link me-1"></i> Open
-                    </a>
                 </div>
                 
                 <!-- Proposals Table -->
@@ -1432,8 +1847,14 @@
                     <div class="text-center py-5">
                         <i class="fa fa-inbox fa-4x text-muted mb-3" style="opacity: 0.3;"/>
                         <h4 class="text-muted">No proposals yet</h4>
-                        <p class="text-muted">Share the public URL to start receiving proposals</p>
+                        <p class="text-muted">Upload vendor proposals above to start the AI analysis</p>
                     </div>
+                </t>
+
+                <!-- Upload Proposal Modal -->
+                <t t-call="project_rfp_ai.proposal_upload_modal">
+                    <t t-set="required_docs" t-value="project.required_document_ids.sorted('sequence')"/>
+                    <t t-set="modal_project" t-value="project"/>
                 </t>
             </div>
         </t>
@@ -1585,7 +2006,42 @@
                                 </t>
                             </div>
                         </div>
-                        
+
+                        <!-- Multi-Document Viewer -->
+                        <t t-if="proposal_documents">
+                            <div class="card shadow-sm border-0 mt-4">
+                                <div class="card-header">
+                                    <h6 class="mb-0"><i class="fa fa-files-o me-2"></i> Submitted Documents
+                                        <span class="badge bg-rfp-gold ms-1"><t t-esc="len(proposal_documents)"/></span>
+                                    </h6>
+                                </div>
+                                <div class="card-body p-0">
+                                    <div class="list-group list-group-flush">
+                                        <t t-foreach="proposal_documents" t-as="pdoc">
+                                            <div class="list-group-item d-flex justify-content-between align-items-center py-3">
+                                                <div>
+                                                    <h6 class="mb-1 fw-bold"><t t-esc="pdoc['doc'].name"/></h6>
+                                                    <small class="text-muted"><i class="fa fa-file me-1"></i> <t t-esc="pdoc['doc'].filename or 'No file'"/></small>
+                                                </div>
+                                                <div class="d-flex gap-2" t-if="pdoc['doc'].file_data">
+                                                    <t t-if="pdoc['file_type'] == 'pdf'">
+                                                        <a t-attf-href="/web/content/rfp.proposal.document/#{pdoc['doc'].id}/file_data/#{pdoc['doc'].filename}"
+                                                           target="_blank" class="btn btn-sm btn-outline-primary" title="View">
+                                                            <i class="fa fa-eye"></i>
+                                                        </a>
+                                                    </t>
+                                                    <a t-attf-href="/web/content/rfp.proposal.document/#{pdoc['doc'].id}/file_data/#{pdoc['doc'].filename}"
+                                                       class="btn btn-sm btn-rfp-gold" download="" title="Download">
+                                                        <i class="fa fa-download"></i>
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </t>
+                                    </div>
+                                </div>
+                            </div>
+                        </t>
+
                         <!-- AI Analysis Section -->
                         <div class="card shadow-sm border-0 mt-4">
                             <div class="card-header d-flex justify-content-between align-items-center bg-gradient" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
@@ -1757,6 +2213,350 @@
                 </div>
             </div>
         </t>
+    </template>
+
+    <!-- ============ EVALUATION CRITERIA: INTERVIEW ============ -->
+    <template id="portal_rfp_eval_interview" name="Evaluation Criteria Interview">
+        <t t-call="portal.portal_layout">
+            <t t-call="project_rfp_ai.rfp_theme_styles"/>
+            <div class="container py-4 rfp-portal-wrapper">
+                <t t-call="project_rfp_ai.rfp_loading_overlay_component"/>
+                <div class="row justify-content-center">
+                    <div class="col-lg-8">
+                        <div class="card shadow-lg border-0">
+                            <div class="card-header bg-white py-4" style="border-bottom: 3px solid var(--rfp-gold);">
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="bg-rfp-gold-light rounded-circle p-3">
+                                        <i class="fa fa-balance-scale fa-lg text-rfp-gold"/>
+                                    </div>
+                                    <div>
+                                        <h3 class="mb-1">Evaluation Criteria Setup</h3>
+                                        <span class="text-muted small">
+                                            <t t-esc="rfp_project.name"/> — Tell us what matters most when evaluating proposals
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-body p-4">
+                                <form t-attf-action="/rfp/eval/next_step/#{rfp_project.id}" method="post">
+                                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+
+                                    <t t-if="questions_to_answer">
+                                        <div class="alert alert-info border-0 mb-4">
+                                            <i class="fa fa-info-circle me-2"/> Help us understand your evaluation priorities so we can create a tailored scoring rubric.
+                                        </div>
+
+                                        <t t-foreach="questions_to_answer" t-as="input_field">
+                                            <t t-call="project_rfp_ai.portal_rfp_input_field"/>
+                                        </t>
+
+                                        <div class="d-flex justify-content-between mt-4">
+                                            <a t-attf-href="/rfp/edit/#{rfp_project.id}" class="btn btn-outline-secondary">
+                                                <i class="fa fa-arrow-left me-1"/> Back to Project
+                                            </a>
+                                            <button type="submit" class="btn btn-rfp-gold btn-lg">
+                                                <i class="fa fa-arrow-right me-2"/> Submit &amp; Continue
+                                            </button>
+                                        </div>
+                                    </t>
+
+                                    <t t-elif="not questions_to_answer">
+                                        <div class="text-center py-4">
+                                            <i class="fa fa-check-circle fa-4x text-rfp-gold mb-3"/>
+                                            <h4>All questions answered</h4>
+                                            <p class="text-muted">Generating your evaluation criteria...</p>
+                                            <button type="submit" class="btn btn-rfp-gold btn-lg mt-2">
+                                                <i class="fa fa-magic me-2"/> Generate Criteria
+                                            </button>
+                                        </div>
+                                    </t>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </t>
+    </template>
+
+    <!-- ============ EVALUATION CRITERIA: REVIEW/EDIT ============ -->
+    <template id="portal_rfp_eval_review" name="Evaluation Criteria Review">
+        <t t-call="portal.portal_layout">
+            <t t-call="project_rfp_ai.rfp_theme_styles"/>
+            <div class="container py-4 rfp-portal-wrapper">
+                <div class="row justify-content-center">
+                    <div class="col-lg-10">
+                        <!-- Header -->
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <div>
+                                <h2 class="mb-1">
+                                    <i class="fa fa-balance-scale text-rfp-gold me-2"/>
+                                    Evaluation Criteria
+                                </h2>
+                                <p class="text-muted mb-0">
+                                    <t t-esc="rfp_project.name"/> — Review and adjust the scoring rubric
+                                </p>
+                            </div>
+                            <div>
+                                <a t-attf-href="/rfp/edit/#{rfp_project.id}" class="btn btn-outline-secondary">
+                                    <i class="fa fa-arrow-left me-1"/> Back to Project
+                                </a>
+                            </div>
+                        </div>
+
+                        <!-- Success/Status Banner (hidden by default, shown by JS) -->
+                        <div id="eval_status_banner" class="alert d-none mb-4" role="alert">
+                            <div class="d-flex align-items-center">
+                                <i id="eval_status_icon" class="fa fa-2x me-3"/>
+                                <div>
+                                    <strong id="eval_status_title"/>
+                                    <p id="eval_status_message" class="mb-0 small"/>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Weight Total Indicator -->
+                        <div class="alert mb-4" id="eval_weight_alert" t-att-class="'alert-success' if total_weight == 100 else ('alert-warning' if abs(total_weight - 100) &lt;= 10 else 'alert-danger')">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span>
+                                    <i class="fa fa-pie-chart me-2"/>
+                                    Total Weight: <strong id="eval_total_weight"><t t-esc="total_weight"/></strong> / 100
+                                    <span id="eval_weight_hint" t-if="total_weight != 100" class="ms-2">(should equal 100)</span>
+                                </span>
+                                <span t-if="rfp_project.eval_criteria_status == 'finalized'" class="badge bg-success">
+                                    <i class="fa fa-check me-1"/> Finalized
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Criteria Cards -->
+                        <div id="eval_criteria_container" t-att-data-project-id="rfp_project.id">
+                            <t t-foreach="criteria" t-as="c">
+                                <div class="card shadow-sm border-0 mb-3 eval-criterion-card" t-att-data-criterion-id="c.id">
+                                    <div class="card-body">
+                                        <div class="row align-items-center">
+                                            <!-- Name + Category -->
+                                            <div class="col-md-4">
+                                                <input type="text" class="form-control form-control-sm fw-bold criterion-name" t-att-value="c.name"/>
+                                                <div class="mt-1">
+                                                    <span t-attf-class="badge bg-{{ 'primary' if c.category == 'technical' else ('success' if c.category == 'commercial' else ('info' if c.category == 'experience' else ('warning' if c.category == 'compliance' else 'secondary'))) }}"
+                                                          t-esc="c.category" style="text-transform: capitalize;"/>
+                                                    <span t-if="c.is_must_have" class="badge bg-danger ms-1">Must-Have</span>
+                                                </div>
+                                            </div>
+                                            <!-- Weight Slider -->
+                                            <div class="col-md-3">
+                                                <label class="form-label small text-muted mb-0">Weight</label>
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <input type="range" class="form-range criterion-weight-slider" min="1" max="100" t-att-value="c.weight"/>
+                                                    <span class="badge bg-rfp-gold criterion-weight-display" style="min-width: 40px;"><t t-esc="c.weight"/></span>
+                                                </div>
+                                            </div>
+                                            <!-- Must-Have Toggle -->
+                                            <div class="col-md-2 text-center">
+                                                <label class="form-label small text-muted mb-0 d-block">Must-Have</label>
+                                                <div class="form-check form-switch d-inline-block">
+                                                    <input class="form-check-input criterion-must-have" type="checkbox" t-att-checked="'checked' if c.is_must_have else None"/>
+                                                </div>
+                                            </div>
+                                            <!-- Actions -->
+                                            <div class="col-md-3 text-end">
+                                                <button class="btn btn-sm btn-outline-secondary me-1 btn-toggle-details" type="button" data-bs-toggle="collapse" t-attf-data-bs-target="#detail_#{c.id}">
+                                                    <i class="fa fa-chevron-down"/>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger btn-delete-criterion" type="button">
+                                                    <i class="fa fa-trash"/>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <!-- Collapsible Details (editable) -->
+                                        <div class="collapse mt-3" t-attf-id="detail_#{c.id}">
+                                            <div class="bg-light rounded p-3">
+                                                <label class="form-label small fw-bold">Description</label>
+                                                <textarea class="form-control form-control-sm mb-3 criterion-description" rows="2"
+                                                          placeholder="Describe what this criterion evaluates..."><t t-esc="c.description or ''"/></textarea>
+                                                <label class="form-label small fw-bold">Evaluation Guidance</label>
+                                                <textarea class="form-control form-control-sm criterion-scoring-guidance" rows="2"
+                                                          placeholder="What constitutes high, medium, and low scores..."><t t-esc="c.scoring_guidance or ''"/></textarea>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </t>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="d-flex justify-content-between mt-4">
+                            <div>
+                                <button type="button" class="btn btn-outline-primary me-2" id="btn_add_criterion">
+                                    <i class="fa fa-plus me-1"/> Add Criterion
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" id="btn_regenerate_criteria">
+                                    <i class="fa fa-refresh me-1"/> Regenerate
+                                </button>
+                            </div>
+                            <div>
+                                <button type="button" class="btn btn-rfp-gold-outline me-2" id="btn_save_criteria">
+                                    <i class="fa fa-save me-1"/> Save Changes
+                                </button>
+                                <t t-if="rfp_project.eval_criteria_status == 'finalized'">
+                                    <button type="button" class="btn btn-outline-warning" id="btn_unfinalize_criteria">
+                                        <i class="fa fa-unlock me-1"/> Unlock for Editing
+                                    </button>
+                                </t>
+                                <t t-else="">
+                                    <button type="button" class="btn btn-rfp-gold" id="btn_finalize_criteria">
+                                        <i class="fa fa-check me-1"/> Finalize Criteria
+                                    </button>
+                                </t>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Confirmation Modal (must be inside rfp-portal-wrapper for event delegation) -->
+                <div class="modal fade" id="modal_eval_confirm" tabindex="-1">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content border-0 shadow-lg" style="border-radius: var(--rfp-radius);">
+                            <div class="modal-body text-center py-5 px-4">
+                                <div id="eval_confirm_icon_wrap" class="mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle" style="width: 64px; height: 64px;">
+                                    <i id="eval_confirm_icon" class="fa fa-3x"/>
+                                </div>
+                                <h5 id="eval_confirm_title" class="fw-bold mb-2"/>
+                                <p id="eval_confirm_message" class="text-muted mb-4"/>
+                                <div class="d-flex justify-content-center gap-3">
+                                    <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Cancel</button>
+                                    <button type="button" class="btn px-4" id="btn_eval_confirm_action">Confirm</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </t>
+    </template>
+
+    <!-- ============ SHARED: UPLOAD PROPOSAL MODAL ============ -->
+    <template id="proposal_upload_modal" name="Upload Proposal Modal">
+        <div class="modal fade" id="modal_upload_proposal" tabindex="-1" role="dialog"
+             data-bs-backdrop="static" data-bs-keyboard="false">
+            <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+                <div class="modal-content border-0 shadow-lg">
+                    <!-- Header -->
+                    <div class="modal-header border-0 pb-0 pt-4 px-4">
+                        <div class="w-100 text-center">
+                            <i class="fa fa-upload fa-3x text-rfp-gold mb-2"/>
+                            <h5 class="fw-bold mb-1">Upload Vendor Proposal</h5>
+                            <p class="text-muted small mb-0">Upload proposal documents for AI analysis and scoring</p>
+                        </div>
+                    </div>
+
+                    <!-- Scrollable Body -->
+                    <div class="modal-body px-4 py-3">
+                        <!-- Evaluation Criteria Note -->
+                        <t t-if="modal_project and modal_project.eval_criteria_status in (False, 'not_started')">
+                            <div class="alert alert-warning d-flex align-items-start mb-3 py-2 px-3" role="alert">
+                                <i class="fa fa-lightbulb-o me-2 mt-1 text-warning"/>
+                                <div class="flex-grow-1">
+                                    <small class="fw-semibold d-block">No evaluation criteria set up yet</small>
+                                    <small class="text-muted">Define scoring criteria to let AI evaluate and rank proposals automatically.</small>
+                                </div>
+                                <a t-attf-href="/rfp/eval/setup/#{modal_project.id}" class="btn btn-sm btn-outline-warning ms-2 text-nowrap">
+                                    <i class="fa fa-balance-scale me-1"/> Set Up Criteria
+                                </a>
+                            </div>
+                        </t>
+
+                        <!-- Form State -->
+                        <div id="proposal_form_state">
+                            <!-- Vendor name -->
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">
+                                    <i class="fa fa-building me-1 text-rfp-gold"/> Vendor Name
+                                    <small class="text-muted fw-normal">(optional — AI will extract)</small>
+                                </label>
+                                <input type="text" id="proposal_vendor_name" class="form-control"
+                                       placeholder="e.g. Acme Corp"/>
+                            </div>
+
+                            <hr class="my-3" style="border-color: var(--rfp-gold-light);"/>
+
+                            <!-- Required document inputs -->
+                            <t t-if="required_docs">
+                                <label class="form-label fw-semibold mb-2">
+                                    <i class="fa fa-file-text me-1 text-rfp-gold"/> Required Documents
+                                </label>
+                                <t t-foreach="required_docs" t-as="rdoc">
+                                    <div class="mb-3 proposal-doc-input" t-att-data-doc-id="rdoc.id"
+                                         t-att-data-required="'true' if rdoc.is_required else 'false'">
+                                        <label class="form-label small mb-1">
+                                            <t t-esc="rdoc.name"/>
+                                            <span t-if="rdoc.is_required" class="text-danger ms-1">*</span>
+                                            <span t-else="" class="text-muted ms-1">(optional)</span>
+                                        </label>
+                                        <t t-if="rdoc.description">
+                                            <small class="form-text text-muted d-block mb-1"><t t-esc="rdoc.description"/></small>
+                                        </t>
+                                        <input type="file" class="form-control form-control-sm proposal-doc-file"
+                                               t-attf-name="doc_file_#{rdoc.id}"
+                                               t-att-accept="rdoc.accept_types or '.pdf,.doc,.docx'"
+                                               t-att-data-doc-id="rdoc.id"/>
+                                    </div>
+                                </t>
+
+                                <hr class="my-3" style="border-color: var(--rfp-gold-light);"/>
+                                <div class="mb-3">
+                                    <label class="form-label small mb-1">
+                                        Additional Document <span class="text-muted">(optional)</span>
+                                    </label>
+                                    <input type="file" id="proposal_upload_file" class="form-control form-control-sm"
+                                           accept=".pdf,.doc,.docx"/>
+                                </div>
+                            </t>
+
+                            <!-- Fallback: single file input when no required docs -->
+                            <t t-else="">
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold">
+                                        <i class="fa fa-file-text me-1 text-rfp-gold"/> Proposal Document
+                                        <span class="text-danger ms-1">*</span>
+                                    </label>
+                                    <input type="file" id="proposal_upload_file" class="form-control"
+                                           accept=".pdf,.docx"/>
+                                </div>
+                            </t>
+
+                            <div id="proposal_file_error" class="alert alert-danger d-none mb-0"></div>
+                        </div>
+
+                        <!-- Processing State -->
+                        <div id="proposal_processing_state" class="d-none text-center py-4">
+                            <i class="fa fa-spinner fa-spin fa-3x text-rfp-gold mb-3"/>
+                            <h5>Analyzing Proposal...</h5>
+                            <p class="text-muted">Our AI is extracting vendor info and scoring the proposal. This may take 1-2 minutes.</p>
+                        </div>
+
+                        <!-- Error State -->
+                        <div id="proposal_error_state" class="d-none text-center py-4">
+                            <i class="fa fa-exclamation-circle fa-3x text-danger mb-3"/>
+                            <h5>Upload Failed</h5>
+                            <p id="proposal_error_message" class="text-danger"></p>
+                            <button type="button" class="btn btn-rfp-gold" id="btn_retry_proposal_upload">
+                                Retry
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Footer (always visible at bottom) -->
+                    <div class="modal-footer border-0 pt-0 px-4 pb-4" id="proposal_form_footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" id="btn_confirm_proposal_upload" class="btn btn-rfp-gold" disabled="disabled">
+                            <i class="fa fa-upload me-1"/> Upload &amp; Analyze
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </template>
 
 </odoo>
