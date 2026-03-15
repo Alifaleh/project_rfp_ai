@@ -1020,7 +1020,7 @@
 
                                 <!-- Weight Total Indicator -->
                                 <t t-set="eval_total_weight" t-value="sum(c.weight for c in rfp_project.evaluation_criterion_ids.filtered('active'))"/>
-                                <div class="alert mb-3 py-2" id="eval_weight_alert" t-att-class="'alert-success' if eval_total_weight == 100 else ('alert-warning' if abs(eval_total_weight - 100) &lt;= 10 else 'alert-danger')">
+                                <div class="alert mb-3 py-2" id="eval_weight_alert" t-att-class="'alert-success' if eval_total_weight == 100 else ('alert-danger' if eval_total_weight > 100 else 'alert-warning')">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <span class="small">
                                             <i class="fa fa-pie-chart me-1"/>
