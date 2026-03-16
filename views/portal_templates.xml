@@ -802,6 +802,7 @@
                 <label class="form-label text-warning-emphasis small">Why is this irrelevant?</label>
                 <div class="d-flex gap-2">
                     <input type="text" t-att-name="'irrelevant_reason_' + input_field.field_key" class="form-control form-control-sm" placeholder="e.g. We don't need this feature..."/>
+                    <button type="button" class="btn btn-sm btn-rfp-gold">Save</button>
                     <button type="button" class="btn btn-sm btn-outline-secondary btn-irrelevant-cancel" t-att-data-target="'irrelevant_' + input_field.field_key">Cancel</button>
                 </div>
                 <input type="hidden" t-att-name="'is_irrelevant_' + input_field.field_key" value="false" class="irrelevant-flag"/>
@@ -812,6 +813,7 @@
                 <label class="form-label text-info-emphasis small">Custom Answer</label>
                 <div class="d-flex gap-2">
                     <input type="text" t-att-name="'custom_answer_val_' + input_field.field_key" class="form-control form-control-sm" placeholder="Type your answer here..."/>
+                    <button type="button" class="btn btn-sm btn-rfp-gold">Save</button>
                     <button type="button" class="btn btn-sm btn-outline-secondary btn-custom-answer-cancel" t-att-data-target="'custom_answer_' + input_field.field_key">Cancel</button>
                 </div>
                 <input type="hidden" t-att-name="'has_custom_answer_' + input_field.field_key" value="false" class="custom-answer-flag"/>
