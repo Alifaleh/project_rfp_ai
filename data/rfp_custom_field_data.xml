@@ -118,24 +118,32 @@
             <field name="phase">init</field>
             <field name="input_type">text_input</field>
             <field name="sequence">3</field>
-            <field name="placeholder">e.g. $50,000 or "Under $20k"</field>
+            <field name="placeholder">e.g. $50,000 or "Strategic Tier"</field>
             <field name="is_required">True</field>
+        </record>
+        <record id="sugg_init_budget_vlow" model="rfp.field.suggestion">
+            <field name="field_id" ref="field_init_budget"/>
+            <field name="name">Under $25,000 (Small/Pilot)</field>
         </record>
         <record id="sugg_init_budget_low" model="rfp.field.suggestion">
             <field name="field_id" ref="field_init_budget"/>
-            <field name="name">Under $20k</field>
+            <field name="name">$25,000 - $75,000 (Standard Mid-Market)</field>
         </record>
         <record id="sugg_init_budget_med" model="rfp.field.suggestion">
             <field name="field_id" ref="field_init_budget"/>
-            <field name="name">$20k - $50k</field>
+            <field name="name">$75,000 - $200,000 (Enterprise/Full-Scale)</field>
         </record>
         <record id="sugg_init_budget_high" model="rfp.field.suggestion">
             <field name="field_id" ref="field_init_budget"/>
-            <field name="name">$50k - $100k</field>
+            <field name="name">$200,000 - $500,000 (Large Transformation)</field>
         </record>
         <record id="sugg_init_budget_ent" model="rfp.field.suggestion">
             <field name="field_id" ref="field_init_budget"/>
-            <field name="name">Over $100k</field>
+            <field name="name">Over $500,000 (Strategic Investment)</field>
+        </record>
+        <record id="sugg_init_budget_tbd" model="rfp.field.suggestion">
+            <field name="field_id" ref="field_init_budget"/>
+            <field name="name">Budget is not yet defined (TBD)</field>
         </record>
 
         <!-- 4. Success Goal (TextArea + Suggestions) -->
