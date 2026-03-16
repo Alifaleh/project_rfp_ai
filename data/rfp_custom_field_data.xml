@@ -165,34 +165,7 @@
             <field name="name">Modernize Tech Stack (Reduce Tech Debt)</field>
         </record>
         
-        <!-- 5. Company Size (Radio) -->
-        <record id="field_init_company_size" model="rfp.custom.field">
-            <field name="name">Company Size</field>
-            <field name="code">company_size</field>
-            <field name="phase">init</field>
-            <field name="input_type">radio</field>
-            <field name="sequence">5</field>
-            <field name="help_text">Select the category that best describes your organization's size.</field>
-            <field name="is_required">True</field>
-        </record>
-        <record id="opt_init_cs_startup" model="rfp.field.option">
-            <field name="field_id" ref="field_init_company_size"/>
-            <field name="value">startup</field>
-            <field name="label">Startup (1-50 employees)</field>
-            <field name="sequence">1</field>
-        </record>
-        <record id="opt_init_cs_smb" model="rfp.field.option">
-            <field name="field_id" ref="field_init_company_size"/>
-            <field name="value">smb</field>
-            <field name="label">SMB (51-500 employees)</field>
-            <field name="sequence">2</field>
-        </record>
-        <record id="opt_init_cs_enterprise" model="rfp.field.option">
-            <field name="field_id" ref="field_init_company_size"/>
-            <field name="value">enterprise</field>
-            <field name="label">Enterprise (500+ employees)</field>
-            <field name="sequence">3</field>
-        </record>
+
 
         <!-- ==============================================
              PHASE 2: POST ANALYSIS (Technical Specifics)

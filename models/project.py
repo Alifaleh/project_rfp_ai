@@ -712,7 +712,6 @@ class RfpProject(models.Model):
             project_name=self.name,
             description=self.description,
             domain=self.domain_id.name or 'General',
-            company_size=init_inputs.get('company_size', 'Unknown'),
             budget_range=init_inputs.get('budget_range', 'Unknown'),
             project_type=init_inputs.get('project_type', 'Unknown'),
             target_audience=init_inputs.get('target_audience', 'Unknown'),

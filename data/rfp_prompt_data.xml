@@ -82,7 +82,6 @@ Instructions:
 - Project Name: {project_name}
 - Project Description: {description}
 - Domain: {domain}
-- Company Size: {company_size}
 - Estimated Budget: {budget_range}
 - Project Type: {project_type}
 - Target Audience: {target_audience}
@@ -92,22 +91,22 @@ Instructions:
 **Assessment Guidelines:**
 
 1. **Low Complexity** (warn_round: 6-8, max_round: 10-12):
-   - Startup with small budget (< $20k)
+   - Small budget (< $20k)
    - Simple/standard project type (e.g., basic website, simple internal tool)
    - Single audience segment, few integrations expected
 
 2. **Medium Complexity** (warn_round: 10-14, max_round: 16-22):
-   - SMB with moderate budget ($20k-$100k)
+   - Moderate budget ($20k-$100k)
    - Standard SaaS or migration project
    - Multiple audience segments, moderate integrations
 
 3. **High Complexity** (warn_round: 14-18, max_round: 22-28):
-   - Enterprise with substantial budget (> $100k)
+   - Substantial budget (> $100k)
    - Legacy rewrite or complex platform
    - Multiple audiences, compliance requirements, extensive integrations
 
 4. **Very High Complexity** (warn_round: 18-22, max_round: 28-35):
-   - Enterprise with large budget
+   - Large or unspecified open budget
    - Mission-critical, multi-module platform with heavy compliance
    - Government/Healthcare/Financial with strict regulatory needs
 
