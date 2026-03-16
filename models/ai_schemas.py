@@ -44,6 +44,10 @@ def get_interviewer_schema():
                         "data_type_validation": types.Schema(type=types.Type.STRING, enum=["string", "integer", "float", "email"]),
                         "options": types.Schema(type=types.Type.ARRAY, items=types.Schema(type=types.Type.STRING)),
                         "description_tooltip": types.Schema(type=types.Type.STRING),
+                        "question_rationale": types.Schema(
+                            type=types.Type.STRING,
+                            description="A detailed explanation of WHY the AI is asking this question, what it means for the project, and clarification if the question is complex."
+                        ),
                         "suggested_answers": types.Schema(
                             type=types.Type.ARRAY, 
                             items=types.Schema(type=types.Type.STRING),

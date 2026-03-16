@@ -255,6 +255,118 @@
                 background: var(--rfp-gold-light);
                 color: var(--rfp-dark);
             }
+            /* AI Interface Card */
+            .rfp-interface-card {
+                border-radius: var(--rfp-radius);
+                overflow: hidden;
+            }
+            .rfp-interface-header {
+                background: linear-gradient(to right, var(--rfp-dark), #2D2D4A);
+                color: var(--rfp-white);
+            }
+            .rfp-interface-header h3 {
+                color: var(--rfp-white);
+            }
+            .rfp-interface-header .text-muted {
+                color: rgba(255,255,255,0.7) !important;
+            }
+            .rfp-interface-header .bg-rfp-gold-light {
+                background: rgba(201, 162, 39, 0.2) !important;
+            }
+            
+            /* Enhanced Hover Cards */
+            .rfp-hover-card {
+                transition: all 0.3s ease;
+                border: 1px solid rgba(0,0,0,0.05) !important;
+            }
+            .rfp-hover-card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 8px 24px rgba(0,0,0,0.08) !important;
+                border-color: rgba(201, 162, 39, 0.4) !important;
+            }
+            
+            /* Input Styling Tweaks */
+            .rfp-portal-wrapper .form-control, .rfp-portal-wrapper .form-select {
+                padding: 0.75rem 1rem;
+                background-color: #F8F9FA;
+                border-color: #E2E8F0;
+                border-radius: var(--rfp-radius-sm);
+                transition: all 0.2s ease;
+            }
+            .rfp-portal-wrapper .form-control:focus, .rfp-portal-wrapper .form-select:focus {
+                background-color: #FFFFFF;
+                box-shadow: 0 0 0 4px rgba(201, 162, 39, 0.15);
+                border-color: var(--rfp-gold);
+            }
+            
+            /* AI Suggestions */
+            .btn-suggestion {
+                background-color: #F0F4F8 !important;
+                border-color: #CBD5E1 !important;
+                color: #4A5568 !important;
+                font-weight: 500;
+                transition: all 0.2s ease;
+            }
+            .btn-suggestion:hover {
+                background-color: var(--rfp-gold-light) !important;
+                border-color: var(--rfp-gold) !important;
+                color: var(--rfp-dark) !important;
+                transform: translateX(4px);
+            }
+
+            /* --- NEW: High-End Rationale Help System --- */
+            .rfp-rationale-wrapper {
+                line-height: 1;
+                vertical-align: middle;
+            }
+            .rfp-rationale-icon:hover {
+                color: var(--rfp-gold) !important;
+                transform: scale(1.15);
+            }
+            .rfp-rationale-popup {
+                position: absolute;
+                bottom: calc(100% + 15px);
+                left: 50%;
+                transform: translateX(-50%) translateY(10px);
+                width: 320px;
+                background: #FFFFFF;
+                visibility: hidden;
+                opacity: 0;
+                transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+                z-index: 1000;
+                pointer-events: none;
+                border: 1px solid rgba(201, 162, 39, 0.1) !important;
+            }
+            .rfp-rationale-wrapper:hover .rfp-rationale-popup {
+                visibility: visible;
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+            .rfp-rationale-header {
+                border-bottom: 1px solid rgba(201, 162, 39, 0.1);
+                margin-top: -5px;
+            }
+            .rfp-rationale-arrow {
+                position: absolute;
+                top: 100%;
+                left: 50%;
+                transform: translateX(-50%);
+                border-width: 8px;
+                border-style: solid;
+                border-color: #FFFFFF transparent transparent transparent;
+            }
+            /* Prevent cutoff on edges */
+            .rfp-input-group:first-child .rfp-rationale-popup {
+                left: 0;
+                transform: translateX(0) translateY(10px);
+            }
+            .rfp-input-group:first-child .rfp-rationale-wrapper:hover .rfp-rationale-popup {
+                transform: translateX(0) translateY(0);
+            }
+            .rfp-input-group:first-child .rfp-rationale-arrow {
+                left: 15px;
+                transform: none;
+            }
         </style>
     </template>
     
@@ -496,11 +608,101 @@
                                             <i class="fa fa-magic me-2"/> Start AI Analysis
                                         </button>
                                     </div>
+
+                                    <div class="text-center my-3">
+                                        <span class="text-muted small fw-bold">OR</span>
+                                    </div>
+
+                                    <div class="d-grid">
+                                        <button type="button" class="btn btn-outline-secondary btn-lg btn-upload-rfp" title="Upload an existing RFP document">
+                                            <i class="fa fa-upload me-2"/> Upload Existing RFP Document
+                                        </button>
+                                    </div>
                                 </form>
                             </div>
                         </div>
                     </div>
                 </div>
+
+                <!-- Upload RFP Modal (must be inside .rfp-portal-wrapper for widget events) -->
+                <div class="modal fade" id="modal_upload_rfp" tabindex="-1" role="dialog" data-bs-backdrop="static" data-bs-keyboard="false">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content border-0 shadow-lg">
+                            <div class="modal-body py-5 px-4">
+                                <!-- Form State -->
+                                <div id="upload_form_state">
+                                    <div class="text-center mb-4">
+                                        <div class="mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle"
+                                             style="width: 64px; height: 64px; background: rgba(197, 168, 70, 0.15);">
+                                            <i class="fa fa-upload fa-2x text-rfp-gold"/>
+                                        </div>
+                                        <h5 class="fw-bold mb-2">Upload Existing RFP</h5>
+                                        <p class="text-muted mb-0">Upload a PDF or DOCX file and our AI will extract key information to pre-populate your new project.</p>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-bold" for="rfp_upload_file">RFP Document <span class="text-danger">*</span></label>
+                                        <input type="file" class="form-control" id="rfp_upload_file" accept=".pdf,.docx"/>
+                                        <small class="text-muted">Accepted formats: PDF, DOCX (max 25 MB)</small>
+                                    </div>
+                                    <div id="upload_file_info" class="d-none mb-3">
+                                        <div class="alert alert-light border py-2 px-3 mb-0 d-flex align-items-center">
+                                            <i class="fa fa-file-text-o text-rfp-gold me-2"/>
+                                            <span id="upload_file_name" class="small fw-bold me-2"/>
+                                            <span id="upload_file_size" class="small text-muted"/>
+                                        </div>
+                                    </div>
+                                    <div id="upload_file_error" class="d-none mb-3">
+                                        <div class="alert alert-danger py-2 px-3 mb-0 small"/>
+                                    </div>
+
+                                    <div class="mb-4">
+                                        <label class="form-label small fw-bold" for="upload_project_name">Project Name <span class="text-muted fw-normal">(optional)</span></label>
+                                        <input type="text" class="form-control" id="upload_project_name" placeholder="Leave blank to auto-detect from document"/>
+                                    </div>
+
+                                    <div class="d-flex justify-content-center gap-3">
+                                        <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Cancel</button>
+                                        <button type="button" class="btn btn-rfp-gold px-4" id="btn_confirm_upload" disabled="disabled">
+                                            <i class="fa fa-upload me-1"/> Upload &amp; Analyze
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Processing State -->
+                                <div id="upload_processing_state" class="d-none text-center">
+                                    <div class="mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle"
+                                         style="width: 64px; height: 64px; background: rgba(197, 168, 70, 0.15);">
+                                        <i class="fa fa-cog fa-spin fa-2x text-rfp-gold"/>
+                                    </div>
+                                    <h5 class="fw-bold mb-2">Analyzing Your Document</h5>
+                                    <p class="text-muted mb-3">Our AI is reading your document, extracting information, and pre-filling answers. This may take 1-2 minutes.</p>
+                                    <div class="progress mb-3" style="height: 4px;">
+                                        <div class="progress-bar bg-rfp-gold progress-bar-striped progress-bar-animated" style="width: 100%;"/>
+                                    </div>
+                                    <small class="text-muted">Please do not close this window.</small>
+                                </div>
+
+                                <!-- Error State -->
+                                <div id="upload_error_state" class="d-none text-center">
+                                    <div class="mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle"
+                                         style="width: 64px; height: 64px; background: rgba(220, 53, 69, 0.15);">
+                                        <i class="fa fa-exclamation-triangle fa-2x text-danger"/>
+                                    </div>
+                                    <h5 class="fw-bold mb-2">Upload Failed</h5>
+                                    <p id="upload_error_message" class="text-muted mb-4"/>
+                                    <div class="d-flex justify-content-center gap-3">
+                                        <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Close</button>
+                                        <button type="button" class="btn btn-rfp-gold px-4" id="btn_retry_upload">
+                                            <i class="fa fa-refresh me-1"/> Try Again
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </t>
     </template>
@@ -510,12 +712,27 @@
 
     <template id="portal_rfp_input_field" name="RFP Input Field Component">
         <div
-            class="mb-4 p-3 border rounded bg-light rfp-input-group position-relative" t-att-id="'input_group_' + input_field.field_key" t-att-data-field-key="input_field.field_key" t-att-data-depends-on="input_field.depends_on or '{}'" t-att-data-specify-triggers="input_field.specify_triggers or '[]'">
+            class="mb-4 p-4 bg-white rounded shadow-sm rfp-input-group position-relative rfp-hover-card" t-att-id="'input_group_' + input_field.field_key" t-att-data-field-key="input_field.field_key" t-att-data-depends-on="input_field.depends_on or '{}'" t-att-data-specify-triggers="input_field.specify_triggers or '[]'">
 
             <!-- Header: Label + Options Menu -->
             <div class="d-flex justify-content-between align-items-start mb-2">
-                <label class="form-label fw-bold mb-0 text-dark flex-grow-1 me-3 text-wrap" style="word-break: break-word;">
-                    <t t-esc="input_field.label"/>
+                <label class="form-label fw-bold mb-0 text-dark flex-grow-1 me-3 text-wrap d-flex align-items-center" style="word-break: break-word;">
+                    <span class="me-2"><t t-esc="input_field.label"/></span>
+                    
+                    <!-- NEW: Premium CSS-Driven Rationale Popup (Avoids Bootstrap conflicts) -->
+                    <div t-if="input_field.question_rationale" class="rfp-rationale-wrapper position-relative d-inline-block">
+                        <i class="fa fa-question-circle text-muted rfp-rationale-icon" style="cursor: pointer; font-size: 0.9em; transition: all 0.2s;"></i>
+                        <div class="rfp-rationale-popup shadow-lg p-4 rounded-4 border-0">
+                            <div class="rfp-rationale-header d-flex align-items-center mb-3">
+                                <i class="fa fa-lightbulb-o text-rfp-gold me-2"></i>
+                                <span class="fw-bold small text-rfp-gold" style="letter-spacing: 0.05rem;">ANALYSIS RATIONALE</span>
+                            </div>
+                            <div class="rfp-rationale-content text-dark small" style="line-height: 1.6; font-weight: 400;">
+                                <t t-esc="input_field.question_rationale"/>
+                            </div>
+                            <div class="rfp-rationale-arrow"></div>
+                        </div>
+                    </div>
                 </label>
 
                 <!-- Three Dots Menu -->
@@ -538,11 +755,26 @@
                 </div>
             </div>
 
-            <p class="text-muted small" t-if="input_field.data_type"><t t-esc="input_field.description_tooltip or ''"/></p>
+            <!-- Enhanced Description Tooltip block beneath the label -->
+            <div t-if="input_field.description_tooltip" class="mb-3 px-3 py-2 bg-light border-start border-3 border-info bg-opacity-50 text-muted rounded-end">
+                <small class="d-flex align-items-center">
+                    <i class="fa fa-info-circle me-2 text-info opacity-75"></i>
+                    <t t-esc="input_field.description_tooltip"/>
+                </small>
+            </div>
 
             <!-- Dynamic Rendering Switch -->
             <t t-if="input_field.component_type == 'text_input'">
-                <input type="text" t-att-name="input_field.field_key" class="form-control"/>
+                <t t-set="computed_type" t-value="'email' if (input_field.data_type == 'email' or (input_field.field_key and 'email' in input_field.field_key.lower())) else ('tel' if (input_field.data_type == 'phone' or (input_field.field_key and ('phone' in input_field.field_key.lower() or 'mobile' in input_field.field_key.lower()))) else 'text')"/>
+                
+                <input t-if="computed_type == 'tel'" type="tel" t-att-name="input_field.field_key" class="form-control" 
+                       pattern="[+0-9\s\(\)-]*" title="Please enter a valid phone number" 
+                       oninput="this.value = this.value.replace(/[^0-9+\s()-]/g, '')"/>
+                       
+                <input t-elif="computed_type == 'email'" type="email" t-att-name="input_field.field_key" class="form-control" 
+                       pattern="[^@\s]+@[^@\s]+\.[^@\s]+" title="Please enter a valid email address (e.g., name@domain.com)"/>
+                       
+                <input t-else="" type="text" t-att-name="input_field.field_key" class="form-control"/>
             </t>
 
             <t t-elif="input_field.component_type == 'number_input'">
@@ -624,14 +856,16 @@
             </t>
 
             <!-- Suggested Answers (Text/Textarea Only) -->
-            <!-- Wrapped lines enabled with text-wrap and lh-sm classes -->
             <t t-if="input_field.get_suggested_answers_parsed() and input_field.component_type in ['text_input', 'textarea']">
-                <div class="mt-2 mb-2">
-                    <small class="text-muted d-block mb-1">AI Suggestions (Click to fill):</small>
+                <div class="mt-4 mb-2">
+                    <small class="d-flex align-items-center mb-2 text-uppercase fw-bold text-muted" style="letter-spacing: 0.5px; font-size: 0.75rem;">
+                        <i class="fa fa-magic text-rfp-gold me-2"/> AI Suggestions <span class="ms-1 fw-normal text-muted">(Click to fill)</span>
+                    </small>
                     <div class="d-flex flex-column gap-2">
                         <t t-foreach="input_field.get_suggested_answers_parsed()" t-as="suggestion">
-                            <div class="badge rounded-pill bg-info text-dark text-wrap text-start lh-sm border border-info cursor-pointer btn-suggestion p-2" style="cursor: pointer; max-width: 100%; white-space: normal;" t-att-data-value="suggestion" t-att-data-target="input_field.field_key">
-                                <t t-esc="suggestion"/>
+                            <div class="btn-suggestion p-3 rounded-3 position-relative d-flex align-items-start gap-3 shadow-sm" style="cursor: pointer; line-height: 1.5;" t-att-data-value="suggestion" t-att-data-target="input_field.field_key">
+                                <i class="fa fa-quote-left text-black-50 opacity-50 mt-1 flex-shrink-0"/>
+                                <span class="text-wrap text-start" style="word-break: break-word; color: #334155;"><t t-esc="suggestion"/></span>
                             </div>
                         </t>
                     </div>
@@ -643,6 +877,7 @@
                 <label class="form-label text-warning-emphasis small">Why is this irrelevant?</label>
                 <div class="d-flex gap-2">
                     <input type="text" t-att-name="'irrelevant_reason_' + input_field.field_key" class="form-control form-control-sm" placeholder="e.g. We don't need this feature..."/>
+                    <button type="button" class="btn btn-sm btn-rfp-gold">Save</button>
                     <button type="button" class="btn btn-sm btn-outline-secondary btn-irrelevant-cancel" t-att-data-target="'irrelevant_' + input_field.field_key">Cancel</button>
                 </div>
                 <input type="hidden" t-att-name="'is_irrelevant_' + input_field.field_key" value="false" class="irrelevant-flag"/>
@@ -653,6 +888,7 @@
                 <label class="form-label text-info-emphasis small">Custom Answer</label>
                 <div class="d-flex gap-2">
                     <input type="text" t-att-name="'custom_answer_val_' + input_field.field_key" class="form-control form-control-sm" placeholder="Type your answer here..."/>
+                    <button type="button" class="btn btn-sm btn-rfp-gold">Save</button>
                     <button type="button" class="btn btn-sm btn-outline-secondary btn-custom-answer-cancel" t-att-data-target="'custom_answer_' + input_field.field_key">Cancel</button>
                 </div>
                 <input type="hidden" t-att-name="'has_custom_answer_' + input_field.field_key" value="false" class="custom-answer-flag"/>
@@ -670,29 +906,32 @@
 
                 <div class="row justify-content-center">
                     <div class="col-lg-8">
-                        <div class="card shadow-lg border-0">
+                        <div class="card shadow-lg border-0 rfp-interface-card">
                             <!-- Header with gold accent -->
-                            <div class="card-header bg-white py-4" style="border-bottom: 3px solid var(--rfp-gold);">
-                                <div class="d-flex align-items-center gap-3">
-                                    <div class="bg-rfp-gold-light rounded-circle p-3">
-                                        <i class="fa fa-comments fa-lg text-rfp-gold"/>
+                            <div class="card-header rfp-interface-header py-4 px-md-5 border-0">
+                                <div class="d-flex align-items-center gap-4">
+                                    <div class="bg-rfp-gold-light rounded-circle p-3 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px; box-shadow: 0 4px 15px rgba(201, 162, 39, 0.2);">
+                                        <i class="fa fa-comments fa-2x text-rfp-gold"/>
                                     </div>
                                     <div>
-                                        <h3 class="mb-1" t-field="rfp_project.name"/>
-                                        <span class="text-muted small">AI Analyst is gathering requirements...</span>
+                                        <h3 class="mb-1 fw-bold" t-field="rfp_project.name"/>
+                                        <span class="text-muted small text-uppercase fw-semibold tracking-wide" style="letter-spacing: 0.5px;">AI Analyst is gathering requirements...</span>
                                     </div>
                                 </div>
                             </div>
-                            <div class="card-body p-4">
+                            <div class="card-body p-4 p-md-5 bg-light">
 
                                 <!-- Progress Bar -->
                                 <t t-set="raw_score" t-value="rfp_project.get_context_data().get('analysis_meta', {}).get('completeness_score', 0)"/>
                                 <t t-set="ai_completeness" t-value="raw_score if raw_score > 1 else raw_score * 100"/>
-                                <t t-set="total_inputs" t-value="len(rfp_project.form_input_ids)"/>
-                                <t t-set="answered_inputs" t-value="len(rfp_project.form_input_ids.filtered(lambda i: i.user_value or i.is_irrelevant))"/>
+                                <t t-set="total_inputs" t-value="len(rfp_project.form_input_ids) + len(rfp_project.practice_input_ids)"/>
+                                <t t-set="answered_inputs" t-value="len(rfp_project.form_input_ids.filtered(lambda i: i.user_value or i.is_irrelevant)) + len(rfp_project.practice_input_ids.filtered(lambda i: i.user_value or i.is_irrelevant))"/>
                                 <t t-set="fill_pct" t-value="int((answered_inputs / total_inputs) * 100) if total_inputs else 0"/>
                                 <t t-set="completeness" t-value="max(fill_pct, int(ai_completeness))"/>
-                                <div t-if="rfp_project.current_stage == 'initialized'" class="mb-4">
+                                <!-- Rule: Only 100% if everything is truly answered -->
+                                <t t-if="answered_inputs &lt; total_inputs and completeness &gt;= 100" t-set="completeness" t-value="99"/>
+
+                                <div t-if="rfp_project.current_stage in ['initialized', 'specifications_gathered']" class="mb-4">
                                     <div class="d-flex justify-content-between mb-2">
                                         <small class="text-muted">Analysis Progress</small>
                                         <small class="fw-semibold text-rfp-gold"><t t-esc="int(completeness)"/>%</small>
@@ -766,9 +1005,9 @@
                                             <t t-call="project_rfp_ai.portal_rfp_input_field"/>
                                         </t>
 
-                                        <div class="d-grid mt-4">
-                                            <button type="submit" class="btn btn-rfp-gold btn-lg">
-                                                <i class="fa fa-arrow-right me-2"/> Submit Answers &amp; Continue
+                                        <div class="d-grid mt-5">
+                                            <button type="submit" class="btn btn-rfp-gold btn-lg py-3 shadow">
+                                                <span class="fw-bold fs-5">Submit Answers &amp; Continue</span> <i class="fa fa-arrow-right ms-2"/>
                                             </button>
                                         </div>
                                     </t>
@@ -781,8 +1020,8 @@
                                             </div>
                                             <h4>Analysis Checkpoint</h4>
                                             <p class="text-muted">All current questions have been answered. Proceed to the next phase.</p>
-                                            <button type="submit" class="btn btn-rfp-gold btn-lg mt-2">
-                                                <i class="fa fa-magic me-2"/> Generate Next Round
+                                            <button type="submit" class="btn btn-rfp-gold btn-lg py-3 shadow mt-2">
+                                                <span class="fw-bold fs-5">Generate Next Round</span> <i class="fa fa-magic ms-2"/>
                                             </button>
                                         </div>
                                     </t>
@@ -1020,7 +1259,7 @@
 
                                 <!-- Weight Total Indicator -->
                                 <t t-set="eval_total_weight" t-value="sum(c.weight for c in rfp_project.evaluation_criterion_ids.filtered('active'))"/>
-                                <div class="alert mb-3 py-2" id="eval_weight_alert" t-att-class="'alert-success' if eval_total_weight == 100 else ('alert-warning' if abs(eval_total_weight - 100) &lt;= 10 else 'alert-danger')">
+                                <div class="alert mb-3 py-2" id="eval_weight_alert" t-att-class="'alert-success' if eval_total_weight == 100 else ('alert-danger' if eval_total_weight > 100 else 'alert-warning')">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <span class="small">
                                             <i class="fa fa-pie-chart me-1"/>

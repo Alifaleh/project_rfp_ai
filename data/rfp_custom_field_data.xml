@@ -118,24 +118,32 @@
             <field name="phase">init</field>
             <field name="input_type">text_input</field>
             <field name="sequence">3</field>
-            <field name="placeholder">e.g. $50,000 or "Under $20k"</field>
+            <field name="placeholder">e.g. $50,000 or "Strategic Tier"</field>
             <field name="is_required">True</field>
+        </record>
+        <record id="sugg_init_budget_vlow" model="rfp.field.suggestion">
+            <field name="field_id" ref="field_init_budget"/>
+            <field name="name">Under $25,000 (Small/Pilot)</field>
         </record>
         <record id="sugg_init_budget_low" model="rfp.field.suggestion">
             <field name="field_id" ref="field_init_budget"/>
-            <field name="name">Under $20k</field>
+            <field name="name">$25,000 - $75,000 (Standard Mid-Market)</field>
         </record>
         <record id="sugg_init_budget_med" model="rfp.field.suggestion">
             <field name="field_id" ref="field_init_budget"/>
-            <field name="name">$20k - $50k</field>
+            <field name="name">$75,000 - $200,000 (Enterprise/Full-Scale)</field>
         </record>
         <record id="sugg_init_budget_high" model="rfp.field.suggestion">
             <field name="field_id" ref="field_init_budget"/>
-            <field name="name">$50k - $100k</field>
+            <field name="name">$200,000 - $500,000 (Large Transformation)</field>
         </record>
         <record id="sugg_init_budget_ent" model="rfp.field.suggestion">
             <field name="field_id" ref="field_init_budget"/>
-            <field name="name">Over $100k</field>
+            <field name="name">Over $500,000 (Strategic Investment)</field>
+        </record>
+        <record id="sugg_init_budget_tbd" model="rfp.field.suggestion">
+            <field name="field_id" ref="field_init_budget"/>
+            <field name="name">Budget is not yet defined (TBD)</field>
         </record>
 
         <!-- 4. Success Goal (TextArea + Suggestions) -->
@@ -165,34 +173,7 @@
             <field name="name">Modernize Tech Stack (Reduce Tech Debt)</field>
         </record>
         
-        <!-- 5. Company Size (Radio) -->
-        <record id="field_init_company_size" model="rfp.custom.field">
-            <field name="name">Company Size</field>
-            <field name="code">company_size</field>
-            <field name="phase">init</field>
-            <field name="input_type">radio</field>
-            <field name="sequence">5</field>
-            <field name="help_text">Select the category that best describes your organization's size.</field>
-            <field name="is_required">True</field>
-        </record>
-        <record id="opt_init_cs_startup" model="rfp.field.option">
-            <field name="field_id" ref="field_init_company_size"/>
-            <field name="value">startup</field>
-            <field name="label">Startup (1-50 employees)</field>
-            <field name="sequence">1</field>
-        </record>
-        <record id="opt_init_cs_smb" model="rfp.field.option">
-            <field name="field_id" ref="field_init_company_size"/>
-            <field name="value">smb</field>
-            <field name="label">SMB (51-500 employees)</field>
-            <field name="sequence">2</field>
-        </record>
-        <record id="opt_init_cs_enterprise" model="rfp.field.option">
-            <field name="field_id" ref="field_init_company_size"/>
-            <field name="value">enterprise</field>
-            <field name="label">Enterprise (500+ employees)</field>
-            <field name="sequence">3</field>
-        </record>
+
 
         <!-- ==============================================
              PHASE 2: POST ANALYSIS (Technical Specifics)

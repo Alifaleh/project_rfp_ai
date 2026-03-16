@@ -24,6 +24,7 @@ class RfpFormInput(models.Model):
     user_value = fields.Text(string="User Response")
     data_type = fields.Char(string="Data Type", help="Used for validation (e.g., integrity, string)")
     description_tooltip = fields.Char(string="Description Tooltip", help="Helper text for the user")
+    question_rationale = fields.Text(string="Question Rationale", help="AI explanation of why this question is being asked")
     round_number = fields.Integer(string="Round Number", help="Iteration round used for tracking analysis depth")
     
     # Phase 12 additions

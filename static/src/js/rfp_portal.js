@@ -1283,7 +1283,7 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         $alert.removeClass('alert-success alert-warning alert-danger');
         if (total === 100) {
             $alert.addClass('alert-success');
-        } else if (Math.abs(total - 100) <= 10) {
+        } else if (total < 100) {
             $alert.addClass('alert-warning');
         } else {
             $alert.addClass('alert-danger');
@@ -1364,7 +1364,21 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
 
     _onWeightSliderChange: function (ev) {
         const $slider = $(ev.currentTarget);
-        $slider.closest('.eval-criterion-card').find('.criterion-weight-display').text($slider.val());
+        let val = parseInt($slider.val(), 10) || 0;
+
+        // Calculate total weight excluding THIS slider
+        let otherTotal = 0;
+        this.$('.criterion-weight-slider').not($slider).each(function () {
+            otherTotal += parseInt($(this).val(), 10) || 0;
+        });
+
+        // Ensure total doesn't exceed 100
+        if (otherTotal + val > 100) {
+            val = Math.max(1, 100 - otherTotal);
+            $slider.val(val);
+        }
+
+        $slider.closest('.eval-criterion-card').find('.criterion-weight-display').text(val);
         this._updateTotalWeight();
     },
 
@@ -1441,6 +1455,12 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
     },
 
     _onAddCriterion: async function (ev) {
+        const currentTotal = parseInt(this.$('#eval_total_weight').text(), 10) || 0;
+        if (currentTotal >= 100) {
+            alert("Total weight is already 100. Please reduce weight of existing criteria before adding new ones.");
+            return;
+        }
+
         const $btn = $(ev.currentTarget);
         const originalText = $btn.html();
         $btn.html('<i class="fa fa-spinner fa-spin me-1"></i> Adding...').prop('disabled', true);
