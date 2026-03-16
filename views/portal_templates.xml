@@ -924,11 +924,14 @@
                                 <!-- Progress Bar -->
                                 <t t-set="raw_score" t-value="rfp_project.get_context_data().get('analysis_meta', {}).get('completeness_score', 0)"/>
                                 <t t-set="ai_completeness" t-value="raw_score if raw_score > 1 else raw_score * 100"/>
-                                <t t-set="total_inputs" t-value="len(rfp_project.form_input_ids)"/>
-                                <t t-set="answered_inputs" t-value="len(rfp_project.form_input_ids.filtered(lambda i: i.user_value or i.is_irrelevant))"/>
+                                <t t-set="total_inputs" t-value="len(rfp_project.form_input_ids) + len(rfp_project.practice_input_ids)"/>
+                                <t t-set="answered_inputs" t-value="len(rfp_project.form_input_ids.filtered(lambda i: i.user_value or i.is_irrelevant)) + len(rfp_project.practice_input_ids.filtered(lambda i: i.user_value or i.is_irrelevant))"/>
                                 <t t-set="fill_pct" t-value="int((answered_inputs / total_inputs) * 100) if total_inputs else 0"/>
                                 <t t-set="completeness" t-value="max(fill_pct, int(ai_completeness))"/>
-                                <div t-if="rfp_project.current_stage == 'initialized'" class="mb-4">
+                                <!-- Rule: Only 100% if everything is truly answered -->
+                                <t t-if="answered_inputs &lt; total_inputs and completeness &gt;= 100" t-set="completeness" t-value="99"/>
+
+                                <div t-if="rfp_project.current_stage in ['initialized', 'specifications_gathered']" class="mb-4">
                                     <div class="d-flex justify-content-between mb-2">
                                         <small class="text-muted">Analysis Progress</small>
                                         <small class="fw-semibold text-rfp-gold"><t t-esc="int(completeness)"/>%</small>
