@@ -255,6 +255,64 @@
                 background: var(--rfp-gold-light);
                 color: var(--rfp-dark);
             }
+            /* AI Interface Card */
+            .rfp-interface-card {
+                border-radius: var(--rfp-radius);
+                overflow: hidden;
+            }
+            .rfp-interface-header {
+                background: linear-gradient(to right, var(--rfp-dark), #2D2D4A);
+                color: var(--rfp-white);
+            }
+            .rfp-interface-header h3 {
+                color: var(--rfp-white);
+            }
+            .rfp-interface-header .text-muted {
+                color: rgba(255,255,255,0.7) !important;
+            }
+            .rfp-interface-header .bg-rfp-gold-light {
+                background: rgba(201, 162, 39, 0.2) !important;
+            }
+            
+            /* Enhanced Hover Cards */
+            .rfp-hover-card {
+                transition: all 0.3s ease;
+                border: 1px solid rgba(0,0,0,0.05) !important;
+            }
+            .rfp-hover-card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 8px 24px rgba(0,0,0,0.08) !important;
+                border-color: rgba(201, 162, 39, 0.4) !important;
+            }
+            
+            /* Input Styling Tweaks */
+            .rfp-portal-wrapper .form-control, .rfp-portal-wrapper .form-select {
+                padding: 0.75rem 1rem;
+                background-color: #F8F9FA;
+                border-color: #E2E8F0;
+                border-radius: var(--rfp-radius-sm);
+                transition: all 0.2s ease;
+            }
+            .rfp-portal-wrapper .form-control:focus, .rfp-portal-wrapper .form-select:focus {
+                background-color: #FFFFFF;
+                box-shadow: 0 0 0 4px rgba(201, 162, 39, 0.15);
+                border-color: var(--rfp-gold);
+            }
+            
+            /* AI Suggestions */
+            .btn-suggestion {
+                background-color: #F0F4F8 !important;
+                border-color: #CBD5E1 !important;
+                color: #4A5568 !important;
+                font-weight: 500;
+                transition: all 0.2s ease;
+            }
+            .btn-suggestion:hover {
+                background-color: var(--rfp-gold-light) !important;
+                border-color: var(--rfp-gold) !important;
+                color: var(--rfp-dark) !important;
+                transform: translateX(4px);
+            }
         </style>
     </template>
     
@@ -510,7 +568,7 @@
 
     <template id="portal_rfp_input_field" name="RFP Input Field Component">
         <div
-            class="mb-4 p-3 border rounded bg-light rfp-input-group position-relative" t-att-id="'input_group_' + input_field.field_key" t-att-data-field-key="input_field.field_key" t-att-data-depends-on="input_field.depends_on or '{}'" t-att-data-specify-triggers="input_field.specify_triggers or '[]'">
+            class="mb-4 p-4 bg-white rounded shadow-sm rfp-input-group position-relative rfp-hover-card" t-att-id="'input_group_' + input_field.field_key" t-att-data-field-key="input_field.field_key" t-att-data-depends-on="input_field.depends_on or '{}'" t-att-data-specify-triggers="input_field.specify_triggers or '[]'">
 
             <!-- Header: Label + Options Menu -->
             <div class="d-flex justify-content-between align-items-start mb-2">
@@ -542,7 +600,16 @@
 
             <!-- Dynamic Rendering Switch -->
             <t t-if="input_field.component_type == 'text_input'">
-                <input type="text" t-att-name="input_field.field_key" class="form-control"/>
+                <t t-set="computed_type" t-value="'email' if (input_field.data_type == 'email' or (input_field.field_key and 'email' in input_field.field_key.lower())) else ('tel' if (input_field.data_type == 'phone' or (input_field.field_key and ('phone' in input_field.field_key.lower() or 'mobile' in input_field.field_key.lower()))) else 'text')"/>
+                
+                <input t-if="computed_type == 'tel'" type="tel" t-att-name="input_field.field_key" class="form-control" 
+                       pattern="[+0-9\s\(\)-]*" title="Please enter a valid phone number" 
+                       oninput="this.value = this.value.replace(/[^0-9+\s()-]/g, '')"/>
+                       
+                <input t-elif="computed_type == 'email'" type="email" t-att-name="input_field.field_key" class="form-control" 
+                       pattern="[^@\s]+@[^@\s]+\.[^@\s]+" title="Please enter a valid email address (e.g., name@domain.com)"/>
+                       
+                <input t-else="" type="text" t-att-name="input_field.field_key" class="form-control"/>
             </t>
 
             <t t-elif="input_field.component_type == 'number_input'">
@@ -624,14 +691,16 @@
             </t>
 
             <!-- Suggested Answers (Text/Textarea Only) -->
-            <!-- Wrapped lines enabled with text-wrap and lh-sm classes -->
             <t t-if="input_field.get_suggested_answers_parsed() and input_field.component_type in ['text_input', 'textarea']">
-                <div class="mt-2 mb-2">
-                    <small class="text-muted d-block mb-1">AI Suggestions (Click to fill):</small>
+                <div class="mt-4 mb-2">
+                    <small class="d-flex align-items-center mb-2 text-uppercase fw-bold text-muted" style="letter-spacing: 0.5px; font-size: 0.75rem;">
+                        <i class="fa fa-magic text-rfp-gold me-2"/> AI Suggestions <span class="ms-1 fw-normal text-muted">(Click to fill)</span>
+                    </small>
                     <div class="d-flex flex-column gap-2">
                         <t t-foreach="input_field.get_suggested_answers_parsed()" t-as="suggestion">
-                            <div class="badge rounded-pill bg-info text-dark text-wrap text-start lh-sm border border-info cursor-pointer btn-suggestion p-2" style="cursor: pointer; max-width: 100%; white-space: normal;" t-att-data-value="suggestion" t-att-data-target="input_field.field_key">
-                                <t t-esc="suggestion"/>
+                            <div class="btn-suggestion p-3 rounded-3 position-relative d-flex align-items-start gap-3 shadow-sm" style="cursor: pointer; line-height: 1.5;" t-att-data-value="suggestion" t-att-data-target="input_field.field_key">
+                                <i class="fa fa-quote-left text-black-50 opacity-50 mt-1 flex-shrink-0"/>
+                                <span class="text-wrap text-start" style="word-break: break-word; color: #334155;"><t t-esc="suggestion"/></span>
                             </div>
                         </t>
                     </div>
@@ -670,20 +739,20 @@
 
                 <div class="row justify-content-center">
                     <div class="col-lg-8">
-                        <div class="card shadow-lg border-0">
+                        <div class="card shadow-lg border-0 rfp-interface-card">
                             <!-- Header with gold accent -->
-                            <div class="card-header bg-white py-4" style="border-bottom: 3px solid var(--rfp-gold);">
-                                <div class="d-flex align-items-center gap-3">
-                                    <div class="bg-rfp-gold-light rounded-circle p-3">
-                                        <i class="fa fa-comments fa-lg text-rfp-gold"/>
+                            <div class="card-header rfp-interface-header py-4 px-md-5 border-0">
+                                <div class="d-flex align-items-center gap-4">
+                                    <div class="bg-rfp-gold-light rounded-circle p-3 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px; box-shadow: 0 4px 15px rgba(201, 162, 39, 0.2);">
+                                        <i class="fa fa-comments fa-2x text-rfp-gold"/>
                                     </div>
                                     <div>
-                                        <h3 class="mb-1" t-field="rfp_project.name"/>
-                                        <span class="text-muted small">AI Analyst is gathering requirements...</span>
+                                        <h3 class="mb-1 fw-bold" t-field="rfp_project.name"/>
+                                        <span class="text-muted small text-uppercase fw-semibold tracking-wide" style="letter-spacing: 0.5px;">AI Analyst is gathering requirements...</span>
                                     </div>
                                 </div>
                             </div>
-                            <div class="card-body p-4">
+                            <div class="card-body p-4 p-md-5 bg-light">
 
                                 <!-- Progress Bar -->
                                 <t t-set="raw_score" t-value="rfp_project.get_context_data().get('analysis_meta', {}).get('completeness_score', 0)"/>
@@ -766,9 +835,9 @@
                                             <t t-call="project_rfp_ai.portal_rfp_input_field"/>
                                         </t>
 
-                                        <div class="d-grid mt-4">
-                                            <button type="submit" class="btn btn-rfp-gold btn-lg">
-                                                <i class="fa fa-arrow-right me-2"/> Submit Answers &amp; Continue
+                                        <div class="d-grid mt-5">
+                                            <button type="submit" class="btn btn-rfp-gold btn-lg py-3 shadow">
+                                                <span class="fw-bold fs-5">Submit Answers &amp; Continue</span> <i class="fa fa-arrow-right ms-2"/>
                                             </button>
                                         </div>
                                     </t>
@@ -781,8 +850,8 @@
                                             </div>
                                             <h4>Analysis Checkpoint</h4>
                                             <p class="text-muted">All current questions have been answered. Proceed to the next phase.</p>
-                                            <button type="submit" class="btn btn-rfp-gold btn-lg mt-2">
-                                                <i class="fa fa-magic me-2"/> Generate Next Round
+                                            <button type="submit" class="btn btn-rfp-gold btn-lg py-3 shadow mt-2">
+                                                <span class="fw-bold fs-5">Generate Next Round</span> <i class="fa fa-magic ms-2"/>
                                             </button>
                                         </div>
                                     </t>
