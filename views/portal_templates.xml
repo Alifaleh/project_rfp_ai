@@ -313,6 +313,60 @@
                 color: var(--rfp-dark) !important;
                 transform: translateX(4px);
             }
+
+            /* --- NEW: High-End Rationale Help System --- */
+            .rfp-rationale-wrapper {
+                line-height: 1;
+                vertical-align: middle;
+            }
+            .rfp-rationale-icon:hover {
+                color: var(--rfp-gold) !important;
+                transform: scale(1.15);
+            }
+            .rfp-rationale-popup {
+                position: absolute;
+                bottom: calc(100% + 15px);
+                left: 50%;
+                transform: translateX(-50%) translateY(10px);
+                width: 320px;
+                background: #FFFFFF;
+                visibility: hidden;
+                opacity: 0;
+                transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+                z-index: 1000;
+                pointer-events: none;
+                border: 1px solid rgba(201, 162, 39, 0.1) !important;
+            }
+            .rfp-rationale-wrapper:hover .rfp-rationale-popup {
+                visibility: visible;
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+            .rfp-rationale-header {
+                border-bottom: 1px solid rgba(201, 162, 39, 0.1);
+                margin-top: -5px;
+            }
+            .rfp-rationale-arrow {
+                position: absolute;
+                top: 100%;
+                left: 50%;
+                transform: translateX(-50%);
+                border-width: 8px;
+                border-style: solid;
+                border-color: #FFFFFF transparent transparent transparent;
+            }
+            /* Prevent cutoff on edges */
+            .rfp-input-group:first-child .rfp-rationale-popup {
+                left: 0;
+                transform: translateX(0) translateY(10px);
+            }
+            .rfp-input-group:first-child .rfp-rationale-wrapper:hover .rfp-rationale-popup {
+                transform: translateX(0) translateY(0);
+            }
+            .rfp-input-group:first-child .rfp-rationale-arrow {
+                left: 15px;
+                transform: none;
+            }
         </style>
     </template>
     
@@ -662,8 +716,23 @@
 
             <!-- Header: Label + Options Menu -->
             <div class="d-flex justify-content-between align-items-start mb-2">
-                <label class="form-label fw-bold mb-0 text-dark flex-grow-1 me-3 text-wrap" style="word-break: break-word;">
-                    <t t-esc="input_field.label"/>
+                <label class="form-label fw-bold mb-0 text-dark flex-grow-1 me-3 text-wrap d-flex align-items-center" style="word-break: break-word;">
+                    <span class="me-2"><t t-esc="input_field.label"/></span>
+                    
+                    <!-- NEW: Premium CSS-Driven Rationale Popup (Avoids Bootstrap conflicts) -->
+                    <div t-if="input_field.question_rationale" class="rfp-rationale-wrapper position-relative d-inline-block">
+                        <i class="fa fa-question-circle text-muted rfp-rationale-icon" style="cursor: pointer; font-size: 0.9em; transition: all 0.2s;"></i>
+                        <div class="rfp-rationale-popup shadow-lg p-4 rounded-4 border-0">
+                            <div class="rfp-rationale-header d-flex align-items-center mb-3">
+                                <i class="fa fa-lightbulb-o text-rfp-gold me-2"></i>
+                                <span class="fw-bold small text-rfp-gold" style="letter-spacing: 0.05rem;">ANALYSIS RATIONALE</span>
+                            </div>
+                            <div class="rfp-rationale-content text-dark small" style="line-height: 1.6; font-weight: 400;">
+                                <t t-esc="input_field.question_rationale"/>
+                            </div>
+                            <div class="rfp-rationale-arrow"></div>
+                        </div>
+                    </div>
                 </label>
 
                 <!-- Three Dots Menu -->
@@ -686,7 +755,13 @@
                 </div>
             </div>
 
-            <p class="text-muted small" t-if="input_field.data_type"><t t-esc="input_field.description_tooltip or ''"/></p>
+            <!-- Enhanced Description Tooltip block beneath the label -->
+            <div t-if="input_field.description_tooltip" class="mb-3 px-3 py-2 bg-light border-start border-3 border-info bg-opacity-50 text-muted rounded-end">
+                <small class="d-flex align-items-center">
+                    <i class="fa fa-info-circle me-2 text-info opacity-75"></i>
+                    <t t-esc="input_field.description_tooltip"/>
+                </small>
+            </div>
 
             <!-- Dynamic Rendering Switch -->
             <t t-if="input_field.component_type == 'text_input'">

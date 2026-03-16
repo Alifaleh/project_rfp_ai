@@ -150,7 +150,8 @@ Instructions:
 *   **Rich UI Enforcement**:
     *   **Choices**: If a question has a finite set of options (e.g. Yes/No, Low/Med/High), you **MUST** use `component_type='radio'` (for single choice) or `component_type='select'`. Provide `options`.
     *   **Suggestions**: For ALL textual questions (`text_input`, `textarea`), you **MUST** provide `suggested_answers`. This is NOT optional.
-    *   **Tooltips**: Always provides a `description_tooltip`.
+    *   **Tooltips**: Always provides a `description_tooltip` (short helper text).
+    *   **Rationale**: Always provide a detailed `question_rationale` explaining WHY you are asking this question to give the user context.
 *   **Anti-Loop & Truth Logic**:
     *   **LATEST IS TRUTH**: If the user's latest answer contradicts a previous one, **ASSUME THE LATEST IS CORRECT**. Do NOT ask "Are you sure?". Overwrite your understanding.
     *   **Anti-Nagging**: NEVER ask about the same specific parameter (e.g. "Token Model") more than twice. If still unclear, make a reasonable professional assumption and move on.
@@ -261,6 +262,7 @@ If `source_document_excerpt` is present in the context, this project was importe
 **Specific Logic Rules (STRICT):**
 *   **Suggestions:** For ALL textual questions (`text_input`, `textarea`), you **MUST** provide `suggested_answers`. These should be realistic examples based on the Best Practices.
     *   *Example:* If asking about "Budget", suggested answer should be "Approx. $50k - $100k, funded by Q3 budget."
+*   **Rationale**: Always provide a detailed `question_rationale` explaining WHY you are asking this question to give the user context.
 *   **Irrelevance Check:** If a topic seems covered by `previous_inputs`, SKIP IT.
 *   **Completion:** If `completeness_score` > 90 or gaps are trivial, set `is_gathering_complete=True`.
 

@@ -930,6 +930,7 @@ class RfpProject(models.Model):
                     'data_type': field.get('data_type_validation', 'string'),
                     'options': json.dumps(field.get('options', [])),
                     'description_tooltip': field.get('description') or field.get('description_tooltip'),
+                    'question_rationale': field.get('question_rationale'),
                     'round_number': current_round_number,
                     'suggested_answers': json.dumps(field.get('suggested_answers', [])),
                     'depends_on': json.dumps(field.get('depends_on', {})),
