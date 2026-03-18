@@ -58,13 +58,42 @@ class RfpProject(models.Model):
     evaluation_criterion_ids = fields.One2many('rfp.evaluation.criterion', 'project_id', string="Evaluation Criteria")
     eval_criteria_status = fields.Selection([
         ('not_started', 'Not Started'),
-        ('gathering', 'Gathering'),
-        ('generated', 'Generated'),
+        ('generating', 'Generating...'),
+        ('generated', 'Criteria Generated'),
         ('finalized', 'Finalized'),
     ], string="Eval Criteria Status", default='not_started')
 
-    # Required Document Types (for vendor submissions)
     required_document_ids = fields.One2many('rfp.required.document', 'project_id', string="Required Documents")
+
+    def write(self, vals):
+        # Trigger notification and email when stage changes to STAGE_COMPLETED
+        if 'current_stage' in vals and vals['current_stage'] == STAGE_COMPLETED:
+            for project in self:
+                if project.current_stage != STAGE_COMPLETED:
+                    project._notify_completion()
+        return super(RfpProject, self).write(vals)
+
+    def _notify_completion(self):
+        self.ensure_one()
+        # Internal Notification in Chatter
+        self.message_post(
+            body=Markup('<div class="alert alert-success"><strong>Project Completed!</strong> Your AI-powered RFP project is now complete and ready for final review.</div>'),
+            message_type='notification',
+            subtype_xmlid='mail.mt_note'
+        )
+        
+        # Email Template
+        template = self.env.ref('project_rfp_ai.mail_template_rfp_project_completed', raise_if_not_found=False)
+        if template:
+            template.send_mail(self.id, force_send=True)
+        
+        # Odoo Desktop notification (Real-time)
+        self.env['bus.bus']._sendone(self.user_id.partner_id, 'simple_notification', {
+            'title': 'RFP Project Completed',
+            'message': f'Your project "{self.name}" is now ready!',
+            'type': 'success',
+            'sticky': True,
+        })
 
     # Source Document (for uploaded RFP imports)
     source_document = fields.Binary(string="Source Document", attachment=True)

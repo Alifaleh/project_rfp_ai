@@ -20,6 +20,7 @@
     'data': [
         'security/ir.model.access.csv',
         'security/rfp_security.xml',
+        'data/mail_template_data.xml',
         'views/rfp_project_views.xml',
         'views/rfp_form_input_views.xml',
         'views/rfp_document_section_views.xml',
