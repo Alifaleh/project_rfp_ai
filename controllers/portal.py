@@ -40,24 +40,68 @@ class RfpCustomerPortal(CustomerPortal):
     @http.route(['/rfp/init'], type='http', auth="user", website=True, methods=['POST'], csrf=True)
     def portal_rfp_init(self, **post):
         if request.httprequest.method == 'POST':
-            final_description = post.get('description', '')
+            name = post.get('name')
+            description = post.get('description', '').strip()
+            # Handle multiple files
+            uploaded_files = request.httprequest.files.getlist('rfp_file')
+
+            # Validation: Name is always required. Description required if no files.
+            if not name:
+                return request.redirect('/rfp/start?error=name_required')
+            if not description and (not uploaded_files or not uploaded_files[0].filename):
+                return request.redirect('/rfp/start?error=info_required')
 
             Project = request.env['rfp.project'].sudo()
-            new_project = Project.create({
-                'name': post.get('name'),
-                'description': final_description,
+            vals = {
+                'name': name,
+                'description': description,
                 'user_id': request.env.user.id
-            })
+            }
+
+            # If files provided, store the first one in the standard field for compatibility
+            has_doc = False
+            first_file = None
+            if uploaded_files and uploaded_files[0].filename:
+                first_file = uploaded_files[0]
+                filename = first_file.filename
+                ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+                MIME_MAP = {
+                    'pdf': 'application/pdf',
+                    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                }
+                if ext in MIME_MAP:
+                    file_data = first_file.read()
+                    vals.update({
+                        'source_document': base64.b64encode(file_data),
+                        'source_filename': filename,
+                        'source_mimetype': MIME_MAP[ext],
+                    })
+                    first_file.seek(0) # Reset for attachment creation
+                    has_doc = True
+
+            new_project = Project.create(vals)
             
-            # 1. Initialize (Create empty inputs for Init Fields)
-            new_project.action_initialize_project()
-            
-            # 2. DO NOT trigger action_analyze_gap yet
-            # We want the user to answer the Init Fields first in the portal interface.
-            # The interface logic will detect them and present them.
+            # Save ALL files as attachments linked to the project
+            for f in uploaded_files:
+                if not f.filename:
+                    continue
+                request.env['ir.attachment'].sudo().create({
+                    'name': f.filename,
+                    'datas': base64.b64encode(f.read()),
+                    'res_model': 'rfp.project',
+                    'res_id': new_project.id,
+                })
+
+            # 1. Initialize
+            if has_doc:
+                # Import logic: Extract context from document(s)
+                new_project.action_initialize_from_document()
+            else:
+                # Manual logic: Create empty inputs for Init Fields
+                new_project.action_initialize_project()
             
             return request.redirect(f"/rfp/interface/{new_project.id}")
-        return request.redirect('/my/rfp/start')
+        return request.redirect('/rfp/start')
 
     @http.route(['/rfp/upload'], type='http', auth="user", methods=['POST'], website=True, csrf=True)
     def portal_rfp_upload(self, **post):

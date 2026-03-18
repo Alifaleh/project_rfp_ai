@@ -402,23 +402,62 @@ class RfpProject(models.Model):
             field_definitions=field_definitions
         )
 
-        # 3. Prepare file content — Gemini supports PDF natively but NOT DOCX
-        file_content = base64.b64decode(self.source_document)
-        attachments = None
-        user_context = f"Analyze the attached RFP document: {self.source_filename}"
+        # 3. Prepare file content (Support Multiple Documents)
+        source_attachments = self.env['ir.attachment'].sudo().search([
+            ('res_model', '=', 'rfp.project'),
+            ('res_id', '=', self.id)
+        ])
+        
+        if not source_attachments and self.source_document:
+            # Fallback if no attachments found but main binary exists
+            source_attachments = self.env['ir.attachment'].sudo().new({
+                'name': self.source_filename or 'document.pdf',
+                'datas': self.source_document,
+                'res_model': 'rfp.project',
+                'res_id': self.id
+            })
 
-        if self.source_mimetype == 'application/pdf':
-            attachments = [{'data': file_content, 'mime_type': 'application/pdf'}]
-            # Extract text for auto-fill (PyPDF2)
-            self.source_extracted_text = self._extract_text_from_pdf(file_content)
+        all_text = []
+        ai_attachments = []
+        filenames = []
+
+        for att in source_attachments:
+            file_content = base64.b64decode(att.datas)
+            mimetype = att.mimetype
+            # Manually check extension if mimetype is generic or unknown
+            if not mimetype or mimetype in ['application/octet-stream', 'binary/octet-stream']:
+                ext = att.name.rsplit('.', 1)[-1].lower() if '.' in att.name else ''
+                if ext == 'pdf': mimetype = 'application/pdf'
+                elif ext == 'docx': mimetype = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+
+            filenames.append(att.name)
+            
+            if mimetype == 'application/pdf':
+                ai_attachments.append({'data': file_content, 'mime_type': 'application/pdf'})
+                try:
+                    extracted = self._extract_text_from_pdf(file_content)
+                    if extracted:
+                        all_text.append(f"--- DOCUMENT: {att.name} ---\n{extracted}")
+                except Exception:
+                    pass
+            else:
+                try:
+                    # DOCX or other
+                    extracted = self._extract_text_from_docx(file_content)
+                    if extracted:
+                        all_text.append(f"--- DOCUMENT: {att.name} ---\n{extracted}")
+                except Exception:
+                    pass
+        
+        self.source_extracted_text = "\n\n".join(all_text)
+        
+        user_context = f"Analyze the following RFP document(s): {', '.join(filenames)}\n\n"
+        if all_text:
+            user_context += f"--- BEGIN EXTRACTED CONTENT ---\n{self.source_extracted_text}\n--- END EXTRACTED CONTENT ---"
         else:
-            # DOCX: extract text using built-in zipfile (DOCX is a ZIP of XML)
-            extracted_text = self._extract_text_from_docx(file_content)
-            self.source_extracted_text = extracted_text
-            user_context = (
-                f"Analyze the following RFP document content (extracted from {self.source_filename}):\n\n"
-                f"---BEGIN DOCUMENT---\n{extracted_text}\n---END DOCUMENT---"
-            )
+            user_context += "(No text could be extracted from the documents. Please analyze standard metadata if possible.)"
+
+        attachments = ai_attachments if ai_attachments else None
 
         # 4. Call AI
         try:
@@ -444,7 +483,8 @@ class RfpProject(models.Model):
 
         # 5. Apply project metadata
         suggested_name = data.get('suggested_name', '')
-        if self.name == 'Untitled Upload' and suggested_name:
+        # Only overwrite if name is still placeholder or empty
+        if (not self.name or self.name == 'Untitled Upload' or self.name == 'New Project') and suggested_name:
             self.name = suggested_name
 
         refined_desc = data.get('refined_description', '')

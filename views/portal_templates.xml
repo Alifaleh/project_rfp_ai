@@ -414,10 +414,6 @@
                                 <a href="/rfp/start" class="btn btn-rfp-gold">
                                     <i class="fa fa-plus me-1"/> Start New Project
                                 </a>
-                                <button class="btn btn-rfp-gold-outline btn-upload-rfp"
-                                        title="Upload an existing RFP document">
-                                    <i class="fa fa-upload me-1"/> Upload RFP
-                                </button>
                             </div>
                         </div>
                     </div>
@@ -485,85 +481,6 @@
                         </div>
                     </div>
                 </div>
-
-                <!-- Upload RFP Modal (must be inside .rfp-portal-wrapper for widget events) -->
-                <div class="modal fade" id="modal_upload_rfp" tabindex="-1" role="dialog" data-bs-backdrop="static" data-bs-keyboard="false">
-                    <div class="modal-dialog modal-dialog-centered">
-                        <div class="modal-content border-0 shadow-lg">
-                            <div class="modal-body py-5 px-4">
-                                <!-- Form State -->
-                                <div id="upload_form_state">
-                                    <div class="text-center mb-4">
-                                        <div class="mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle"
-                                             style="width: 64px; height: 64px; background: rgba(197, 168, 70, 0.15);">
-                                            <i class="fa fa-upload fa-2x text-rfp-gold"/>
-                                        </div>
-                                        <h5 class="fw-bold mb-2">Upload Existing RFP</h5>
-                                        <p class="text-muted mb-0">Upload a PDF or DOCX file and our AI will extract key information to pre-populate your new project.</p>
-                                    </div>
-
-                                    <div class="mb-3">
-                                        <label class="form-label small fw-bold" for="rfp_upload_file">RFP Document <span class="text-danger">*</span></label>
-                                        <input type="file" class="form-control" id="rfp_upload_file" accept=".pdf,.docx"/>
-                                        <small class="text-muted">Accepted formats: PDF, DOCX (max 25 MB)</small>
-                                    </div>
-                                    <div id="upload_file_info" class="d-none mb-3">
-                                        <div class="alert alert-light border py-2 px-3 mb-0 d-flex align-items-center">
-                                            <i class="fa fa-file-text-o text-rfp-gold me-2"/>
-                                            <span id="upload_file_name" class="small fw-bold me-2"/>
-                                            <span id="upload_file_size" class="small text-muted"/>
-                                        </div>
-                                    </div>
-                                    <div id="upload_file_error" class="d-none mb-3">
-                                        <div class="alert alert-danger py-2 px-3 mb-0 small"/>
-                                    </div>
-
-                                    <div class="mb-4">
-                                        <label class="form-label small fw-bold" for="upload_project_name">Project Name <span class="text-muted fw-normal">(optional)</span></label>
-                                        <input type="text" class="form-control" id="upload_project_name" placeholder="Leave blank to auto-detect from document"/>
-                                    </div>
-
-                                    <div class="d-flex justify-content-center gap-3">
-                                        <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Cancel</button>
-                                        <button type="button" class="btn btn-rfp-gold px-4" id="btn_confirm_upload" disabled="disabled">
-                                            <i class="fa fa-upload me-1"/> Upload &amp; Analyze
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <!-- Processing State -->
-                                <div id="upload_processing_state" class="d-none text-center">
-                                    <div class="mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle"
-                                         style="width: 64px; height: 64px; background: rgba(197, 168, 70, 0.15);">
-                                        <i class="fa fa-cog fa-spin fa-2x text-rfp-gold"/>
-                                    </div>
-                                    <h5 class="fw-bold mb-2">Analyzing Your Document</h5>
-                                    <p class="text-muted mb-3">Our AI is reading your document, extracting information, and pre-filling answers. This may take 1-2 minutes.</p>
-                                    <div class="progress mb-3" style="height: 4px;">
-                                        <div class="progress-bar bg-rfp-gold progress-bar-striped progress-bar-animated" style="width: 100%;"/>
-                                    </div>
-                                    <small class="text-muted">Please do not close this window.</small>
-                                </div>
-
-                                <!-- Error State -->
-                                <div id="upload_error_state" class="d-none text-center">
-                                    <div class="mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle"
-                                         style="width: 64px; height: 64px; background: rgba(220, 53, 69, 0.15);">
-                                        <i class="fa fa-exclamation-triangle fa-2x text-danger"/>
-                                    </div>
-                                    <h5 class="fw-bold mb-2">Upload Failed</h5>
-                                    <p id="upload_error_message" class="text-muted mb-4"/>
-                                    <div class="d-flex justify-content-center gap-3">
-                                        <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Close</button>
-                                        <button type="button" class="btn btn-rfp-gold px-4" id="btn_retry_upload">
-                                            <i class="fa fa-refresh me-1"/> Try Again
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
         </t>
     </template>
@@ -573,243 +490,107 @@
             <t t-call="project_rfp_ai.rfp_theme_styles"/>
             <style>
                 .rfp-start-card {
-                    height: 100%;
-                    display: flex;
-                    flex-direction: column;
                     border: 1px solid rgba(201, 162, 39, 0.1) !important;
                     background: #FFFFFF;
                 }
                 .rfp-start-card:hover {
                     border-color: var(--rfp-gold) !important;
-                    transform: translateY(-5px);
                 }
                 .rfp-start-icon-ring {
-                    width: 70px;
-                    height: 70px;
+                    width: 50px;
+                    height: 50px;
                     background: var(--rfp-gold-light);
                     color: var(--rfp-gold);
-                    border-radius: 20px;
+                    border-radius: 15px;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    margin-bottom: 1.5rem;
+                    margin-bottom: 1rem;
                     transition: all 0.3s ease;
                 }
-                .rfp-start-card:hover .rfp-start-icon-ring {
-                    background: var(--rfp-gold-gradient);
-                    color: var(--rfp-dark);
-                    transform: rotate(10deg);
-                }
-                .rfp-split-divider {
-                    position: relative;
+                .rfp-upload-zone {
+                    border: 2px dashed #CBD5E1;
+                    border-radius: 12px;
+                    padding: 1.5rem;
                     text-align: center;
-                    margin: 2rem 0;
+                    transition: all 0.3s ease;
+                    cursor: pointer;
+                    background: #FAFBFC;
                 }
-                .rfp-split-divider::before {
-                    content: '';
-                    position: absolute;
-                    top: 50%;
-                    left: 0;
-                    right: 0;
-                    height: 1px;
+                .rfp-upload-zone:hover {
+                    border-color: var(--rfp-gold);
                     background: var(--rfp-gold-light);
-                    z-index: 1;
                 }
-                .rfp-split-divider span {
-                    position: relative;
-                    background: #F8F9FA;
-                    padding: 0 1.5rem;
-                    z-index: 2;
-                    font-weight: 700;
-                    color: var(--rfp-gold);
-                    font-size: 0.8rem;
-                    letter-spacing: 2px;
-                }
-                @media (min-width: 992px) {
-                    .rfp-split-divider {
-                        margin: 0;
-                        width: 1px;
-                        height: 100%;
-                        background: var(--rfp-gold-light);
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                    }
-                    .rfp-split-divider span {
-                        padding: 1.5rem 0;
-                        writing-mode: vertical-lr;
-                        transform: rotate(180deg);
-                    }
-                    .rfp-split-divider::before { display: none; }
+                .rfp-upload-zone.has-file {
+                    border-color: var(--rfp-gold);
+                    border-style: solid;
+                    background: var(--rfp-gold-light);
                 }
             </style>
             
-            <div class="container rfp-portal-wrapper py-5">
+            <div class="container rfp-portal-wrapper py-3">
                 <t t-call="project_rfp_ai.rfp_loading_overlay_component"/>
                 
-                <div class="text-center mb-5">
-                    <h1 class="display-5 fw-bold mb-3">Initialize Your Next Success</h1>
-                    <p class="lead text-muted mx-auto" style="max-width: 700px;">
-                        Choose your starting path. Our proprietary AI engine will either extract intelligence from your existing documents or lead you through a professional requirements gathering session.
+                <div class="text-center mb-4">
+                    <h2 class="fw-bold mb-2">Initialize Your Next Success</h2>
+                    <p class="text-muted mx-auto mb-0" style="max-width: 600px;">
+                        Describe your vision or attach existing documents. Our AI will analyze the context and guide your requirements gathering.
                     </p>
                 </div>
 
-                <div class="row g-4 align-items-stretch">
-                    <!-- Path A: AI Analysis -->
-                    <div class="col-lg-6">
-                        <div class="card shadow-lg border-0 rfp-start-card p-4 p-md-5">
-                            <div class="rfp-start-icon-ring shadow-sm">
-                                <i class="fa fa-magic fa-2x"/>
+                <div class="row justify-content-center">
+                    <div class="col-lg-6 col-md-8">
+                        <div class="card shadow-lg border-0 rfp-start-card p-4">
+                            <div class="rfp-start-icon-ring shadow-sm mx-auto mb-3" style="width: 50px; height: 50px; border-radius: 15px;">
+                                <i class="fa fa-magic fa-lg"/>
                             </div>
-                            <h3 class="fw-bold mb-3">AI Discovery Session</h3>
-                            <p class="text-muted mb-4 flex-grow-1">
-                                Perfect for new ideas. Describe your vision in plain language, and our Analyst will generate the technical structure and deep-dive questions needed for a professional RFP.
-                            </p>
                             
-                            <form action="/rfp/init" method="post" id="rfp_start_form_direct">
+                            <form action="/rfp/init" method="post" enctype="multipart/form-data" id="rfp_start_form">
                                 <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
                                 
-                                <div class="mb-4">
-                                    <label class="form-label small fw-bold text-uppercase tracking-wider">Project Name <span class="text-danger">*</span></label>
+                                <div class="mb-3">
+                                    <label class="form-label small fw-bold text-uppercase mb-1">Project Name <span class="text-danger">*</span></label>
                                     <input type="text" name="name" class="form-control" placeholder="e.g., E-Commerce Platform Modernization" required="required"/>
                                 </div>
                                 
-                                <div class="mb-4">
-                                    <label class="form-label small fw-bold text-uppercase tracking-wider">Concept Summary <span class="text-danger">*</span></label>
-                                    <textarea name="description" class="form-control" rows="4" 
-                                              placeholder="Describe your goals, challenges, and high-level requirements..." required="required"/>
+                                <div class="mb-3">
+                                    <label class="form-label small fw-bold text-uppercase mb-1" id="label_description">Concept Summary <span class="text-danger">*</span></label>
+                                    <textarea name="description" id="rfp_start_description" class="form-control" rows="3" 
+                                              placeholder="Describe your goals, challenges, and high-level requirements..."/>
+                                    <small class="text-muted" id="desc_help_text">Required unless common documents are provided below.</small>
                                 </div>
 
-                                <div class="d-grid">
-                                    <button type="submit" class="btn btn-rfp-gold btn-lg py-3">
+                                <!-- Optional Document Upload (Multiple) -->
+                                <div class="mb-3">
+                                    <label class="form-label small fw-bold text-uppercase mb-1">
+                                        Source Documents <span class="text-muted fw-normal">(optional)</span>
+                                    </label>
+                                    <div class="rfp-upload-zone p-3" id="rfp_start_upload_zone" onclick="document.getElementById('rfp_start_file').click()">
+                                        <i class="fa fa-cloud-upload fa-lg text-muted mb-2"/>
+                                        <p class="small text-muted mb-0 fw-semibold" id="rfp_start_upload_label">Attach PDF or DOCX files</p>
+                                        <input type="file" name="rfp_file" id="rfp_start_file" accept=".pdf,.docx" multiple="multiple" class="d-none"/>
+                                    </div>
+                                    <div id="rfp_start_file_preview" class="mt-2 d-flex flex-column gap-1">
+                                        <!-- JS will populate file items here -->
+                                    </div>
+                                    <div id="rfp_start_file_error" class="d-none mt-2">
+                                        <small class="text-danger"></small>
+                                    </div>
+                                </div>
+
+                                <div class="d-grid mt-4">
+                                    <button type="submit" class="btn btn-rfp-gold btn-lg py-2 fw-bold" id="btn_launch_analysis">
                                         Launch AI Analysis <i class="fa fa-chevron-right ms-2"/>
                                     </button>
                                 </div>
                             </form>
                         </div>
                     </div>
-
-                    <!-- OR Divider (Mobile/Desktop) -->
-                    <!-- <div class="col-lg-1 d-none d-lg-flex justify-content-center p-0">
-                        <div class="rfp-split-divider"><span>OR</span></div>
-                    </div> -->
-
-                    <!-- Path B: Upload Documents -->
-                    <div class="col-lg-6">
-                        <div class="card shadow-lg border-0 rfp-start-card p-4 p-md-5" style="background: linear-gradient(135deg, #FFFFFF 0%, #FAFAFA 100%);">
-                            <div class="rfp-start-icon-ring shadow-sm" style="background: rgba(74, 85, 104, 0.05); color: #4A5568;">
-                                <i class="fa fa-file-text-o fa-2x"/>
-                            </div>
-                            <h3 class="fw-bold mb-3">Document Intelligence</h3>
-                            <p class="text-muted mb-4 flex-grow-1">
-                                Already have a draft? Upload your PDF or Word document. Our AI will ingest the context, extract current requirements, and skip redundant questions to save you hours.
-                            </p>
-                            
-                            <div class="bg-light rounded-4 p-4 mb-4 border border-dashed border-2 text-center" style="border-color: #CBD5E1 !important;">
-                                <i class="fa fa-cloud-upload fa-3x text-muted mb-3"/>
-                                <h6 class="fw-bold mb-1">Source Induction</h6>
-                                <p class="small text-muted mb-3">Supports PDF &amp; DOCX formats</p>
-                                <button type="button" class="btn btn-dark btn-lg px-4 btn-upload-rfp">
-                                    Select Document
-                                </button>
-                            </div>
-
-                            <div class="alert alert-info border-0 py-3 shadow-sm mb-0">
-                                <div class="d-flex align-items-start">
-                                    <i class="fa fa-lightbulb-o fa-lg mt-1 me-3 text-rfp-gold"/>
-                                    <div class="small">
-                                        <strong>Pro Tip:</strong> Using an existing document as a baseline significantly improves the accuracy of the generated architecture.
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <!-- Upload RFP Modal (must be inside .rfp-portal-wrapper for widget events) -->
-                <div class="modal fade" id="modal_upload_rfp" tabindex="-1" role="dialog" data-bs-backdrop="static" data-bs-keyboard="false">
-                    <div class="modal-dialog modal-dialog-centered">
-                        <div class="modal-content border-0 shadow-lg">
-                            <div class="modal-body py-5 px-4">
-                                <!-- Form State -->
-                                <div id="upload_form_state">
-                                    <div class="mx-auto mb-4 d-flex align-items-center justify-content-center rounded-4 shadow-sm"
-                                         style="width: 80px; height: 80px; background: var(--rfp-gold-light); color: var(--rfp-gold);">
-                                        <i class="fa fa-file-pdf-o fa-3x"/>
-                                    </div>
-                                    
-                                    <p class="text-muted mb-4 px-2">
-                                        Upload your RFP document. Our AI will analyze the structural requirements and pre-fill the discovery session to save yours.
-                                    </p>
-
-                                    <div class="mb-4 text-start">
-                                        <label class="form-label small fw-bold text-uppercase" for="rfp_upload_file">Document Source <span class="text-danger">*</span></label>
-                                        <div class="input-group">
-                                            <span class="input-group-text bg-white border-end-0"><i class="fa fa-upload text-muted"/></span>
-                                            <input type="file" class="form-control border-start-0 ps-0" id="rfp_upload_file" accept=".pdf,.docx"/>
-                                        </div>
-                                        <div class="mt-2 d-flex justify-content-between align-items-center">
-                                            <small class="text-muted">PDF or DOCX (Max 25MB)</small>
-                                            <div id="upload_file_info" class="d-none">
-                                                <span class="badge bg-rfp-gold text-wrap" style="max-width: 150px;">
-                                                    <span id="upload_file_name"></span> (<span id="upload_file_size"></span>)
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div id="upload_file_error" class="d-none mb-4">
-                                        <div class="alert alert-danger py-2 px-3 mb-0 small border-0 rounded-3 shadow-sm"/>
-                                    </div>
-
-                                    <div class="mb-4 text-start">
-                                        <label class="form-label small fw-bold text-uppercase" for="upload_project_name">Project Alias <span class="text-muted fw-normal">(optional)</span></label>
-                                        <input type="text" class="form-control" id="upload_project_name" placeholder="Leave blank to auto-detect..."/>
-                                    </div>
-
-                                    <div class="d-grid gap-2">
-                                        <button type="button" class="btn btn-rfp-gold btn-lg py-3 shadow" id="btn_confirm_upload" disabled="disabled">
-                                            <i class="fa fa-bolt me-2"/> Begin Intelligent Induction
-                                        </button>
-                                        <button type="button" class="btn btn-link text-muted text-decoration-none pt-2" data-bs-dismiss="modal">Cancel</button>
-                                    </div>
-                                </div>
-
-                                <!-- Processing State -->
-                                <div id="upload_processing_state" class="d-none py-4 text-center">
-                                    <div class="mx-auto mb-4 d-flex align-items-center justify-content-center rounded-circle"
-                                         style="width: 100px; height: 100px; background: rgba(201, 162, 39, 0.05);">
-                                        <i class="fa fa-cog fa-spin fa-3x text-rfp-gold"/>
-                                    </div>
-                                    <h4 class="fw-bold mb-2">Ingesting Document...</h4>
-                                    <p class="text-muted mb-4">Our AI is scanning sections and mapping best practices to ensure a 100% accurate baseline.</p>
-                                    <div class="progress mb-3 shadow-sm" style="height: 6px;">
-                                        <div class="progress-bar bg-rfp-gold progress-bar-striped progress-bar-animated" style="width: 100%;"/>
-                                    </div>
-                                    <small class="text-muted"><i class="fa fa-info-circle me-1"/> Please maintain this connection...</small>
-                                </div>
-
-                                <!-- Error State -->
-                                <div id="upload_error_state" class="d-none py-4 text-center">
-                                    <div class="mx-auto mb-4 d-flex align-items-center justify-content-center rounded-circle bg-danger bg-opacity-10"
-                                         style="width: 80px; height: 80px;">
-                                        <i class="fa fa-exclamation-triangle fa-3x text-danger"/>
-                                    </div>
-                                    <h5 class="fw-bold mb-2">Induction Failed</h5>
-                                    <p id="upload_error_message" class="text-muted mb-4 px-3"/>
-                                    <div class="d-grid gap-2 px-4">
-                                        <button type="button" class="btn btn-rfp-gold py-3 shadow" id="btn_retry_upload">
-                                            <i class="fa fa-refresh me-2"/> Retry Induction
-                                        </button>
-                                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
         </t>
     </template>
+
 
 
 

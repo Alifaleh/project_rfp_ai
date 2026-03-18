@@ -111,7 +111,7 @@ class RfpAiLog(models.Model):
                 log.write({
                     'response_raw': response_text,
                     'response_date': fields.Datetime.now(),
-                    'duration': duration,
+                      'duration': duration,
                     'state': AI_STATUS_SUCCESS
                 })
                 return response_text
