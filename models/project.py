@@ -190,7 +190,7 @@ class RfpProject(models.Model):
                         'user_value': False, 
                         'sequence': cf.sequence,
                         'suggested_answers': json.dumps(cf.suggestion_ids.mapped('name')),
-                        'options': json.dumps([{'value': o.value, 'label': o.label} for o in cf.option_ids]),
+                        'options': json.dumps([{'value': o.value, 'label': o.label, 'group': o.group_name} for o in cf.option_ids]),
                         'specify_triggers': cf.specify_triggers or '[]'
                     })
             
@@ -546,7 +546,7 @@ class RfpProject(models.Model):
                 'user_value': False,
                 'sequence': cf.sequence,
                 'suggested_answers': json.dumps(suggestions),
-                'options': json.dumps([{'value': o.value, 'label': o.label}
+                'options': json.dumps([{'value': o.value, 'label': o.label, 'group': o.group_name}
                                        for o in cf.option_ids]),
                 'specify_triggers': cf.specify_triggers or '[]',
             })

@@ -143,6 +143,7 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         if (this.$('.rfp-input-group').length) {
             this._checkDependencies();
             this._checkSpecifyTriggers();
+            this._initPhoneWidgets();
         }
 
         // Auto-Start Polling if on Generating Page
@@ -1093,6 +1094,36 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
                 }
             }
         });
+    },
+
+    _initPhoneWidgets: function () {
+        const self = this;
+        window.iti_init_manual = () => {
+            if (typeof window.intlTelInput === 'undefined') return;
+            const inputs = document.querySelectorAll(".rfp-phone-widget");
+            inputs.forEach(input => {
+                if ($(input).data('iti')) return;
+
+                const iti = window.intlTelInput(input, {
+                    initialCountry: "auto",
+                    geoIpLookup: function(success, failure) {
+                        fetch("https://ipapi.co/json")
+                            .then(res => res.json())
+                            .then(data => success(data.country_code))
+                            .catch(() => success("us"));
+                    },
+                    utilsScript: "https://cdn.jsdelivr.net/npm/intl-tel-input@24.5.0/build/js/utils.js",
+                    separateDialCode: true,
+                    autoPlaceholder: "aggressive",
+                    countrySearch: true,
+                    allowDropdown: true,
+                    dropdownContainer: document.body,
+                });
+                
+                $(input).data('iti', iti);
+            });
+        };
+        window.iti_init_manual();
     },
 
     // --- INPUT CHANGE (for dependency logic) ---

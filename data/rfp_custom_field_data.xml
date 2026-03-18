@@ -43,40 +43,241 @@
             <field name="placeholder">Address, Availability, etc.</field>
         </record>
 
-        <!-- 1. Project Type (Radio + Other) -->
+        <!-- 1. Project Type (Dropdown with extensive options) -->
         <record id="field_init_project_type" model="rfp.custom.field">
             <field name="name">Project Type</field>
             <field name="code">project_type</field>
             <field name="phase">init</field>
-            <field name="input_type">radio</field>
+            <field name="input_type">select</field>
             <field name="sequence">1</field>
-            <field name="help_text">Is this a completely new project or replacing an existing one?</field>
+            <field name="help_text">What category best describes this project?</field>
             <field name="specify_triggers">["other"]</field>
             <field name="is_required">True</field>
         </record>
-        <record id="opt_init_pt_new" model="rfp.field.option">
+        
+        <!-- Standard Software & IT -->
+        <record id="opt_init_pt_sw_web" model="rfp.field.option">
+            <field name="field_id" ref="field_init_project_type"/>
+            <field name="value">software_web</field>
+            <field name="label">Custom Web Application</field>
+            <field name="group_name">Software &amp; IT</field>
+            <field name="sequence">10</field>
+        </record>
+        <record id="opt_init_pt_sw_mobile" model="rfp.field.option">
+            <field name="field_id" ref="field_init_project_type"/>
+            <field name="value">software_mobile</field>
+            <field name="label">Mobile App (iOS/Android)</field>
+            <field name="group_name">Software &amp; IT</field>
+            <field name="sequence">11</field>
+        </record>
+        <record id="opt_init_pt_sw_saas" model="rfp.field.option">
+            <field name="field_id" ref="field_init_project_type"/>
+            <field name="value">software_saas</field>
+            <field name="label">SaaS / Cloud Product</field>
+            <field name="group_name">Software &amp; IT</field>
+            <field name="sequence">12</field>
+        </record>
+        
+        <!-- Healthcare -->
+        <record id="opt_init_pt_health_emr" model="rfp.field.option">
+            <field name="field_id" ref="field_init_project_type"/>
+            <field name="value">health_emr</field>
+            <field name="label">EMR / Hospital Management System</field>
+            <field name="group_name">Healthcare</field>
+            <field name="sequence">20</field>
+        </record>
+        <record id="opt_init_pt_health_telemed" model="rfp.field.option">
+            <field name="field_id" ref="field_init_project_type"/>
+            <field name="value">health_telemedicine</field>
+            <field name="label">Telemedicine Platform</field>
+            <field name="group_name">Healthcare</field>
+            <field name="sequence">21</field>
+        </record>
+        <record id="opt_init_pt_health_pharmacy" model="rfp.field.option">
+            <field name="field_id" ref="field_init_project_type"/>
+            <field name="value">health_pharmacy</field>
+            <field name="label">Pharmacy Inventory / Supply Chain</field>
+            <field name="group_name">Healthcare</field>
+            <field name="sequence">22</field>
+        </record>
+        
+        <!-- Oil & Gas / Energy -->
+        <record id="opt_init_pt_oil_exploration" model="rfp.field.option">
+            <field name="field_id" ref="field_init_project_type"/>
+            <field name="value">oil_gas_exploration</field>
+            <field name="label">Exploration / Drilling Workflow</field>
+            <field name="group_name">Oil, Gas &amp; Energy</field>
+            <field name="sequence">30</field>
+        </record>
+        <record id="opt_init_pt_oil_refining" model="rfp.field.option">
+            <field name="field_id" ref="field_init_project_type"/>
+            <field name="value">oil_gas_refining</field>
+            <field name="label">Refining / Downstream Management</field>
+            <field name="group_name">Oil, Gas &amp; Energy</field>
+            <field name="sequence">31</field>
+        </record>
+        <record id="opt_init_pt_energy_solar" model="rfp.field.option">
+            <field name="field_id" ref="field_init_project_type"/>
+            <field name="value">energy_renewable</field>
+            <field name="label">Renewable / Solar Farm Monitoring</field>
+            <field name="group_name">Oil, Gas &amp; Energy</field>
+            <field name="sequence">32</field>
+        </record>
+        <record id="opt_init_pt_power_grid" model="rfp.field.option">
+            <field name="field_id" ref="field_init_project_type"/>
+            <field name="value">energy_grid_mgmt</field>
+            <field name="label">Smart Grid / Utility Management</field>
+            <field name="group_name">Oil, Gas &amp; Energy</field>
+            <field name="sequence">33</field>
+        </record>
+        
+        <!-- Construction / Real Estate -->
+        <record id="opt_init_pt_const_mgmt" model="rfp.field.option">
+            <field name="field_id" ref="field_init_project_type"/>
+            <field name="value">const_mgmt</field>
+            <field name="label">Project Management / BIM</field>
+            <field name="group_name">Construction &amp; Real Estate</field>
+            <field name="sequence">40</field>
+        </record>
+        <record id="opt_init_pt_const_real_estate" model="rfp.field.option">
+            <field name="field_id" ref="field_init_project_type"/>
+            <field name="value">const_real_estate</field>
+            <field name="label">Real Estate Development Platform</field>
+            <field name="group_name">Construction &amp; Real Estate</field>
+            <field name="sequence">41</field>
+        </record>
+        <record id="opt_init_pt_const_smart_city" model="rfp.field.option">
+            <field name="field_id" ref="field_init_project_type"/>
+            <field name="value">const_smart_city</field>
+            <field name="label">Smart City / IoT Infrastructure</field>
+            <field name="group_name">Construction &amp; Real Estate</field>
+            <field name="sequence">42</field>
+        </record>
+        
+        <!-- Finance / Fintech -->
+        <record id="opt_init_pt_fin_banking" model="rfp.field.option">
+            <field name="field_id" ref="field_init_project_type"/>
+            <field name="value">finance_banking</field>
+            <field name="label">Digital Banking / Core Banking</field>
+            <field name="group_name">Finance &amp; Fintech</field>
+            <field name="sequence">50</field>
+        </record>
+        <record id="opt_init_pt_fin_payment" model="rfp.field.option">
+            <field name="field_id" ref="field_init_project_type"/>
+            <field name="value">finance_payments</field>
+            <field name="label">Payment Gateway / Wallet Solution</field>
+            <field name="group_name">Finance &amp; Fintech</field>
+            <field name="sequence">51</field>
+        </record>
+        <record id="opt_init_pt_fin_trading" model="rfp.field.option">
+            <field name="field_id" ref="field_init_project_type"/>
+            <field name="value">finance_trading</field>
+            <field name="label">Stock Trading / Asset Management</field>
+            <field name="group_name">Finance &amp; Fintech</field>
+            <field name="sequence">52</field>
+        </record>
+        
+        <!-- Logistics & Transport -->
+        <record id="opt_init_pt_log_fleet" model="rfp.field.option">
+            <field name="field_id" ref="field_init_project_type"/>
+            <field name="value">logistics_fleet</field>
+            <field name="label">Fleet Management / Tracking</field>
+            <field name="group_name">Logistics &amp; Transport</field>
+            <field name="sequence">60</field>
+        </record>
+        <record id="opt_init_pt_log_warehouse" model="rfp.field.option">
+            <field name="field_id" ref="field_init_project_type"/>
+            <field name="value">logistics_warehouse</field>
+            <field name="label">Warehouse Management (WMS)</field>
+            <field name="group_name">Logistics &amp; Transport</field>
+            <field name="sequence">61</field>
+        </record>
+        <record id="opt_init_pt_log_shipping" model="rfp.field.option">
+            <field name="field_id" ref="field_init_project_type"/>
+            <field name="value">logistics_shipping</field>
+            <field name="label">Global Shipping / Freight Forwarding</field>
+            <field name="group_name">Logistics &amp; Transport</field>
+            <field name="sequence">62</field>
+        </record>
+        
+        <!-- Retail & Hospitality -->
+        <record id="opt_init_pt_retail_pos" model="rfp.field.option">
+            <field name="field_id" ref="field_init_project_type"/>
+            <field name="value">retail_pos</field>
+            <field name="label">POS System / Inventory Sync</field>
+            <field name="group_name">Retail &amp; Hospitality</field>
+            <field name="sequence">70</field>
+        </record>
+        <record id="opt_init_pt_hotel_mgmt" model="rfp.field.option">
+            <field name="field_id" ref="field_init_project_type"/>
+            <field name="value">hospitality_hotel</field>
+            <field name="label">Hotel / Resort Management System</field>
+            <field name="group_name">Retail &amp; Hospitality</field>
+            <field name="sequence">71</field>
+        </record>
+        
+        <!-- Government & Public Sector -->
+        <record id="opt_init_pt_gov_portal" model="rfp.field.option">
+            <field name="field_id" ref="field_init_project_type"/>
+            <field name="value">gov_e_service</field>
+            <field name="label">E-Government Citizen Portal</field>
+            <field name="group_name">Government</field>
+            <field name="sequence">80</field>
+        </record>
+        <record id="opt_init_pt_gov_identity" model="rfp.field.option">
+            <field name="field_id" ref="field_init_project_type"/>
+            <field name="value">gov_id_mgmt</field>
+            <field name="label">National Identity / KYC Management</field>
+            <field name="group_name">Government</field>
+            <field name="sequence">81</field>
+        </record>
+
+        <!-- Education & EdTech -->
+        <record id="opt_init_pt_edu_lms" model="rfp.field.option">
+            <field name="field_id" ref="field_init_project_type"/>
+            <field name="value">edu_lms</field>
+            <field name="label">Learning Management System (LMS)</field>
+            <field name="group_name">Education</field>
+            <field name="sequence">90</field>
+        </record>
+        
+        <!-- Manufacturing -->
+        <record id="opt_init_pt_mfg_erp" model="rfp.field.option">
+            <field name="field_id" ref="field_init_project_type"/>
+            <field name="value">mfg_erp_integration</field>
+            <field name="label">Factory ERP / Supply Chain</field>
+            <field name="group_name">Manufacturing</field>
+            <field name="sequence">100</field>
+        </record>
+        <record id="opt_init_pt_mfg_scada" model="rfp.field.option">
+            <field name="field_id" ref="field_init_project_type"/>
+            <field name="value">mfg_scada</field>
+            <field name="label">SCADA / Industrial Control Systems</field>
+            <field name="group_name">Manufacturing</field>
+            <field name="sequence">101</field>
+        </record>
+
+        <!-- Generic Nature -->
+        <record id="opt_init_pt_greenfield" model="rfp.field.option">
             <field name="field_id" ref="field_init_project_type"/>
             <field name="value">greenfield</field>
             <field name="label">New Application (Greenfield)</field>
-            <field name="sequence">1</field>
+            <field name="group_name">Generic / Nature of Project</field>
+            <field name="sequence">200</field>
         </record>
-        <record id="opt_init_pt_legacy" model="rfp.field.option">
+        <record id="opt_init_pt_rewrite" model="rfp.field.option">
             <field name="field_id" ref="field_init_project_type"/>
             <field name="value">legacy_rewrite</field>
             <field name="label">Rewrite Legacy System</field>
-            <field name="sequence">2</field>
+            <field name="group_name">Generic / Nature of Project</field>
+            <field name="sequence">201</field>
         </record>
-        <record id="opt_init_pt_migration" model="rfp.field.option">
-            <field name="field_id" ref="field_init_project_type"/>
-            <field name="value">migration</field>
-            <field name="label">Migration / Upgrade</field>
-            <field name="sequence">3</field>
-        </record>
+
         <record id="opt_init_pt_other" model="rfp.field.option">
             <field name="field_id" ref="field_init_project_type"/>
             <field name="value">other</field>
             <field name="label">Other (Please Specify)</field>
-            <field name="sequence">4</field>
+            <field name="sequence">999</field>
         </record>
 
         <!-- 2. Target Audience (Text + Extensive Suggestions) -->

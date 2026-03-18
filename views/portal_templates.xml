@@ -6,6 +6,10 @@
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous"/>
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
         
+        <!-- intl-tel-input library -->
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intl-tel-input@24.5.0/build/css/intlTelInput.css"/>
+        <script src="https://cdn.jsdelivr.net/npm/intl-tel-input@24.5.0/build/js/intlTelInput.min.js"></script>
+        
         <style>
             /* === RFP GOLD THEME === */
             :root {
@@ -80,6 +84,51 @@
             .btn-rfp-gold-outline:hover {
                 background: var(--rfp-gold);
                 color: var(--rfp-dark) !important;
+            }
+            
+            /* Phone Widget Customizations */
+            .iti {
+                width: 100%;
+            }
+            .iti__country-list {
+                border-radius: var(--rfp-radius-sm);
+                box-shadow: var(--rfp-shadow-hover);
+                border: 1px solid var(--rfp-gold-light);
+                max-width: 350px;
+                z-index: 1060 !important; /* Ensure it stays above other elements */
+            }
+            .iti__country.iti__highlight {
+                background-color: var(--rfp-gold-light);
+            }
+            .iti__search-input {
+                border: 1px solid var(--rfp-gold-light) !important;
+                border-radius: var(--rfp-radius-sm) !important;
+                margin: 8px !important;
+                padding: 8px 12px !important;
+                width: calc(100% - 16px) !important;
+            }
+            .iti__flag {
+                background-image: url("https://cdn.jsdelivr.net/npm/intl-tel-input@24.5.0/build/img/flags.png");
+            }
+            @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+                .iti__flag {
+                    background-image: url("https://cdn.jsdelivr.net/npm/intl-tel-input@24.5.0/build/img/flags@2x.png");
+                }
+            }
+            .iti__selected-dial-code {
+                color: var(--rfp-dark);
+                font-weight: 500;
+                margin-left: 4px;
+            }
+            
+            /* Override for better select/input appearance */
+            .form-select, .form-control {
+                border-color: #ced4da; /* Default Bootstrap border color */
+                box-shadow: none;
+            }
+            .form-select:focus, .form-control:focus {
+                border-color: var(--rfp-gold);
+                box-shadow: 0 0 0 3px rgba(201, 162, 39, 0.15);
             }
             
             /* Override Bootstrap Primary with Gold */
@@ -559,6 +608,11 @@
                                               placeholder="Describe your goals, challenges, and high-level requirements..."/>
                                     <small class="text-muted" id="desc_help_text">Required unless common documents are provided below.</small>
                                 </div>
+                                <script>
+                                    document.addEventListener('DOMContentLoaded', function() {
+                                        if (window.iti_init_manual) window.iti_init_manual();
+                                    });
+                                </script>
 
                                 <!-- Optional Document Upload (Multiple) -->
                                 <div class="mb-3">
@@ -650,16 +704,19 @@
 
             <!-- Dynamic Rendering Switch -->
             <t t-if="input_field.component_type == 'text_input'">
-                <t t-set="computed_type" t-value="'email' if (input_field.data_type == 'email' or (input_field.field_key and 'email' in input_field.field_key.lower())) else ('tel' if (input_field.data_type == 'phone' or (input_field.field_key and ('phone' in input_field.field_key.lower() or 'mobile' in input_field.field_key.lower()))) else 'text')"/>
+                <t t-set="is_email" t-value="input_field.data_type == 'email' or (input_field.field_key and 'email' in input_field.field_key.lower())"/>
+                <t t-set="is_phone" t-value="input_field.data_type == 'phone' or (input_field.field_key and ('phone' in input_field.field_key.lower() or 'mobile' in input_field.field_key.lower()))"/>
                 
-                <input t-if="computed_type == 'tel'" type="tel" t-att-name="input_field.field_key" class="form-control" 
-                       pattern="[+0-9\s\(\)-]*" title="Please enter a valid phone number" 
-                       oninput="this.value = this.value.replace(/[^0-9+\s()-]/g, '')"/>
+                <input t-if="is_phone" type="tel" t-att-name="input_field.field_key" class="form-control rfp-phone-widget" 
+                       t-att-value="input_field.user_value"
+                       placeholder="Enter phone number..."/>
                        
-                <input t-elif="computed_type == 'email'" type="email" t-att-name="input_field.field_key" class="form-control" 
-                       pattern="[^@\s]+@[^@\s]+\.[^@\s]+" title="Please enter a valid email address (e.g., name@domain.com)"/>
+                <input t-elif="is_email" type="email" t-att-name="input_field.field_key" class="form-control" 
+                       t-att-value="input_field.user_value"
+                       pattern="[^@\s]+@[^@\s]+\.[^@\s]+" title="Please enter a valid email address (e.g., name@domain.com)"
+                       placeholder="e.g. contact@company.com"/>
                        
-                <input t-else="" type="text" t-att-name="input_field.field_key" class="form-control"/>
+                <input t-else="" type="text" t-att-name="input_field.field_key" class="form-control" t-att-value="input_field.user_value"/>
             </t>
 
             <t t-elif="input_field.component_type == 'number_input'">
@@ -673,17 +730,42 @@
             <t t-elif="input_field.component_type == 'select'">
                 <select t-att-name="input_field.field_key" class="form-select">
                     <option value="">Select...</option>
-                    <t t-if="input_field.get_options_parsed()">
-                        <t t-foreach="input_field.get_options_parsed()" t-as="opt">
-                            <t t-if="isinstance(opt, dict)">
-                                <option t-att-value="opt['value']"><t t-esc="opt['label']"/></option>
+                    <t t-set="options" t-value="input_field.get_options_parsed()"/>
+                    
+                    <!-- 1. Extract Group Names -->
+                    <t t-set="groups" t-value="[]"/>
+                    <t t-foreach="options" t-as="o">
+                        <t t-if="isinstance(o, dict) and o.get('group') and o.get('group') not in groups">
+                            <t t-set="groups" t-value="groups + [o.get('group')]"/>
+                        </t>
+                    </t>
+
+                    <!-- 2. Render Grouped Options -->
+                    <t t-foreach="groups" t-as="g">
+                        <optgroup t-att-label="g">
+                            <t t-foreach="options" t-as="opt">
+                                <t t-if="isinstance(opt, dict) and opt.get('group') == g">
+                                    <option t-att-value="opt['value']" t-att-selected="opt['value'] == input_field.user_value">
+                                        <t t-esc="opt['label']"/>
+                                    </option>
+                                </t>
                             </t>
-                            <t t-else="">
-                                <option t-att-value="opt"><t t-esc="opt"/></option>
-                            </t>
+                        </optgroup>
+                    </t>
+
+                    <!-- 3. Render Remaining Non-grouped Options -->
+                    <t t-foreach="options" t-as="opt">
+                        <t t-if="not (isinstance(opt, dict) and opt.get('group'))">
+                            <t t-set="opt_val" t-value="opt['value'] if isinstance(opt, dict) else opt"/>
+                            <t t-set="opt_label" t-value="opt['label'] if isinstance(opt, dict) else opt"/>
+                            <option t-att-value="opt_val" t-att-selected="opt_val == input_field.user_value">
+                                <t t-esc="opt_label"/>
+                            </option>
                         </t>
                     </t>
                 </select>
+                <!-- Specify Input (Hidden by default, shown if 'other' is selected) -->
+                <input type="text" t-att-name="input_field.field_key + '_specify'" class="form-control mt-2 rfp-specify-input d-none" placeholder="Please specify..."/>
             </t>
 
             <t t-elif="input_field.component_type == 'multiselect'">
