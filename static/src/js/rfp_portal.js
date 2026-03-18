@@ -82,31 +82,87 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         'click #btn_retry_proposal_upload': '_onRetryProposalUpload',
     },
 
-    // Custom RPC implementation to avoid module dependency issues in frontend
+    // --- CORE RPC WRAPPER ---
+    
+    _loadingInterval: null,
+    
     _rpc: async function (options) {
-        const response = await fetch(options.route, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-            },
-            body: JSON.stringify({
-                jsonrpc: "2.0",
-                method: "call",
-                params: options.params || {},
-                id: Math.floor(Math.random() * 1000000000)
-            })
-        });
-
-        if (!response.ok) {
-            throw new Error("HTTP error " + response.status);
+        if (options.loading !== false) {
+            this._setLoading(true, options.loadingMessage);
         }
+        
+        try {
+            const response = await fetch(options.route, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({
+                    jsonrpc: "2.0",
+                    method: "call",
+                    params: options.params || {},
+                    id: Math.floor(Math.random() * 1000000000)
+                })
+            });
 
-        const data = await response.json();
-        if (data.error) {
-            throw new Error(data.error.data ? data.error.data.message : data.error.message);
+            if (!response.ok) {
+                throw new Error("HTTP error " + response.status);
+            }
+
+            const data = await response.json();
+            if (data.error) {
+                throw new Error(data.error.data ? data.error.data.message : data.error.message);
+            }
+            
+            if (options.loading !== false) {
+                this._setLoading(false);
+            }
+            
+            return data.result;
+        } catch (e) {
+            if (options.loading !== false) {
+                this._setLoading(false);
+            }
+            throw e;
         }
-        return data.result;
+    },
+
+    _setLoading: function (loading, message) {
+        const $overlay = this.$('#rfp_loading_overlay');
+        const $status = this.$('#rfp_loading_status');
+        
+        if (loading) {
+            $overlay.removeClass('d-none');
+            // Ticker for better feedback during long AI tasks
+            const defaultStatuses = [
+                "Gathering requirements...",
+                "Analyzing project context...",
+                "Synthesizing tech specs...",
+                "Optimizing gap analysis...",
+                "Assembling section details...",
+                "Assembling the puzzle...",
+                "Thinking like an expert..."
+            ];
+            let i = 0;
+            if (this._loadingInterval) clearInterval(this._loadingInterval);
+            
+            if ($status.length) {
+                $status.text(message || defaultStatuses[0]);
+                this._loadingInterval = setInterval(() => {
+                    i = (i + 1) % defaultStatuses.length;
+                    $status.fadeOut(300, function() {
+                        $(this).text(defaultStatuses[i]).fadeIn(300);
+                    });
+                }, 3000);
+            }
+        } else {
+            $overlay.addClass('d-none');
+            if (this._loadingInterval) {
+                clearInterval(this._loadingInterval);
+                this._loadingInterval = null;
+            }
+        }
     },
 
     start: function () {
@@ -954,12 +1010,8 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
     // --- FORM SUBMIT (show loading overlay) ---
 
     _onSubmit: function (ev) {
-        // Show loading overlay on any form submit within the portal
-        const $overlay = this.$('#rfp_loading_overlay');
-        if ($overlay.length) {
-            $overlay.removeClass('d-none');
-        }
-        // Let form submit normally
+        // Show the premium loading overlay on any form submit
+        this._setLoading(true);
     },
 
     // --- SUGGESTION CLICK ---

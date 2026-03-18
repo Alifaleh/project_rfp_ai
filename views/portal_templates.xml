@@ -198,17 +198,101 @@
                 color: var(--rfp-dark) !important;
             }
             
-            /* Spinner */
-            .rfp-portal-wrapper .spinner-border.text-primary {
-                color: var(--rfp-gold) !important;
+            /* === PREMIUM LOADING OVERLAY === */
+            .rfp-loading-overlay {
+                backdrop-filter: blur(12px);
+                background-color: rgba(255, 255, 255, 0.8) !important;
+                z-index: 10000 !important;
             }
-            
-            /* Loading Overlay */
-            #rfp_loading_overlay .spinner-border {
-                color: var(--rfp-gold) !important;
+            .rfp-loading-card {
+                background: white;
+                padding: 3.5rem 3rem;
+                border-radius: 30px;
+                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+                max-width: 480px;
+                width: 90%;
+                text-align: center;
+                border: 1px solid rgba(201, 162, 39, 0.1);
+                position: relative;
+                overflow: hidden;
             }
-            #rfp_loading_overlay h4 {
-                color: var(--rfp-dark) !important;
+            .rfp-loading-icon {
+                font-size: 3.5rem;
+                color: var(--rfp-gold);
+                margin-bottom: 2rem;
+                position: relative;
+                display: inline-block;
+                width: 100px;
+                height: 100px;
+                line-height: 100px;
+            }
+            .rfp-pulse-circle {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                width: 100px;
+                height: 100px;
+                border-radius: 50%;
+                background: rgba(201, 162, 39, 0.15);
+                animation: rfp-pulse 2s infinite ease-out;
+            }
+            @keyframes rfp-pulse {
+                0% { transform: translate(-50%, -50%) scale(0.6); opacity: 1; }
+                100% { transform: translate(-50%, -50%) scale(1.8); opacity: 0; }
+            }
+            .rfp-loading-text {
+                font-size: 1.5rem;
+                font-weight: 700;
+                color: var(--rfp-dark);
+                margin-bottom: 0.75rem;
+            }
+            .rfp-loading-subtext {
+                color: var(--rfp-gray);
+                height: 1.5rem;
+                margin-bottom: 2.5rem;
+                font-size: 1.1rem;
+            }
+            .rfp-loading-dots::after {
+                content: '...';
+                display: inline-block;
+                width: 20px;
+                text-align: left;
+                animation: rfp-dots 1.5s infinite;
+            }
+            @keyframes rfp-dots {
+                0% { content: '.'; }
+                33% { content: '..'; }
+                66% { content: '...'; }
+            }
+            .rfp-loading-progress-container {
+                height: 8px;
+                background: #F1F5F9;
+                border-radius: 10px;
+                overflow: hidden;
+                margin-top: 1.5rem;
+                position: relative;
+            }
+            .rfp-loading-progress-bar {
+                height: 100%;
+                background: var(--rfp-gold-gradient);
+                width: 40%;
+                border-radius: 10px;
+                position: absolute;
+                animation: rfp-progress-shimmer 2s infinite ease-in-out;
+            }
+            @keyframes rfp-progress-shimmer {
+                0% { left: -40%; }
+                100% { left: 100%; }
+            }
+            .rfp-status-ticker {
+                display: inline-block;
+                animation: rfp-ticker-fade 3s infinite;
+            }
+            @keyframes rfp-ticker-fade {
+                0% { opacity: 0; transform: translateY(5px); }
+                15%, 85% { opacity: 1; transform: translateY(0); }
+                100% { opacity: 0; transform: translateY(-5px); }
             }
             
             /* Toolbar */
@@ -434,13 +518,26 @@
 
     <!-- NEW COMPONENT: Loading Overlay -->
     <template id="rfp_loading_overlay_component" name="RFP Loading Overlay">
-        <div id="rfp_loading_overlay" class="d-none position-fixed top-0 start-0 w-100 h-100 bg-white bg-opacity-75 d-flex justify-content-center align-items-center" style="z-index: 1050; backdrop-filter: blur(2px);">
-            <div class="text-center">
-                <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
-                    <span class="visually-hidden">Loading...</span>
+        <div id="rfp_loading_overlay" class="d-none position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center rfp-loading-overlay">
+            <div class="rfp-loading-card">
+                <div class="rfp-loading-icon">
+                    <div class="rfp-pulse-circle"></div>
+                    <i class="fa fa-magic"></i>
                 </div>
-                <h4 class="mt-3 text-primary">AI Analyst is thinking...</h4>
-                <p class="text-muted small">Please do not refresh the page.</p>
+                
+                <h3 class="rfp-loading-text">AI Analyst is thinking<span class="rfp-loading-dots"></span></h3>
+                
+                <div class="rfp-loading-subtext">
+                    <span id="rfp_loading_status" class="rfp-status-ticker">Gathering requirements...</span>
+                </div>
+
+                <div class="rfp-loading-progress-container">
+                    <div class="rfp-loading-progress-bar"></div>
+                </div>
+                
+                <p class="mt-4 text-muted small mb-0 fw-medium">
+                    <i class="fa fa-shield text-success me-1"/> Secured processing environment
+                </p>
             </div>
         </div>
     </template>
