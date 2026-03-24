@@ -66,7 +66,8 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         'click .btn-duplicate-project': '_onDuplicateProject',
         'click #btn_confirm_duplicate': '_onConfirmDuplicate',
 
-        // Start Project: Optional RFP Upload
+        // Start Project: Tabs + Upload
+        'click .rfp-start-tab': '_onStartTabSwitch',
         'change #rfp_start_file': '_onStartFileChange',
         'click #rfp_start_file_clear': '_onStartFileClear',
         'click .btn-remove-start-file': '_onRemoveStartFile',
@@ -1913,7 +1914,28 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         }
     },
 
-    // ========== START PROJECT: OPTIONAL RFP UPLOAD (MULTIPLE) ==========
+    // ========== START PROJECT: TABS + UPLOAD ==========
+    _onStartTabSwitch: function (ev) {
+        ev.preventDefault();
+        var $tab = $(ev.currentTarget);
+        var target = $tab.data('tab');
+
+        // Switch active tab
+        $('.rfp-start-tab').removeClass('active');
+        $tab.addClass('active');
+
+        // Switch pane
+        $('.rfp-tab-pane').removeClass('active');
+        $('#rfp_tab_' + target).addClass('active');
+
+        // Track active tab for validation
+        this._rfpActiveTab = target;
+
+        // Clear validation state on switch
+        $('#rfp_start_description').removeClass('is-invalid');
+        $('#rfp_start_file_error').addClass('d-none');
+    },
+
     _onStartFileChange: function (ev) {
         var newFiles = ev.target.files;
         if (!newFiles.length) return;
@@ -2027,28 +2049,25 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
     },
 
     _validateStartForm: function() {
-        var hasFiles = $('#rfp_start_file')[0].files.length > 0;
-        var $desc = $('#rfp_start_description');
-        var $label = $('#label_description');
-        var $help = $('#desc_help_text');
-
-        if (hasFiles) {
-            $label.find('.text-danger').addClass('d-none');
-            $help.addClass('text-success').removeClass('text-muted').text('Optional: AI will prioritize attached documents.');
-        } else {
-            $label.find('.text-danger').removeClass('d-none');
-            $help.addClass('text-muted').removeClass('text-success').text('Required unless common documents are provided below.');
-        }
+        // Clear previous validation states
+        $('#rfp_start_description').removeClass('is-invalid');
+        $('#rfp_start_file_error').addClass('d-none');
     },
 
     _onStartFormSubmit: function(ev) {
-        var hasFiles = $('#rfp_start_file')[0].files.length > 0;
+        var activeTab = this._rfpActiveTab || 'describe';
+        var hasFiles = $('#rfp_start_file')[0] && $('#rfp_start_file')[0].files.length > 0;
         var hasDesc = $('#rfp_start_description').val().trim().length > 0;
 
-        if (!hasFiles && !hasDesc) {
+        if (activeTab === 'describe' && !hasDesc) {
             ev.preventDefault();
-            $('#rfp_start_file_error').removeClass('d-none').find('small').text('Please provide either a Concept Summary or at least one document.');
             $('#rfp_start_description').addClass('is-invalid');
+            return false;
+        }
+
+        if (activeTab === 'upload' && !hasFiles) {
+            ev.preventDefault();
+            $('#rfp_start_file_error').removeClass('d-none').find('small').text('Please upload at least one PDF or DOCX document.');
             return false;
         }
     },

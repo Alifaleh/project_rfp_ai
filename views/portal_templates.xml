@@ -657,11 +657,16 @@
                 .rfp-upload-zone {
                     border: 2px dashed #CBD5E1;
                     border-radius: 12px;
-                    padding: 1.5rem;
+                    padding: 2rem;
                     text-align: center;
                     transition: all 0.3s ease;
                     cursor: pointer;
                     background: #FAFBFC;
+                    min-height: 160px;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
                 }
                 .rfp-upload-zone:hover {
                     border-color: var(--rfp-gold);
@@ -672,38 +677,91 @@
                     border-style: solid;
                     background: var(--rfp-gold-light);
                 }
+
+                /* Tab styling */
+                .rfp-start-tabs {
+                    display: flex;
+                    border-bottom: 2px solid #E2E8F0;
+                    margin-bottom: 1.5rem;
+                    gap: 0;
+                }
+                .rfp-start-tab {
+                    flex: 1;
+                    padding: 0.75rem 1rem;
+                    text-align: center;
+                    cursor: pointer;
+                    font-weight: 600;
+                    font-size: 0.875rem;
+                    color: #64748B;
+                    border-bottom: 3px solid transparent;
+                    margin-bottom: -2px;
+                    transition: all 0.25s ease;
+                    background: none;
+                    border-top: none;
+                    border-left: none;
+                    border-right: none;
+                    letter-spacing: 0.02em;
+                }
+                .rfp-start-tab:hover {
+                    color: var(--rfp-gold-dark, #B8941F);
+                    background: var(--rfp-gold-light);
+                }
+                .rfp-start-tab.active {
+                    color: var(--rfp-gold);
+                    border-bottom-color: var(--rfp-gold);
+                }
+                .rfp-start-tab i {
+                    margin-right: 0.4rem;
+                }
+                .rfp-tab-pane {
+                    display: none;
+                }
+                .rfp-tab-pane.active {
+                    display: block;
+                }
             </style>
-            
+
             <div class="container rfp-portal-wrapper py-3">
                 <t t-call="project_rfp_ai.rfp_loading_overlay_component"/>
-                
+
                 <div class="text-center mb-4">
                     <h2 class="fw-bold mb-2">Initialize Your Next Success</h2>
                     <p class="text-muted mx-auto mb-0" style="max-width: 600px;">
-                        Describe your vision or attach existing documents. Our AI will analyze the context and guide your requirements gathering.
+                        Describe your vision from scratch or upload existing RFP documents. Our AI will analyze the context and guide your requirements gathering.
                     </p>
                 </div>
 
                 <div class="row justify-content-center">
                     <div class="col-lg-6 col-md-8">
                         <div class="card shadow-lg border-0 rfp-start-card p-4">
-                            <div class="rfp-start-icon-ring shadow-sm mx-auto mb-3" style="width: 50px; height: 50px; border-radius: 15px;">
-                                <i class="fa fa-magic fa-lg"/>
-                            </div>
-                            
+
                             <form action="/rfp/init" method="post" enctype="multipart/form-data" id="rfp_start_form">
                                 <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
-                                
+
+                                <!-- Project Name (always visible) -->
                                 <div class="mb-3">
                                     <label class="form-label small fw-bold text-uppercase mb-1">Project Name <span class="text-danger">*</span></label>
                                     <input type="text" name="name" class="form-control" placeholder="e.g., E-Commerce Platform Modernization" required="required"/>
                                 </div>
-                                
-                                <div class="mb-3">
-                                    <label class="form-label small fw-bold text-uppercase mb-1" id="label_description">Concept Summary <span class="text-danger">*</span></label>
-                                    <textarea name="description" id="rfp_start_description" class="form-control" rows="3" 
-                                              placeholder="Describe your goals, challenges, and high-level requirements..."/>
-                                    <small class="text-muted" id="desc_help_text">Required unless common documents are provided below.</small>
+
+                                <!-- Tabs -->
+                                <div class="rfp-start-tabs" role="tablist">
+                                    <button type="button" class="rfp-start-tab active" data-tab="describe" role="tab">
+                                        <i class="fa fa-pencil"/> Describe
+                                    </button>
+                                    <button type="button" class="rfp-start-tab" data-tab="upload" role="tab">
+                                        <i class="fa fa-cloud-upload"/> Upload Document
+                                    </button>
+                                </div>
+
+                                <!-- Tab: Describe -->
+                                <div class="rfp-tab-pane active" id="rfp_tab_describe">
+                                    <div class="mb-1">
+                                        <label class="form-label small fw-bold text-uppercase mb-1" id="label_description">Concept Summary <span class="text-danger">*</span></label>
+                                        <textarea name="description" id="rfp_start_description" class="form-control" rows="5"
+                                                  placeholder="Describe your goals, challenges, and high-level requirements..."/>
+                                        <small class="text-muted mt-1 d-block" id="desc_help_text">Provide a clear summary of what you need. The AI will use this to generate your RFP.</small>
+                                    </div>
                                 </div>
                                 <script>
                                     document.addEventListener('DOMContentLoaded', function() {
@@ -711,21 +769,21 @@
                                     });
                                 </script>
 
-                                <!-- Optional Document Upload (Multiple) -->
-                                <div class="mb-3">
-                                    <label class="form-label small fw-bold text-uppercase mb-1">
-                                        Source Documents <span class="text-muted fw-normal">(optional)</span>
-                                    </label>
-                                    <div class="rfp-upload-zone p-3" id="rfp_start_upload_zone" onclick="document.getElementById('rfp_start_file').click()">
-                                        <i class="fa fa-cloud-upload fa-lg text-muted mb-2"/>
-                                        <p class="small text-muted mb-0 fw-semibold" id="rfp_start_upload_label">Attach PDF or DOCX files</p>
-                                        <input type="file" name="rfp_file" id="rfp_start_file" accept=".pdf,.docx" multiple="multiple" class="d-none"/>
-                                    </div>
-                                    <div id="rfp_start_file_preview" class="mt-2 d-flex flex-column gap-1">
-                                        <!-- JS will populate file items here -->
-                                    </div>
-                                    <div id="rfp_start_file_error" class="d-none mt-2">
-                                        <small class="text-danger"></small>
+                                <!-- Tab: Upload Document -->
+                                <div class="rfp-tab-pane" id="rfp_tab_upload">
+                                    <div class="mb-1">
+                                        <div class="rfp-upload-zone" id="rfp_start_upload_zone" onclick="document.getElementById('rfp_start_file').click()">
+                                            <i class="fa fa-cloud-upload fa-2x mb-2" style="color: #94A3B8;"/>
+                                            <p class="small fw-semibold mb-1" style="color: #475569;" id="rfp_start_upload_label">Drop files here or click to browse</p>
+                                            <p class="small text-muted mb-0">PDF or DOCX files (max 50MB total)</p>
+                                            <input type="file" name="rfp_file" id="rfp_start_file" accept=".pdf,.docx" multiple="multiple" class="d-none"/>
+                                        </div>
+                                        <div id="rfp_start_file_preview" class="mt-2 d-flex flex-column gap-1">
+                                            <!-- JS will populate file items here -->
+                                        </div>
+                                        <div id="rfp_start_file_error" class="d-none mt-2">
+                                            <small class="text-danger"></small>
+                                        </div>
                                     </div>
                                 </div>
 
