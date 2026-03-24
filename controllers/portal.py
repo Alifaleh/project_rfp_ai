@@ -182,26 +182,33 @@ class RfpCustomerPortal(CustomerPortal):
 
         # 3. Gather Questions for Current Stage
         questions_to_answer = []
-        is_generating = False 
-        
+        is_generating = False
+
         if Project.current_stage == STAGE_INITIALIZED:
-             # Logic for "Preliminary Questions" (Init Fields) AND AI Follow-up
-             # The first batch are init fields (created by action_initialize_project)
-             # They have user_value = False.
              questions_to_answer = Project.form_input_ids.filtered(lambda i: not i.user_value and not i.is_irrelevant)
-             
-             # If no questions, but we are still in INITIALIZED, it means we need to trigger AI to ask more 
-             # OR we are waiting for AI.
-             if not questions_to_answer:
-                 # Check if AI job is running? For now, we assume if we are here and no questions,
-                 # we should trigger the next round analysis.
-                 # BUT, we must distinguish between "All questions answered, trigger AI" vs "AI is thinking".
-                 # The 'action_analyze_gap' handles this. If it returns True (ongoing), we might mean AI returns instantly (sync).
-                 # If using async jobs, we'd need a status check.
-                 pass
+
+             # Auto-advance: if all questions are auto-filled, trigger next interview rounds automatically
+             # Safety limit prevents infinite loops if AI keeps generating fully-answerable questions
+             auto_rounds = 0
+             while not questions_to_answer and auto_rounds < 10:
+                 is_ongoing = Project.action_analyze_gap()
+                 if not is_ongoing:
+                     # Gathering complete, advance to next stage
+                     return request.redirect(f"/rfp/interface/{Project.id}")
+                 questions_to_answer = Project.form_input_ids.filtered(lambda i: not i.user_value and not i.is_irrelevant)
+                 auto_rounds += 1
 
         elif Project.current_stage == STAGE_SPECIFICATIONS_GATHERED:
              questions_to_answer = Project.practice_input_ids.filtered(lambda i: not i.user_value and not i.is_irrelevant)
+
+             # Auto-advance for practices gap phase too
+             auto_rounds = 0
+             while not questions_to_answer and auto_rounds < 10:
+                 is_ongoing = Project.action_analyze_practices_gap()
+                 if not is_ongoing:
+                     return request.redirect(f"/rfp/interface/{Project.id}")
+                 questions_to_answer = Project.practice_input_ids.filtered(lambda i: not i.user_value and not i.is_irrelevant)
+                 auto_rounds += 1
              
         values = self._prepare_portal_layout_values()
         values.update({
@@ -271,7 +278,10 @@ class RfpCustomerPortal(CustomerPortal):
         if not field_key:
             return {'success': False, 'error': 'No field_key provided'}
 
+        # Check both form_input_ids and practice_input_ids
         inp = Project.form_input_ids.filtered(lambda i: i.field_key == field_key)
+        if not inp:
+            inp = Project.practice_input_ids.filtered(lambda i: i.field_key == field_key)
         if inp:
             inp.write({'user_value': False, 'is_auto_filled': False})
             return {'success': True}

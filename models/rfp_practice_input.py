@@ -30,6 +30,7 @@ class RfpPracticeInput(models.Model):
     depends_on = fields.Text(string="Dependency JSON", help="Visibility logic {field_key, value}")
     is_irrelevant = fields.Boolean(string="Marked Irrelevant", default=False)
     irrelevant_reason = fields.Char(string="Reason for Irrelevance")
+    is_auto_filled = fields.Boolean(string="Auto-Filled by AI", default=False)
     specify_triggers = fields.Text(string="Specify Triggers JSON")
 
     def get_suggested_answers_parsed(self):

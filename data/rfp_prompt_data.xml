@@ -729,9 +729,9 @@ Score this proposal against EACH evaluation criterion individually, then compute
 
 1. For EACH question in the list above, search the source text for relevant information.
 2. Assign a confidence level:
-   - **high**: The answer is explicitly stated or clearly derivable from the source. The information is unambiguous. You are certain this is correct.
-   - **medium**: The answer can be reasonably inferred but is not explicitly stated. Some interpretation is needed.
-   - **low**: The source does not contain sufficient information to answer. Do NOT include low-confidence answers in your output.
+   - **high**: The answer is stated in the source OR can be clearly derived/summarized from the source content. Use "high" whenever the source provides enough context to give a meaningful, accurate answer — even if the exact wording is not present.
+   - **medium**: The answer requires significant interpretation or assumption beyond what the source says.
+   - **low**: The source does not contain any relevant information. Do NOT include low-confidence answers in your output.
 
 3. **For select/radio fields with defined options**: Your answer MUST be the exact `value` from the options list. If none of the options match the source content, set confidence to "low" and omit the field entirely.
 4. **For multiselect fields**: Provide comma-separated option values that match the options list.
@@ -739,8 +739,9 @@ Score this proposal against EACH evaluation criterion individually, then compute
 6. **For boolean fields**: Answer must be "yes" or "no".
 
 **Critical Rules:**
-- Be CONSERVATIVE with confidence. Only mark "high" when you are certain the source explicitly contains this information.
-- NEVER fabricate or assume information. Only use what is clearly present in the source text.
+- Your PRIMARY GOAL is to **maximize the number of auto-filled answers**. The user uploaded this document specifically to avoid answering questions manually. Try hard to find answers for every question.
+- Mark as "high" if the source document discusses the topic — you do NOT need an exact verbatim quote. If the document talks about the project budget, target users, goals, timelines, or any other topic that a question asks about, that is "high" confidence.
+- NEVER fabricate information that contradicts the source. But DO synthesize and summarize information that is spread across the document.
 - Do NOT include fields where confidence is "low" — omit them entirely from the output.
 - Provide a brief `source_excerpt` (1-2 sentences) quoting or paraphrasing the relevant part of the source for each answer.
 - If the source text is about a previous project and the question asks about preferences or choices, the previous project's choices are considered "high" confidence since they represent the user's established preferences.

@@ -272,17 +272,108 @@ class RfpProject(models.Model):
 
     @staticmethod
     def _extract_text_from_docx(file_bytes):
-        """Extract plain text from a DOCX file using built-in Python modules."""
+        """Extract plain text from a DOCX file including paragraphs, tables, altChunk HTML, headers, and footers."""
+        import re as _re
         ns = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
-        paragraphs = []
-        with zipfile.ZipFile(io.BytesIO(file_bytes)) as zf:
-            with zf.open('word/document.xml') as doc_xml:
-                tree = ElementTree.parse(doc_xml)
-                for p in tree.getroot().iter(f'{{{ns}}}p'):
-                    texts = [t.text for t in p.iter(f'{{{ns}}}t') if t.text]
+        ns_r = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
+
+        def _extract_from_body(body_elem):
+            """Walk body in document order, extracting text from paragraphs and table cells."""
+            lines = []
+            for elem in body_elem:
+                tag = elem.tag.split('}')[-1] if '}' in elem.tag else elem.tag
+
+                if tag == 'p':
+                    texts = [t.text for t in elem.iter(f'{{{ns}}}t') if t.text]
                     if texts:
-                        paragraphs.append(''.join(texts))
-        return '\n'.join(paragraphs)
+                        lines.append(''.join(texts))
+
+                elif tag == 'tbl':
+                    for row in elem.iter(f'{{{ns}}}tr'):
+                        cells = []
+                        for cell in row.iter(f'{{{ns}}}tc'):
+                            cell_texts = [t.text for t in cell.iter(f'{{{ns}}}t') if t.text]
+                            cells.append(' '.join(cell_texts))
+                        if cells:
+                            lines.append('\t'.join(cells))
+
+                elif tag == 'sdt':
+                    texts = [t.text for t in elem.iter(f'{{{ns}}}t') if t.text]
+                    if texts:
+                        lines.append(''.join(texts))
+
+            return lines
+
+        def _strip_html(html_str):
+            """Strip HTML tags and return clean text."""
+            text = _re.sub(r'<[^>]+>', ' ', html_str)
+            text = _re.sub(r'&amp;', '&', text)
+            text = _re.sub(r'&lt;', '<', text)
+            text = _re.sub(r'&gt;', '>', text)
+            text = _re.sub(r'&nbsp;', ' ', text)
+            text = _re.sub(r'&#\d+;', ' ', text)
+            text = _re.sub(r'\s+', ' ', text).strip()
+            return text
+
+        all_parts = []
+        with zipfile.ZipFile(io.BytesIO(file_bytes)) as zf:
+            # Build relationship map for altChunk references
+            rel_map = {}
+            rels_path = 'word/_rels/document.xml.rels'
+            if rels_path in zf.namelist():
+                with zf.open(rels_path) as rels_xml:
+                    rels_tree = ElementTree.parse(rels_xml)
+                    for rel in rels_tree.getroot():
+                        rid = rel.get('Id', '')
+                        target = rel.get('Target', '')
+                        if target:
+                            rel_map[rid] = target
+
+            if 'word/document.xml' in zf.namelist():
+                with zf.open('word/document.xml') as doc_xml:
+                    tree = ElementTree.parse(doc_xml)
+                    body = tree.getroot().find(f'{{{ns}}}body')
+                    if body is not None:
+                        for elem in body:
+                            tag = elem.tag.split('}')[-1] if '}' in elem.tag else elem.tag
+
+                            if tag in ('p', 'tbl', 'sdt'):
+                                all_parts.extend(_extract_from_body([elem]))
+
+                            elif tag == 'altChunk':
+                                # Embedded HTML content — resolve via relationship
+                                rid = elem.get(f'{{{ns_r}}}id', '')
+                                target = rel_map.get(rid, '')
+                                if target:
+                                    html_path = f'word/{target}' if not target.startswith('word/') else target
+                                    if html_path in zf.namelist():
+                                        try:
+                                            with zf.open(html_path) as hf:
+                                                html_content = hf.read().decode('utf-8', errors='ignore')
+                                                clean_text = _strip_html(html_content)
+                                                if clean_text:
+                                                    all_parts.append(clean_text)
+                                        except Exception:
+                                            pass
+                    else:
+                        for t in tree.getroot().iter(f'{{{ns}}}t'):
+                            if t.text:
+                                all_parts.append(t.text)
+
+            # Headers and footers
+            for name in sorted(zf.namelist()):
+                if name.startswith('word/header') or name.startswith('word/footer'):
+                    try:
+                        with zf.open(name) as hf_xml:
+                            tree = ElementTree.parse(hf_xml)
+                            for p in tree.getroot().iter(f'{{{ns}}}p'):
+                                texts = [t.text for t in p.iter(f'{{{ns}}}t') if t.text]
+                                if texts:
+                                    all_parts.append(''.join(texts))
+                    except Exception:
+                        pass
+
+        return '\n'.join(all_parts)
 
     @staticmethod
     def _extract_text_from_pdf(file_bytes):
@@ -299,12 +390,16 @@ class RfpProject(models.Model):
         except Exception:
             return ''
 
-    def _auto_fill_from_source(self):
+    def _auto_fill_from_source(self, input_records=None):
         """
-        Auto-fill form input answers from source_extracted_text.
-        High-confidence answers → user_value (question disappears from form).
-        Medium-confidence answers → prepended to suggested_answers.
+        Auto-fill input answers from source_extracted_text.
+        Works with both rfp.form.input and rfp.practice.input records.
+        High/medium confidence answers → user_value (question disappears from form).
         Non-fatal: if AI call fails, user answers manually.
+
+        Args:
+            input_records: Optional recordset of inputs to auto-fill.
+                           Defaults to self.form_input_ids if not provided.
         """
         self.ensure_one()
         from odoo.addons.project_rfp_ai.models.ai_schemas import get_auto_fill_schema
@@ -314,12 +409,14 @@ class RfpProject(models.Model):
             _logger.info("Project %s: No meaningful source text for auto-fill", self.id)
             return
 
-        # 1. Get all unanswered form_inputs
-        unanswered = self.form_input_ids.filtered(
+        # 1. Get all unanswered inputs
+        if input_records is None:
+            input_records = self.form_input_ids
+        unanswered = input_records.filtered(
             lambda i: not i.user_value and not i.is_irrelevant
         )
         if not unanswered:
-            _logger.info("Project %s: No unanswered form inputs for auto-fill", self.id)
+            _logger.info("Project %s: No unanswered inputs for auto-fill", self.id)
             return
 
         # 2. Build question list for AI
@@ -345,7 +442,7 @@ class RfpProject(models.Model):
         questions_json = json.dumps(questions, indent=2)
 
         # 3. Truncate source text if needed (context window safety)
-        max_source_chars = 50000
+        max_source_chars = 200000
         truncated_source = source_text[:max_source_chars]
         if len(source_text) > max_source_chars:
             truncated_source += "\n\n[... Source text truncated for length ...]"
@@ -363,15 +460,34 @@ class RfpProject(models.Model):
             questions_json=questions_json
         )
 
-        # 5. Call AI
+        # 5. Gather original document attachments for multimodal AI analysis
+        ai_attachments = None
+        if self.source_document:
+            source_atts = self.env['ir.attachment'].sudo().search([
+                ('res_model', '=', 'rfp.project'),
+                ('res_id', '=', self.id),
+            ])
+            if source_atts:
+                ai_attachments = []
+                for att in source_atts:
+                    file_content = base64.b64decode(att.datas)
+                    mimetype = att.mimetype or 'application/octet-stream'
+                    if mimetype in ('application/octet-stream', 'binary/octet-stream'):
+                        ext = att.name.rsplit('.', 1)[-1].lower() if '.' in att.name else ''
+                        if ext == 'pdf': mimetype = 'application/pdf'
+                    if mimetype == 'application/pdf':
+                        ai_attachments.append({'data': file_content, 'mime_type': mimetype})
+
+        # 6. Call AI
         try:
             response_json_str = self.env['rfp.ai.log'].execute_request(
                 system_prompt=system_prompt,
-                user_context="Auto-fill the above questions from the source text.",
+                user_context="Auto-fill the above questions from the source text and attached document(s).",
                 env=self.env,
                 mode='json',
                 schema=get_auto_fill_schema(),
-                prompt_record=prompt_record
+                prompt_record=prompt_record,
+                attachments=ai_attachments
             )
         except Exception as e:
             _logger.warning("Auto-fill AI call failed for project %s: %s", self.id, e)
@@ -388,7 +504,6 @@ class RfpProject(models.Model):
 
         # 6. Apply results
         auto_fill_count = 0
-        suggestion_count = 0
         input_map = {inp.field_key: inp for inp in unanswered}
 
         for field_result in data.get('auto_filled_fields', []):
@@ -414,27 +529,16 @@ class RfpProject(models.Model):
                 except Exception:
                     confidence = 'medium'
 
-            if confidence == 'high':
+            if confidence in ('high', 'medium'):
                 inp.write({
                     'user_value': answer,
                     'is_auto_filled': True,
                 })
                 auto_fill_count += 1
-            elif confidence == 'medium':
-                try:
-                    suggestions = json.loads(inp.suggested_answers) if inp.suggested_answers else []
-                except Exception:
-                    suggestions = []
-                if answer not in suggestions:
-                    suggestions.insert(0, answer)
-                inp.write({
-                    'suggested_answers': json.dumps(suggestions)
-                })
-                suggestion_count += 1
 
         _logger.info(
-            "Auto-fill for project %s: %d high-confidence fills, %d medium-confidence suggestions",
-            self.id, auto_fill_count, suggestion_count
+            "Auto-fill for project %s: %d fields auto-filled",
+            self.id, auto_fill_count
         )
 
     def action_initialize_from_document(self):
@@ -626,6 +730,7 @@ class RfpProject(models.Model):
             })
 
         # 9. Auto-fill answers from source text
+        self.invalidate_recordset(['form_input_ids'])
         self._auto_fill_from_source()
 
         self.current_stage = STAGE_INITIALIZED
@@ -1053,8 +1158,11 @@ class RfpProject(models.Model):
                 new_inputs.append(vals)
         
         if new_inputs:
-            self.env[input_model_name].create(new_inputs)
-            return True 
+            created = self.env[input_model_name].create(new_inputs)
+            # Auto-fill newly created questions from source document
+            if project.source_extracted_text:
+                project._auto_fill_from_source(input_records=created)
+            return True
         else:
             return False
 
@@ -1123,8 +1231,11 @@ class RfpProject(models.Model):
                     })
             
             if new_inputs:
-                self.env['rfp.practice.input'].create(new_inputs)
-                
+                created = self.env['rfp.practice.input'].create(new_inputs)
+                # Auto-fill post-gathering fields from source document
+                if project.source_extracted_text:
+                    project._auto_fill_from_source(input_records=created)
+
             project.current_stage = STAGE_SPECIFICATIONS_GATHERED
             return True # Require Interaction
 
