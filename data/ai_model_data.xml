@@ -88,5 +88,46 @@
             <field name="description">Google's State-of-the-art image generation and editing model.</field>
         </record>
 
+        <!-- OpenAI Models -->
+        <record id="model_openai_gpt4o" model="rfp.ai.model">
+            <field name="name">GPT-4o</field>
+            <field name="technical_name">gpt-4o</field>
+            <field name="provider">openai</field>
+            <field name="tag_ids" eval="[(4, ref('tag_high_quality')), (4, ref('tag_multilingual'))]"/>
+            <field name="description">OpenAI's most capable multimodal model. Great for complex reasoning, analysis, and content generation.</field>
+        </record>
+
+        <record id="model_openai_gpt4o_mini" model="rfp.ai.model">
+            <field name="name">GPT-4o Mini</field>
+            <field name="technical_name">gpt-4o-mini</field>
+            <field name="provider">openai</field>
+            <field name="tag_ids" eval="[(4, ref('tag_high_speed')), (4, ref('tag_multilingual'))]"/>
+            <field name="description">OpenAI's fast and cost-effective model. Good for interviews, quick analysis, and structured output.</field>
+        </record>
+
+        <record id="model_openai_o3_mini" model="rfp.ai.model">
+            <field name="name">o3-mini</field>
+            <field name="technical_name">o3-mini</field>
+            <field name="provider">openai</field>
+            <field name="tag_ids" eval="[(4, ref('tag_high_quality')), (4, ref('tag_multilingual'))]"/>
+            <field name="description">OpenAI's reasoning model optimized for STEM, coding, and complex analysis tasks.</field>
+        </record>
+
+        <record id="model_openai_o4_mini" model="rfp.ai.model">
+            <field name="name">o4-mini</field>
+            <field name="technical_name">o4-mini</field>
+            <field name="provider">openai</field>
+            <field name="tag_ids" eval="[(4, ref('tag_high_speed')), (4, ref('tag_multilingual'))]"/>
+            <field name="description">OpenAI's latest compact reasoning model. Fast and cost-effective with strong analytical capabilities.</field>
+        </record>
+
+        <record id="model_openai_dall_e_3" model="rfp.ai.model">
+            <field name="name">DALL-E 3</field>
+            <field name="technical_name">dall-e-3</field>
+            <field name="provider">openai</field>
+            <field name="tag_ids" eval="[(4, ref('tag_high_quality')), (4, ref('tag_image'))]"/>
+            <field name="description">OpenAI's image generation model. Creates high-quality images from text prompts.</field>
+        </record>
+
     </data>
 </odoo>

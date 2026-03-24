@@ -31,5 +31,34 @@
                 </div>
             </field>
         </record>
+        <record id="mail_template_rfp_generation_complete" model="mail.template">
+            <field name="name">RFP Project: Generation Complete</field>
+            <field name="model_id" ref="project_rfp_ai.model_rfp_project"/>
+            <field name="subject">Your RFP Project "{{ object.name }}" - Content &amp; Images Ready!</field>
+            <field name="email_from">"RFP AI Analyst" &lt;{{ (object.env.company.email or user.email) }}&gt;</field>
+            <field name="email_to">{{ object.user_id.email_formatted }}</field>
+            <field name="description">Sent when AI finishes generating all content and images for the RFP.</field>
+            <field name="body_html" type="html">
+                <div style="margin: 0px; padding: 0px;">
+                    <p style="margin: 0px; padding: 0px; font-size: 13px;">
+                        Hello <t t-out="object.user_id.name"/>,
+                        <br/><br/>
+                        Great news! All AI-generated content and diagram images for your project <strong><t t-out="object.name"/></strong> are now ready for your review.
+                        <br/><br/>
+                        You can review and edit the generated content using the link below:
+                        <div style="margin: 16px 0px 16px 0px;">
+                            <a t-attf-href="/rfp/edit/{{ object.id }}"
+                               style="background-color: #C9A227; padding: 10px 16px 10px 16px; text-decoration: none; color: #fff; border-radius: 5px; font-size: 13px;">
+                                Review My Project
+                            </a>
+                        </div>
+                        <br/><br/>
+                        Best regards,
+                        <br/>
+                        <strong>RFP AI Portfolio Team</strong>
+                    </p>
+                </div>
+            </field>
+        </record>
     </data>
 </odoo>

@@ -4,7 +4,8 @@ class ResConfigSettings(models.TransientModel):
     _inherit = 'res.config.settings'
 
     rfp_gemini_api_key = fields.Char(string="Gemini API Key", config_parameter='project_rfp_ai.gemini_api_key', help="API Key for Google Gemini Service")
-    
+    rfp_openai_api_key = fields.Char(string="OpenAI API Key", config_parameter='project_rfp_ai.openai_api_key', help="API Key for OpenAI ChatGPT Service")
+
     rfp_generation_concurrency = fields.Integer(string="Concurrent AI Requests", default=1, config_parameter='project_rfp_ai.generation_concurrency', help="Number of sections to generate in parallel.")
 
     def set_values(self):

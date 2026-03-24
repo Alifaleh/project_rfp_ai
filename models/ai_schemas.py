@@ -137,7 +137,7 @@ def get_section_content_schema():
                     },
                     required=["title", "description"]
                 ),
-                description="List of suggested diagrams for this section."
+                description="List of diagrams ONLY if this section genuinely needs a visual (e.g. architecture, workflow, data flow). Return empty array [] for text-only sections. Most sections should have NO diagrams."
             )
         },
         required=["content_html"]

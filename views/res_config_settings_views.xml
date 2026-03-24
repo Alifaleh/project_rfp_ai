@@ -12,6 +12,9 @@
                         <setting id="rfp_gemini_apikey" help="Configure Google Gemini connection details.">
                             <field name="rfp_gemini_api_key" password="True"/>
                         </setting>
+                        <setting id="rfp_openai_apikey" help="Configure OpenAI ChatGPT connection details.">
+                            <field name="rfp_openai_api_key" password="True"/>
+                        </setting>
                         <setting id="rfp_gemini_concurrency" help="Number of sections to generate in parallel (Queue Job workers).">
                             <field name="rfp_generation_concurrency"/>
                         </setting>

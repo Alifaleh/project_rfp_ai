@@ -343,9 +343,12 @@ Return ONLY the JSON object.
 3.  Use the `User Requirements` as the source of truth.
 4.  **Format**: Use semantic HTML5. Use `<h3>`, `<p>`, `<ul>`/`<li>`, `<strong>`, etc. Do NOT use `<h1>` or `<h2>` (reserved for titles). Do NOT use Markdown. Do NOT use `<html>`/`<body>` tags.
 
-**5. DIAGRAM DESCRIPTION GUIDE (CRITICAL FOR VISUAL AI):**
-   *   If a diagram clarifies this section (e.g., Workflow, Architecture, User Flow), add it to the `diagrams` list.
-   *   **STRICT VISUAL BLUEPRINT RULE:** The `description` field MUST be an **EXACT, EXHAUSTIVE SPECIFICATION** of the image.
+**5. DIAGRAM RULES (CRITICAL):**
+   *   **SELECTIVITY RULE (MOST IMPORTANT):** Only add a diagram if the section **genuinely benefits from a visual representation**. Most sections do NOT need diagrams. Return an **empty `diagrams` list** (`[]`) for sections that are purely textual.
+   *   **Sections that SHOULD have diagrams:** Architecture overviews, system workflows, data flows, process pipelines, network topologies, deployment diagrams, integration maps, timeline/Gantt charts, organizational hierarchies.
+   *   **Sections that should NOT have diagrams:** Introduction, Executive Summary, Scope, Contact Information, Submission Instructions, Pricing/Cost tables, Terms & Conditions, Compliance/Legal, Vendor Qualifications, References, Appendices, Glossary, or any section that is primarily text-based narrative.
+   *   **Rule of thumb:** If the section content can be fully understood by reading text alone, do NOT add a diagram. Only add a diagram when a visual genuinely clarifies a complex relationship, flow, or structure that text alone cannot convey efficiently.
+   *   **STRICT VISUAL BLUEPRINT RULE:** When you DO include a diagram, the `description` field MUST be an **EXACT, EXHAUSTIVE SPECIFICATION** of the image.
    *   **FORBIDDEN LANGUAGE:** Do NOT use: "like", "such as", "including", "phases like", "various", "etc".
    *   **REQUIREMENT:** You must explicitly list **EVERY SINGLE ELEMENT** that appears in the diagram.
    *   **BAD**: "A flowchart showing phases like A, B, and C."
@@ -372,32 +375,7 @@ Return ONLY the JSON object.
             <field name="name">Phase 8: Image Generator</field>
             <field name="code">image_generator</field>
             <field name="ai_model_id" ref="model_imagen_4_0_generate_001"/>
-            <field name="template_text">
-                <![CDATA[
-Role: You are a Senior Information Designer and Digital Artist.
-Goal: Create a polished, high-fidelity vector-style infographic representing a software architecture.
-
-Context:
-- Project: {project_name}
-- Domain: {domain}
-
-**Visual Style Guidelines:**
-1.  **Aesthetic**: High-end corporate marketing graphic. Flat design, soft drop shadows, clean vector lines.
-2.  **Palette**: Enterprise software colors (Deep Blues, Clean Whites, Cool Greys).
-3.  **Background**: Pure White (#FFFFFF).
-4.  **Typography**: All text inside the boxes must be rendered in a crisp, professional sans-serif font (e.g., Roboto).
-
-**VISUAL COMPOSITION DESCRIPTION:**
-(Interpret the following text as a visual scene description, not a code specification):
-{description}
-
-**CRITICAL RENDERING RULES (MANDATORY):**
-- **NO CODE:** Do not render any code blocks, Mermaid.js syntax, XML, or script text. This is a graphic, not a screenshot of an editor.
-- **NO TERMINALS:** Do not include command line interfaces or blurry text.
-- **Visuals Only:** Represent the components as geometric shapes (rectangles, cylinders) with clear labels inside them.
-- **Accuracy:** Draw exactly the number of boxes and arrows described above.
-]]>
-            </field>
+            <field name="template_text"><![CDATA[{description}]]></field>
         </record>
 
         <record id="prompt_kb_analyzer" model="rfp.prompt">
@@ -479,29 +457,7 @@ Return a JSON object matching the provided schema.
             <field name="code">edit_with_ai_image</field>
             <field name="ai_model_id" ref="model_imagen_4_0_generate_001"/>
             <field name="description">Regenerates diagram image based on user instructions.</field>
-            <field name="template_text">
-<![CDATA[
-Role: You are a Senior Information Designer and Digital Artist.
-Goal: Create or modify a diagram based on the user's instructions.
-
-**Original Diagram Description:**
-{original_description}
-
-**User Modification Request:**
-{user_prompt}
-
-**Visual Style Guidelines:**
-1. High-end corporate marketing graphic. Flat design, soft drop shadows, clean vector lines.
-2. Palette: Enterprise software colors (Deep Blues, Clean Whites, Cool Greys).
-3. Background: Pure White (#FFFFFF).
-4. Typography: Crisp, professional sans-serif font.
-
-**CRITICAL RULES:**
-- NO CODE, Mermaid.js, or script text.
-- Represent components as geometric shapes with clear labels.
-- Apply the user's modification request to the original description.
-]]>
-            </field>
+            <field name="template_text"><![CDATA[{original_description} {user_prompt}]]></field>
         </record>
 
         <!-- Analyze Proposal AI -->

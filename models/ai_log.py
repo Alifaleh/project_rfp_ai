@@ -89,19 +89,36 @@ class RfpAiLog(models.Model):
         start_time = time.time()
         
         try:
-            # 2. Call API via pure connector
+            # 2. Call API via pure connector - route by provider
             response_mime_type = "application/json" if mode == 'json' else "text/plain"
-            
-            response_text = ai_connector._call_gemini_api(
-                system_instructions=system_prompt,
-                user_content=user_context,
-                env=env,
-                response_mime_type=response_mime_type,
-                response_schema=schema,
-                model_name=model_name,
-                tools=tools,
-                attachments=attachments
-            )
+
+            # Determine provider from the model record
+            provider = 'google'  # default
+            if prompt_record and prompt_record.ai_model_id:
+                provider = prompt_record.ai_model_id.provider or 'google'
+
+            if provider == 'openai':
+                response_text = ai_connector._call_openai_api(
+                    system_instructions=system_prompt,
+                    user_content=user_context,
+                    env=env,
+                    response_mime_type=response_mime_type,
+                    response_schema=schema,
+                    model_name=model_name,
+                    tools=tools,
+                    attachments=attachments
+                )
+            else:
+                response_text = ai_connector._call_gemini_api(
+                    system_instructions=system_prompt,
+                    user_content=user_context,
+                    env=env,
+                    response_mime_type=response_mime_type,
+                    response_schema=schema,
+                    model_name=model_name,
+                    tools=tools,
+                    attachments=attachments
+                )
             
             # Calculate duration
             duration = time.time() - start_time
@@ -174,7 +191,15 @@ class RfpAiLog(models.Model):
         start_time = time.time()
         
         try:
-            image_bytes = ai_connector._generate_image_gemini(prompt, env, model_name=model_name)
+            # Determine provider from the model record
+            provider = 'google'  # default
+            if prompt_record and prompt_record.ai_model_id:
+                provider = prompt_record.ai_model_id.provider or 'google'
+
+            if provider == 'openai':
+                image_bytes = ai_connector._generate_image_openai(prompt, env, model_name=model_name)
+            else:
+                image_bytes = ai_connector._generate_image_gemini(prompt, env, model_name=model_name)
             
             duration = time.time() - start_time
             
@@ -203,4 +228,4 @@ class RfpAiLog(models.Model):
                 'duration': duration,
                 'response_date': fields.Datetime.now()
             })
-            return None
+            raise e
