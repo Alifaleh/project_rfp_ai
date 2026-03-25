@@ -187,10 +187,11 @@ class RfpCustomerPortal(CustomerPortal):
         if Project.current_stage == STAGE_INITIALIZED:
              questions_to_answer = Project.form_input_ids.filtered(lambda i: not i.user_value and not i.is_irrelevant)
 
-             # Auto-advance: if all questions are auto-filled, trigger next interview rounds automatically
-             # Safety limit prevents infinite loops if AI keeps generating fully-answerable questions
+             # Auto-advance: if all questions are auto-filled, keep generating rounds
+             # Use the project's actual max_round limit (from scope assessment)
+             max_auto = Project._get_round_limits().get('max_round', 25)
              auto_rounds = 0
-             while not questions_to_answer and auto_rounds < 10:
+             while not questions_to_answer and auto_rounds < max_auto:
                  is_ongoing = Project.action_analyze_gap()
                  if not is_ongoing:
                      # Gathering complete, advance to next stage
@@ -198,17 +199,28 @@ class RfpCustomerPortal(CustomerPortal):
                  questions_to_answer = Project.form_input_ids.filtered(lambda i: not i.user_value and not i.is_irrelevant)
                  auto_rounds += 1
 
+             # If loop exhausted with no unanswered questions, force-complete gathering
+             if not questions_to_answer and auto_rounds >= max_auto:
+                 Project.current_stage = STAGE_INFO_GATHERED
+                 return request.redirect(f"/rfp/interface/{Project.id}")
+
         elif Project.current_stage == STAGE_SPECIFICATIONS_GATHERED:
              questions_to_answer = Project.practice_input_ids.filtered(lambda i: not i.user_value and not i.is_irrelevant)
 
              # Auto-advance for practices gap phase too
+             max_auto = Project._get_round_limits().get('max_round', 25)
              auto_rounds = 0
-             while not questions_to_answer and auto_rounds < 10:
+             while not questions_to_answer and auto_rounds < max_auto:
                  is_ongoing = Project.action_analyze_practices_gap()
                  if not is_ongoing:
                      return request.redirect(f"/rfp/interface/{Project.id}")
                  questions_to_answer = Project.practice_input_ids.filtered(lambda i: not i.user_value and not i.is_irrelevant)
                  auto_rounds += 1
+
+             # Force-complete if loop exhausted
+             if not questions_to_answer and auto_rounds >= max_auto:
+                 Project.current_stage = STAGE_PRACTICES_GAP_GATHERED
+                 return request.redirect(f"/rfp/interface/{Project.id}")
              
         values = self._prepare_portal_layout_values()
         values.update({

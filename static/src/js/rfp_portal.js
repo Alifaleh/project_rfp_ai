@@ -129,33 +129,52 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         }
     },
 
-    _setLoading: function (loading, message) {
+    _setLoading: function (loading, opts) {
         const $overlay = this.$('#rfp_loading_overlay');
         const $status = this.$('#rfp_loading_status');
-        
+        const $title = this.$('#rfp_loading_title');
+        const $steps = this.$('#rfp_loading_steps');
+
         if (loading) {
+            opts = opts || {};
             $overlay.removeClass('d-none');
-            // Ticker for better feedback during long AI tasks
-            const defaultStatuses = [
+
+            // Set title
+            if ($title.length) {
+                // Keep the dots span
+                $title.html((opts.title || 'Processing') + '<span class="rfp-loading-dots"></span>');
+            }
+
+            // Drive step indicators
+            var steps = opts.steps || ['save', 'analyze', 'generate'];
+            if ($steps.length) {
+                $steps.find('.rfp-step').hide();
+                steps.forEach(function (s) {
+                    $steps.find('[data-step="' + s + '"]').show();
+                });
+                // Animate steps sequentially
+                this._animateSteps(steps);
+            }
+
+            // Rotating sub-status messages
+            var statuses = opts.statuses || [
                 "Gathering requirements...",
                 "Analyzing project context...",
-                "Synthesizing tech specs...",
-                "Optimizing gap analysis...",
-                "Assembling section details...",
-                "Assembling the puzzle...",
+                "Synthesizing specifications...",
+                "Evaluating completeness...",
                 "Thinking like an expert..."
             ];
-            let i = 0;
+            var i = 0;
             if (this._loadingInterval) clearInterval(this._loadingInterval);
-            
+
             if ($status.length) {
-                $status.text(message || defaultStatuses[0]);
-                this._loadingInterval = setInterval(() => {
-                    i = (i + 1) % defaultStatuses.length;
-                    $status.fadeOut(300, function() {
-                        $(this).text(defaultStatuses[i]).fadeIn(300);
+                $status.text(statuses[0]);
+                this._loadingInterval = setInterval(function () {
+                    i = (i + 1) % statuses.length;
+                    $status.fadeOut(250, function () {
+                        $(this).text(statuses[i]).fadeIn(250);
                     });
-                }, 3000);
+                }, 3500);
             }
         } else {
             $overlay.addClass('d-none');
@@ -163,7 +182,33 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
                 clearInterval(this._loadingInterval);
                 this._loadingInterval = null;
             }
+            if (this._stepTimeout) {
+                clearTimeout(this._stepTimeout);
+                this._stepTimeout = null;
+            }
         }
+    },
+
+    _animateSteps: function (stepKeys) {
+        var self = this;
+        var $steps = this.$('#rfp_loading_steps');
+        // Reset all
+        $steps.find('.rfp-step').removeClass('active done');
+
+        var idx = 0;
+        function advance() {
+            if (idx > 0) {
+                $steps.find('[data-step="' + stepKeys[idx - 1] + '"]').removeClass('active').addClass('done');
+            }
+            if (idx < stepKeys.length) {
+                $steps.find('[data-step="' + stepKeys[idx] + '"]').addClass('active');
+                idx++;
+                // First step completes fast (saving), rest slower (AI thinking)
+                var delay = idx === 1 ? 1500 : 8000;
+                self._stepTimeout = setTimeout(advance, delay);
+            }
+        }
+        advance();
     },
 
     start: function () {
@@ -1011,8 +1056,46 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
     // --- FORM SUBMIT (show loading overlay) ---
 
     _onSubmit: function (ev) {
-        // Show the premium loading overlay on any form submit
-        this._setLoading(true);
+        var $form = $(ev.currentTarget);
+        var action = $form.attr('action') || '';
+
+        // Context-aware loading based on what form is being submitted
+        if (action.indexOf('/rfp/next_step/') !== -1) {
+            this._setLoading(true, {
+                title: 'AI Analyst is working',
+                steps: ['save', 'analyze', 'generate'],
+                statuses: [
+                    "Saving your answers...",
+                    "Analyzing requirement gaps...",
+                    "Determining what else is needed...",
+                    "Evaluating project completeness...",
+                    "Preparing follow-up questions..."
+                ]
+            });
+        } else if (action.indexOf('/rfp/init') !== -1) {
+            this._setLoading(true, {
+                title: 'Initializing your project',
+                steps: ['save', 'analyze'],
+                statuses: [
+                    "Analyzing your project description...",
+                    "Identifying the project domain...",
+                    "Researching industry best practices...",
+                    "Preparing initial questions..."
+                ]
+            });
+        } else if (action.indexOf('/rfp/eval/') !== -1) {
+            this._setLoading(true, {
+                title: 'Evaluating criteria',
+                steps: ['save', 'analyze'],
+                statuses: [
+                    "Processing evaluation preferences...",
+                    "Calibrating scoring criteria...",
+                    "Building evaluation framework..."
+                ]
+            });
+        } else {
+            this._setLoading(true);
+        }
     },
 
     // --- SUGGESTION CLICK ---

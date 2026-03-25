@@ -250,24 +250,29 @@ class RfpProject(models.Model):
             # We need to update controller to pass these inputs.
             # For now, we will CREATE the input records. Value population is up to the caller/controller.
             
+            new_input_vals = []
             for cf in init_custom_fields:
                 # Check if already exists (idempotency)
                 existing = project.form_input_ids.filtered(lambda i: i.field_key == cf.code)
                 if not existing:
-                    self.env['rfp.form.input'].create({
+                    new_input_vals.append({
                         'project_id': project.id,
                         'field_key': cf.code,
                         'label': cf.name,
                         'component_type': cf.input_type,
-                        # Refactor Phase 4: Init Fields to Separate Stage
-                        # We explicitly set user_value to False so they appear in the gathering UI
-                        'user_value': False, 
+                        'user_value': False,
                         'sequence': cf.sequence,
                         'suggested_answers': json.dumps(cf.suggestion_ids.mapped('name')),
                         'options': json.dumps([{'value': o.value, 'label': o.label, 'group': o.group_name} for o in cf.option_ids]),
                         'specify_triggers': cf.specify_triggers or '[]'
                     })
-            
+
+            created_inputs = self.env['rfp.form.input'].create(new_input_vals) if new_input_vals else self.env['rfp.form.input']
+
+            # Auto-fill from source document if available
+            if project.source_extracted_text:
+                project._auto_fill_from_source(input_records=created_inputs)
+
             project.current_stage = STAGE_INITIALIZED
 
     @staticmethod
@@ -702,6 +707,7 @@ class RfpProject(models.Model):
             self.source_extracted_text = "\n\n".join(parts)
 
         # 8. Create form_input records with extracted values as suggestions
+        new_input_vals = []
         for cf in init_fields:
             existing = self.form_input_ids.filtered(
                 lambda i, code=cf.code: i.field_key == code)
@@ -716,7 +722,7 @@ class RfpProject(models.Model):
             if extracted_val and extracted_val not in suggestions:
                 suggestions.insert(0, extracted_val)
 
-            self.env['rfp.form.input'].create({
+            new_input_vals.append({
                 'project_id': self.id,
                 'field_key': cf.code,
                 'label': cf.name,
@@ -729,9 +735,10 @@ class RfpProject(models.Model):
                 'specify_triggers': cf.specify_triggers or '[]',
             })
 
+        created_inputs = self.env['rfp.form.input'].create(new_input_vals) if new_input_vals else self.env['rfp.form.input']
+
         # 9. Auto-fill answers from source text
-        self.invalidate_recordset(['form_input_ids'])
-        self._auto_fill_from_source()
+        self._auto_fill_from_source(input_records=created_inputs)
 
         self.current_stage = STAGE_INITIALIZED
         _logger.info("Initialized project %s from document '%s', "
@@ -1045,6 +1052,34 @@ class RfpProject(models.Model):
             project.refined_practices = response_text
         project.current_stage = STAGE_PRACTICES_REFINED
 
+    def _update_peak_completeness(self, is_complete=False):
+        """Update peak_completeness in ai_context_blob based on current fill state."""
+        self.ensure_one()
+        project = self
+        blob = project.get_context_data()
+
+        # Calculate fill percentage from actual answered vs total
+        all_inputs = project.form_input_ids
+        total = len(all_inputs)
+        answered = len(all_inputs.filtered(lambda i: i.user_value or i.is_irrelevant))
+        fill_pct = (answered / total * 100) if total else 0
+
+        # AI completeness score
+        ai_pct = blob.get('analysis_meta', {}).get('completeness_score', 0)
+
+        # Use the higher of fill_pct and ai_pct
+        current = max(fill_pct, ai_pct)
+
+        # Cap at 95 if gathering is still ongoing
+        if not is_complete and current > 95:
+            current = 95
+
+        # Monotonize: never go below previous peak
+        old_peak = blob.get('peak_completeness', 0)
+        blob['peak_completeness'] = max(current, old_peak)
+
+        project.ai_context_blob = json.dumps(blob, indent=4)
+
     def _execute_interview_round(self, prompt_code, input_model_name, context_data, scope_key='project'):
         """
         Generic Driver for Information Gathering Rounds.
@@ -1108,21 +1143,25 @@ class RfpProject(models.Model):
         # Save Global Analysis Meta (For backward compatibility with Portal UI which reads 'analysis_meta')
         # We overwrite the global key with the CURRENT phase's meta so UI shows correct progress.
         blob['analysis_meta'] = new_meta
-        
+
         if 'last_input_context' not in response_data:
              response_data['last_input_context'] = context_data
-             
-        # Save Blob
+
+        # NOTE: peak_completeness is updated AFTER new questions are created (below)
+        # to include the new total in the calculation.
+        # Save blob now with metadata; peak will be updated before final save.
         project.ai_context_blob = json.dumps(blob, indent=4)
 
         # Status Check
         status = new_meta.get('status')
         if status in [AI_STATUS_RATE_LIMIT, AI_STATUS_ERROR]:
+            self._update_peak_completeness(False)
             return True
-                
+
         # Auto-Finalization
         is_complete = response_data.get('is_gathering_complete', False)
         if is_complete:
+            self._update_peak_completeness(True)
             return False # Completed
 
         # Process new questions
@@ -1162,9 +1201,11 @@ class RfpProject(models.Model):
             # Auto-fill newly created questions from source document
             if project.source_extracted_text:
                 project._auto_fill_from_source(input_records=created)
-            return True
-        else:
-            return False
+
+        # Update peak_completeness AFTER new questions exist so totals are accurate
+        self._update_peak_completeness(is_complete)
+
+        return bool(new_inputs)
 
     def action_analyze_gap(self):
         """

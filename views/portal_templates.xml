@@ -265,12 +265,50 @@
                 33% { content: '..'; }
                 66% { content: '...'; }
             }
+            .rfp-loading-steps {
+                text-align: left;
+                margin: 0 auto 1.5rem;
+                max-width: 300px;
+            }
+            .rfp-step {
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
+                padding: 0.5rem 0;
+                color: #CBD5E1;
+                font-size: 0.92rem;
+                transition: all 0.4s ease;
+            }
+            .rfp-step.active {
+                color: var(--rfp-dark);
+                font-weight: 600;
+            }
+            .rfp-step.done {
+                color: #22C55E;
+            }
+            .rfp-step-icon {
+                width: 22px;
+                text-align: center;
+                font-size: 0.85rem;
+                transition: all 0.3s;
+            }
+            .rfp-step.active .rfp-step-icon {
+                color: var(--rfp-gold);
+                animation: rfp-step-pulse 1.2s infinite;
+            }
+            .rfp-step.done .rfp-step-icon::before {
+                content: "\f00c";
+            }
+            @keyframes rfp-step-pulse {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.4; }
+            }
             .rfp-loading-progress-container {
-                height: 8px;
+                height: 6px;
                 background: #F1F5F9;
                 border-radius: 10px;
                 overflow: hidden;
-                margin-top: 1.5rem;
+                margin-top: 1rem;
                 position: relative;
             }
             .rfp-loading-progress-bar {
@@ -520,23 +558,43 @@
     <template id="rfp_loading_overlay_component" name="RFP Loading Overlay">
         <div id="rfp_loading_overlay" class="d-none position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center rfp-loading-overlay">
             <div class="rfp-loading-card">
+                <!-- Animated icon -->
                 <div class="rfp-loading-icon">
                     <div class="rfp-pulse-circle"></div>
-                    <i class="fa fa-magic"></i>
+                    <i id="rfp_loading_icon" class="fa fa-magic"></i>
                 </div>
-                
-                <h3 class="rfp-loading-text">AI Analyst is thinking<span class="rfp-loading-dots"></span></h3>
-                
+
+                <!-- Phase title -->
+                <h3 id="rfp_loading_title" class="rfp-loading-text">Processing<span class="rfp-loading-dots"></span></h3>
+
+                <!-- Pipeline steps -->
+                <div id="rfp_loading_steps" class="rfp-loading-steps">
+                    <div class="rfp-step" data-step="save">
+                        <i class="rfp-step-icon fa fa-floppy-o"></i>
+                        <span>Saving your answers</span>
+                    </div>
+                    <div class="rfp-step" data-step="analyze">
+                        <i class="rfp-step-icon fa fa-search"></i>
+                        <span>Analyzing gaps in requirements</span>
+                    </div>
+                    <div class="rfp-step" data-step="generate">
+                        <i class="rfp-step-icon fa fa-pencil"></i>
+                        <span>Preparing next questions</span>
+                    </div>
+                </div>
+
+                <!-- Rotating sub-status -->
                 <div class="rfp-loading-subtext">
                     <span id="rfp_loading_status" class="rfp-status-ticker">Gathering requirements...</span>
                 </div>
 
+                <!-- Shimmer bar -->
                 <div class="rfp-loading-progress-container">
                     <div class="rfp-loading-progress-bar"></div>
                 </div>
-                
-                <p class="mt-4 text-muted small mb-0 fw-medium">
-                    <i class="fa fa-shield text-success me-1"/> Secured processing environment
+
+                <p class="mt-3 text-muted small mb-0 fw-medium">
+                    <i class="fa fa-clock-o me-1"/> This usually takes 30–90 seconds
                 </p>
             </div>
         </div>
@@ -1037,7 +1095,11 @@
                                     </div>
                                     <div>
                                         <h3 class="mb-1 fw-bold" t-field="rfp_project.name"/>
-                                        <span class="text-muted small text-uppercase fw-semibold tracking-wide" style="letter-spacing: 0.5px;">AI Analyst is gathering requirements...</span>
+                                        <span class="text-muted small text-uppercase fw-semibold tracking-wide" style="letter-spacing: 0.5px;">
+                                            <t t-if="rfp_project.current_stage == 'initialized'">Phase 1 — Project Requirements</t>
+                                            <t t-elif="rfp_project.current_stage == 'specifications_gathered'">Phase 2 — Best Practices &amp; Standards</t>
+                                            <t t-else="">AI Analysis in Progress</t>
+                                        </span>
                                     </div>
                                 </div>
                             </div>
@@ -1050,16 +1112,26 @@
                                 <t t-set="answered_inputs" t-value="len(rfp_project.form_input_ids.filtered(lambda i: i.user_value or i.is_irrelevant)) + len(rfp_project.practice_input_ids.filtered(lambda i: i.user_value or i.is_irrelevant))"/>
                                 <t t-set="fill_pct" t-value="int((answered_inputs / total_inputs) * 100) if total_inputs else 0"/>
                                 <t t-set="completeness" t-value="max(fill_pct, int(ai_completeness))"/>
-                                <!-- Rule: Only 100% if everything is truly answered -->
-                                <t t-if="answered_inputs &lt; total_inputs and completeness &gt;= 100" t-set="completeness" t-value="99"/>
+                                <!-- Cap at 95 while questions are still being asked (not yet 100% answered) -->
+                                <t t-if="questions_to_answer and completeness &gt; 95" t-set="completeness" t-value="95"/>
+                                <!-- Monotonize: never show less than the previous peak -->
+                                <t t-set="peak_completeness" t-value="rfp_project.get_context_data().get('peak_completeness', 0)"/>
+                                <t t-set="completeness" t-value="max(completeness, peak_completeness)"/>
 
                                 <div t-if="rfp_project.current_stage in ['initialized', 'specifications_gathered']" class="mb-4">
-                                    <div class="d-flex justify-content-between mb-2">
-                                        <small class="text-muted">Analysis Progress</small>
-                                        <small class="fw-semibold text-rfp-gold"><t t-esc="int(completeness)"/>%</small>
+                                    <div class="d-flex justify-content-between align-items-end mb-2">
+                                        <div>
+                                            <small class="text-muted d-block">Analysis Progress</small>
+                                            <small class="text-muted" style="font-size: 0.78rem;">
+                                                <t t-esc="answered_inputs"/> of <t t-esc="total_inputs"/> questions answered
+                                            </small>
+                                        </div>
+                                        <span class="fw-bold fs-5 text-rfp-gold"><t t-esc="int(completeness)"/>%</span>
                                     </div>
-                                    <div class="progress" style="height: 12px;">
-                                        <div class="progress-bar" role="progressbar" t-att-style="'width: ' + str(int(completeness)) + '%'" t-att-aria-valuenow="int(completeness)" aria-valuemin="0" aria-valuemax="100"/>
+                                    <div class="progress" style="height: 10px;">
+                                        <div class="progress-bar" role="progressbar"
+                                             t-att-style="'width: ' + str(int(completeness)) + '%'"
+                                             t-att-aria-valuenow="int(completeness)" aria-valuemin="0" aria-valuemax="100"/>
                                     </div>
                                 </div>
 
@@ -1119,8 +1191,12 @@
                                     <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
 
                                     <t t-if="questions_to_answer and ai_status != 'rate_limit'">
-                                        <div class="alert alert-info border-0 mb-4">
-                                            <i class="fa fa-info-circle me-2"/> The AI has analyzed your project and needs a few more details.
+                                        <div class="alert border-0 mb-4 d-flex align-items-center gap-2" style="background: rgba(59,130,246,0.06); color: #1E40AF;">
+                                            <i class="fa fa-question-circle fa-lg" style="opacity: 0.7;"/>
+                                            <span>
+                                                <strong><t t-esc="len(questions_to_answer)"/> question<t t-if="len(questions_to_answer) != 1">s</t></strong>
+                                                — please answer below so the AI can continue its analysis.
+                                            </span>
                                         </div>
                                         
                                         <t t-foreach="questions_to_answer" t-as="input_field">
@@ -1128,22 +1204,25 @@
                                         </t>
 
                                         <div class="d-grid mt-5">
-                                            <button type="submit" class="btn btn-rfp-gold btn-lg py-3 shadow">
-                                                <span class="fw-bold fs-5">Submit Answers &amp; Continue</span> <i class="fa fa-arrow-right ms-2"/>
+                                            <button type="submit" class="btn btn-rfp-gold btn-lg py-3 shadow rfp-submit-btn">
+                                                <span class="rfp-btn-label fw-bold fs-5">Submit Answers &amp; Continue <i class="fa fa-arrow-right ms-2"/></span>
                                             </button>
                                         </div>
                                     </t>
                                     
                                     <!-- Checkpoint -->
                                     <t t-elif="not questions_to_answer and ai_status != 'rate_limit' and not is_generating">
-                                        <div class="text-center py-4">
-                                            <div class="mb-3">
-                                                <i class="fa fa-check-circle fa-4x text-rfp-gold"/>
+                                        <div class="text-center py-5">
+                                            <div class="mb-3 position-relative d-inline-block">
+                                                <div class="rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 80px; height: 80px; background: linear-gradient(135deg, rgba(34,197,94,0.1), rgba(34,197,94,0.2));">
+                                                    <i class="fa fa-check fa-2x" style="color: #22C55E;"/>
+                                                </div>
                                             </div>
-                                            <h4>Analysis Checkpoint</h4>
-                                            <p class="text-muted">All current questions have been answered. Proceed to the next phase.</p>
-                                            <button type="submit" class="btn btn-rfp-gold btn-lg py-3 shadow mt-2">
-                                                <span class="fw-bold fs-5">Generate Next Round</span> <i class="fa fa-magic ms-2"/>
+                                            <h4 class="fw-bold mb-2">Great progress!</h4>
+                                            <p class="text-muted mb-1">All current questions have been answered.</p>
+                                            <p class="text-muted small mb-4">The AI will now analyze your responses and determine if more details are needed.</p>
+                                            <button type="submit" class="btn btn-rfp-gold btn-lg py-3 px-5 shadow rfp-submit-btn">
+                                                <span class="rfp-btn-label fw-bold fs-5">Continue Analysis <i class="fa fa-arrow-right ms-2"/></span>
                                             </button>
                                         </div>
                                     </t>
