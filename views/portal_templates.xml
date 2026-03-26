@@ -485,6 +485,240 @@
                 transform: translateX(4px);
             }
 
+            /* === UNIFIED EDITOR PAGE === */
+            .rfp-editor-canvas {
+                background: #F1F3F8;
+                padding: 1.5rem 1rem;
+                min-height: 80vh;
+                border-radius: var(--rfp-radius);
+            }
+            .rfp-editor-inner {
+                max-width: 100%;
+            }
+
+            /* Section block override for editor */
+            .rfp-editor-inner .rfp-section-block {
+                border: 1px solid #D5DAE3 !important;
+                border-left: 4px solid var(--rfp-gold) !important;
+                border-radius: var(--rfp-radius-sm) !important;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.06) !important;
+                overflow: hidden;
+                transition: box-shadow 0.2s ease, border-color 0.2s ease;
+                background: #FFFFFF;
+            }
+            .rfp-editor-inner .rfp-section-block:hover {
+                box-shadow: 0 4px 16px rgba(0,0,0,0.1) !important;
+                border-color: #B8BFD0 !important;
+                border-left-color: var(--rfp-gold) !important;
+            }
+            .rfp-editor-inner .rfp-section-block.dragging {
+                opacity: 0.5;
+                box-shadow: 0 12px 40px rgba(0,0,0,0.18) !important;
+            }
+
+            /* Section number chip */
+            .rfp-section-num {
+                width: 26px;
+                height: 26px;
+                border-radius: 50%;
+                background: var(--rfp-gold);
+                color: var(--rfp-dark);
+                font-weight: 700;
+                font-size: 0.75rem;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+            }
+
+            /* Section header inside editor */
+            .rfp-editor-inner .rfp-section-header {
+                padding: 0.75rem 1rem;
+                background: linear-gradient(to right, #F7F8FB, #FFFFFF);
+                border-bottom: 1px solid #E8EAF0;
+                cursor: move;
+            }
+            .rfp-editor-inner .section-title-input {
+                font-size: 1.05rem !important;
+                font-weight: 700 !important;
+                padding: 0.3rem 0.5rem !important;
+                background: transparent !important;
+                border: 1px solid transparent !important;
+                border-radius: 6px;
+                transition: all 0.15s;
+                color: var(--rfp-dark) !important;
+            }
+            .rfp-editor-inner .section-title-input:hover {
+                background: #EEF0F6 !important;
+                border-color: #D5DAE3 !important;
+            }
+            .rfp-editor-inner .section-title-input:focus {
+                background: #FFF !important;
+                border-color: var(--rfp-gold) !important;
+                box-shadow: 0 0 0 3px rgba(201, 162, 39, 0.15) !important;
+            }
+
+            /* Section action buttons - always visible */
+            .rfp-section-actions {
+                opacity: 1;
+            }
+            .rfp-section-actions .btn {
+                padding: 0.3rem 0.6rem;
+                font-size: 0.78rem;
+                border-radius: 6px;
+                font-weight: 600;
+            }
+            .rfp-section-actions .btn-ai-edit-section {
+                background: var(--rfp-gold-light);
+                border: 1px solid rgba(201, 162, 39, 0.3);
+                color: var(--rfp-gold-dark) !important;
+            }
+            .rfp-section-actions .btn-ai-edit-section:hover {
+                background: var(--rfp-gold);
+                color: var(--rfp-dark) !important;
+            }
+            .rfp-section-actions .btn-delete-section {
+                background: #FEF2F2;
+                border: 1px solid #FECACA;
+            }
+            .rfp-section-actions .btn-delete-section:hover {
+                background: #FEE2E2;
+            }
+
+            /* Quill editor inside editor page */
+            .rfp-editor-inner .rfp-quill-editor {
+                border: none !important;
+                min-height: 180px;
+            }
+            .rfp-editor-inner .ql-toolbar.ql-snow {
+                border: none !important;
+                border-bottom: 1px solid #E8EAF0 !important;
+                background: #F9FAFB;
+                padding: 6px 12px !important;
+            }
+            .rfp-editor-inner .ql-container.ql-snow {
+                border: none !important;
+                font-size: 0.95rem;
+                color: #1F2937;
+            }
+            .rfp-editor-inner .ql-editor {
+                padding: 1.25rem 1.5rem;
+                min-height: 160px;
+                line-height: 1.75;
+            }
+            .rfp-editor-inner .ql-editor h2 { font-size: 1.3rem; font-weight: 700; color: var(--rfp-dark); margin-top: 1.2rem; }
+            .rfp-editor-inner .ql-editor h3 { font-size: 1.1rem; font-weight: 600; color: #374151; margin-top: 1rem; }
+
+            /* Diagrams area */
+            .rfp-diagrams-area {
+                padding: 0.75rem 1rem;
+                background: #F7F8FB;
+                border-top: 1px solid #E8EAF0;
+            }
+            .rfp-diagrams-area .diagram-card {
+                border-radius: 8px !important;
+                border: 1px solid #D5DAE3 !important;
+                box-shadow: none !important;
+                transition: all 0.2s;
+                background: #FFFFFF;
+            }
+            .rfp-diagrams-area .diagram-card:hover {
+                border-color: var(--rfp-gold) !important;
+                box-shadow: 0 2px 8px rgba(201,162,39,0.2) !important;
+            }
+
+            /* Add section button */
+            .rfp-add-section-btn {
+                border: 2px dashed #B8BFD0 !important;
+                border-radius: var(--rfp-radius-sm);
+                color: #6B7280;
+                background: rgba(255,255,255,0.7);
+                transition: all 0.25s ease;
+                padding: 1.25rem;
+                font-weight: 600;
+            }
+            .rfp-add-section-btn:hover {
+                border-color: var(--rfp-gold) !important;
+                color: var(--rfp-gold-dark);
+                background: var(--rfp-gold-light);
+            }
+            .rfp-add-section-btn i {
+                transition: transform 0.2s;
+            }
+            .rfp-add-section-btn:hover i {
+                transform: scale(1.15);
+            }
+
+            /* Published banner */
+            .rfp-published-banner {
+                background: linear-gradient(135deg, #F0FDF4 0%, #ECFDF5 100%);
+                border: 1px solid #86EFAC;
+                border-radius: var(--rfp-radius-sm);
+                padding: 0.75rem 1.25rem;
+            }
+
+            /* Toolbar v2 */
+            .rfp-toolbar-v2 {
+                background: var(--rfp-white);
+                border-radius: var(--rfp-radius);
+                box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+                border-bottom: 3px solid var(--rfp-gold);
+                padding: 0.65rem 1.25rem;
+            }
+            .rfp-toolbar-v2 .toolbar-title {
+                font-size: 1rem;
+                font-weight: 700;
+                color: var(--rfp-dark);
+                max-width: 280px;
+            }
+            .rfp-toolbar-v2 .btn {
+                font-size: 0.82rem;
+                padding: 0.35rem 0.75rem;
+                border-radius: 6px;
+            }
+            .rfp-toolbar-v2 .toolbar-divider {
+                width: 1px;
+                height: 24px;
+                background: #E5E7EB;
+                margin: 0 0.25rem;
+            }
+            .rfp-toolbar-v2 .dropdown-menu {
+                border: 1px solid #D5DAE3;
+                border-radius: 10px;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+                padding: 0.5rem;
+            }
+            .rfp-toolbar-v2 .dropdown-item {
+                border-radius: 6px;
+                padding: 0.5rem 0.75rem;
+                font-size: 0.85rem;
+            }
+            .rfp-toolbar-v2 .dropdown-item:hover {
+                background: var(--rfp-gold-light);
+            }
+
+            /* Section count bar */
+            .rfp-section-count-bar {
+                background: #FFFFFF;
+                border: 1px solid #D5DAE3;
+                border-radius: var(--rfp-radius-sm);
+                padding: 0.5rem 1rem;
+                margin-bottom: 1rem;
+            }
+
+            /* Drag-over placeholder */
+            .rfp-section-block.drag-over {
+                border-top: 3px solid var(--rfp-gold) !important;
+            }
+
+            /* Print styles for editor */
+            @media print {
+                .rfp-toolbar-v2, .rfp-section-actions, .rfp-add-section-btn,
+                .rfp-diagrams-area, .rfp-published-banner, .rfp-section-count-bar { display: none !important; }
+                .rfp-editor-canvas { background: white !important; padding: 0 !important; }
+                .rfp-editor-inner .rfp-section-block { box-shadow: none !important; border: none !important; break-inside: avoid; }
+            }
+
             /* --- NEW: High-End Rationale Help System --- */
             .rfp-rationale-wrapper {
                 line-height: 1;
@@ -1294,62 +1528,67 @@
             <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet"/>
             <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
 
-            <div class="container-fluid py-4 rfp-portal-wrapper">
-                
+            <div class="container-fluid py-3 rfp-portal-wrapper">
+
                 <!-- Toolbar -->
-                <div class="rfp-toolbar mb-4 sticky-top p-3" style="z-index: 1000; top: 60px;">
+                <div class="rfp-toolbar-v2 mb-3 sticky-top" style="z-index: 1000; top: 60px;">
                     <div class="d-flex justify-content-between align-items-center">
-                        <!-- Left: Title -->
+                        <!-- Left: Title + Status -->
                         <div class="d-flex align-items-center gap-2" style="min-width: 0;">
-                            <i class="fa fa-file-text-o fa-lg text-rfp-gold"/>
-                            <h4 class="mb-0 text-truncate" t-field="rfp_project.name" style="max-width: 320px;"/>
-                            <span t-if="rfp_project.current_stage == 'completed'" class="badge bg-rfp-gold">Ready</span>
-                            <span t-if="rfp_project.current_stage == 'document_locked'" class="badge bg-dark"><i class="fa fa-lock me-1"/> Locked</span>
+                            <div class="d-flex align-items-center justify-content-center rounded-circle" style="width: 32px; height: 32px; background: var(--rfp-gold-light); flex-shrink: 0;">
+                                <i class="fa fa-file-text-o text-rfp-gold" style="font-size: 0.85rem;"/>
+                            </div>
+                            <span class="toolbar-title text-truncate" t-field="rfp_project.name"/>
+                            <t t-if="rfp_project.current_stage == 'completed'">
+                                <span class="badge bg-rfp-gold" style="font-size: 0.7rem;">Ready</span>
+                            </t>
+                            <t t-if="rfp_project.current_stage == 'document_locked'">
+                                <span class="badge bg-dark" style="font-size: 0.7rem;"><i class="fa fa-lock me-1"/>Locked</span>
+                            </t>
                         </div>
 
                         <!-- Right: Actions -->
-                        <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                        <div class="d-flex align-items-center gap-1 flex-shrink-0">
                             <!-- Save / Lock -->
                             <t t-if="rfp_project.current_stage != 'document_locked'">
-                                <button id="btn_unified_save" class="btn btn-rfp-gold py-1 px-3" t-att-data-project-id="rfp_project.id">
+                                <button id="btn_unified_save" class="btn btn-rfp-gold" t-att-data-project-id="rfp_project.id">
                                     <i class="fa fa-save me-1"/> Save
                                 </button>
-                                <button id="btn_toggle_lock" class="btn btn-rfp-gold-outline py-1 px-3" t-att-data-project-id="rfp_project.id" data-locked="true"
-                                        title="Lock document">
+                                <button id="btn_toggle_lock" class="btn btn-rfp-gold-outline" t-att-data-project-id="rfp_project.id" data-locked="true" title="Lock document">
                                     <i class="fa fa-lock"/>
                                 </button>
                             </t>
                             <t t-else="">
-                                <button id="btn_toggle_lock" class="btn btn-rfp-gold-outline py-1 px-3" t-att-data-project-id="rfp_project.id" data-locked="false">
+                                <button id="btn_toggle_lock" class="btn btn-rfp-gold-outline" t-att-data-project-id="rfp_project.id" data-locked="false">
                                     <i class="fa fa-unlock me-1"/> Unlock
                                 </button>
                             </t>
 
-                            <div class="vr" style="height: 28px; opacity: 0.2;"></div>
+                            <div class="toolbar-divider"/>
 
                             <!-- Upload Proposal -->
-                            <button type="button" class="btn btn-rfp-gold-outline py-1 px-3 btn-upload-proposal"
+                            <button type="button" class="btn btn-rfp-gold-outline btn-upload-proposal"
                                     t-att-data-project-id="rfp_project.id">
                                 <i class="fa fa-upload me-1"/> Upload Proposal
                             </button>
 
                             <!-- Proposals Link -->
-                            <a t-attf-href="/rfp/proposals/#{rfp_project.id}" class="btn btn-rfp-gold-outline py-1 px-3">
+                            <a t-attf-href="/rfp/proposals/#{rfp_project.id}" class="btn btn-rfp-gold-outline">
                                 <i class="fa fa-inbox me-1"/> Proposals
                                 <t t-if="rfp_project.is_published and rfp_project.published_id.proposal_count > 0">
-                                    <span class="badge bg-rfp-gold ms-1" t-esc="rfp_project.published_id.proposal_count"/>
+                                    <span class="badge bg-rfp-gold ms-1" style="font-size: 0.7rem;" t-esc="rfp_project.published_id.proposal_count"/>
                                 </t>
                             </a>
 
-                            <div class="vr" style="height: 28px; opacity: 0.2;"></div>
+                            <div class="toolbar-divider"/>
 
-                            <!-- More dropdown: Export, Word, Print, Duplicate -->
+                            <!-- More dropdown -->
                             <div class="dropdown">
-                                <button class="btn btn-rfp-gold-outline py-1 px-3 dropdown-toggle" type="button"
+                                <button class="btn btn-rfp-gold-outline dropdown-toggle" type="button"
                                         data-bs-toggle="dropdown" aria-expanded="false">
                                     <i class="fa fa-ellipsis-h"/>
                                 </button>
-                                <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                                <ul class="dropdown-menu dropdown-menu-end">
                                     <t t-if="rfp_project.is_published">
                                         <li>
                                             <button id="btn_publish" class="dropdown-item" t-att-data-project-id="rfp_project.id" t-att-data-is-update="'true'">
@@ -1396,17 +1635,23 @@
 
                 <!-- Exported RFP Link (when exported) -->
                 <t t-if="rfp_project.is_published">
-                    <div class="alert alert-info d-flex align-items-center mb-4 py-2">
-                        <i class="fa fa-eye me-2"></i>
-                        <span class="me-2"><strong>Exported RFP:</strong></span>
-                        <input type="text" id="editor_public_url" class="form-control form-control-sm me-2" style="max-width: 400px;"
-                            t-att-value="rfp_project.published_id.get_public_url()" readonly="readonly"/>
-                        <button type="button" class="btn btn-sm btn-info me-2" id="btn_copy_editor_url">
-                            <i class="fa fa-copy me-1"></i> Copy
-                        </button>
-                        <a t-att-href="rfp_project.published_id.get_public_url()" target="_blank" class="btn btn-sm btn-outline-info">
-                            <i class="fa fa-external-link me-1"></i> View
-                        </a>
+                    <div class="rfp-published-banner d-flex align-items-center mb-3">
+                        <div class="d-flex align-items-center justify-content-center rounded-circle me-3" style="width: 36px; height: 36px; background: #BBF7D0; flex-shrink: 0;">
+                            <i class="fa fa-check text-success" style="font-size: 0.9rem;"/>
+                        </div>
+                        <div class="me-3" style="min-width: 0;">
+                            <div class="fw-bold small" style="color: #166534;">Published</div>
+                            <input type="text" id="editor_public_url" class="form-control form-control-sm border-0 bg-transparent p-0" style="font-size: 0.8rem; color: #15803D;"
+                                t-att-value="rfp_project.published_id.get_public_url()" readonly="readonly"/>
+                        </div>
+                        <div class="ms-auto d-flex gap-2 flex-shrink-0">
+                            <button type="button" class="btn btn-sm" id="btn_copy_editor_url" style="background: #BBF7D0; color: #166534; font-size: 0.78rem;">
+                                <i class="fa fa-copy me-1"/> Copy
+                            </button>
+                            <a t-att-href="rfp_project.published_id.get_public_url()" target="_blank" class="btn btn-sm" style="background: #166534; color: white; font-size: 0.78rem;">
+                                <i class="fa fa-external-link me-1"/> View
+                            </a>
+                        </div>
                     </div>
                 </t>
 
@@ -1568,121 +1813,137 @@
                     </div>
                 </div>
 
-                <div class="row">
-                    <!-- Main Editor Area -->
-                    <div class="col-12">
-                        <div id="rfp_unified_container" class="bg-light p-3 rounded">
-                            
-                            <!-- Draggable List -->
-                            <div id="rfp_section_list" class="d-flex flex-column gap-4">
-                                <t t-foreach="rfp_project.document_section_ids.sorted('sequence')" t-as="section">
-                                    <div class="card shadow-sm rfp-section-block" t-att-data-section-id="section.id" draggable="true">
-                                        <!-- Header -->
-                                        <div class="card-header bg-white d-flex align-items-center gap-3 p-3 handle" style="cursor: move;">
-                                            <i class="fa fa-bars text-muted fa-lg"/>
-                                            <input type="text" class="form-control form-control-lg fw-bold border-0 bg-transparent section-title-input" t-att-value="section.section_title" placeholder="Section Title"/>
-                                            <div class="ms-auto d-flex gap-1">
-                                                <button class="btn btn-sm btn-light border btn-ai-edit-section" style="min-width: 55px;" t-att-data-section-id="section.id" title="Edit with AI" t-att-disabled="rfp_project.current_stage == 'document_locked'">
-                                                    <i class="fa fa-magic text-primary"/> AI
-                                                </button>
-                                                <button class="btn btn-sm text-danger btn-delete-section" t-att-disabled="rfp_project.current_stage == 'document_locked'">
-                                                    <i class="fa fa-trash"/>
-                                                </button>
-                                            </div>
-                                        </div>
+                <!-- Main Editor Area -->
+                <div id="rfp_unified_container" class="rfp-editor-canvas">
+                    <div class="rfp-editor-inner">
 
-                                        <!-- Content Body -->
-                                        <div class="card-body p-0">
-                                            <div class="rfp-quill-editor bg-white border-bottom" style="min-height: 200px;" t-att-id="'editor_' + str(section.id)">
-                                                <t t-out="section.content_html"/>
-                                            </div>
-                                        </div>
+                        <!-- Section count indicator -->
+                        <div class="rfp-section-count-bar d-flex align-items-center justify-content-between">
+                            <span style="font-size: 0.82rem; font-weight: 600; color: var(--rfp-dark);">
+                                <i class="fa fa-list-ol me-1 text-rfp-gold"/>
+                                <t t-esc="len(rfp_project.document_section_ids)"/> Sections
+                            </span>
+                            <span style="font-size: 0.78rem; color: #9CA3AF;">
+                                <i class="fa fa-arrows-v me-1"/> Drag to reorder
+                            </span>
+                        </div>
 
-                                        <!-- Images Footer -->
-                                        <div class="card-footer bg-light p-3">
-                                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                                <h6 class="text-muted small text-uppercase fw-bold mb-0">Diagrams &amp; Visuals</h6>
-                                                <button class="btn btn-sm btn-outline-primary btn-upload-diagram-trigger" t-att-data-section-id="section.id" t-att-disabled="rfp_project.current_stage == 'document_locked'">
-                                                    <i class="fa fa-upload"/> Add Image
-                                                </button>
-                                                <input type="file" class="d-none rfp-diagram-upload-input" accept="image/*" t-att-data-section-id="section.id"/>
-                                            </div>
-                                            
-                                            <div class="row g-3 diagrams-container" t-att-id="'diagrams-container-' + str(section.id)">
-                                                <t t-if="section.diagram_ids">
-                                                    <t t-foreach="section.diagram_ids" t-as="diagram">
-                                                        <div class="col-md-4 col-sm-6 diagram-wrapper" t-att-data-diagram-id="diagram.id">
-                                                            <div class="card h-100 border-0 shadow-sm diagram-card">
-                                                                <div class="position-relative">
-                                                                    <img t-if="diagram.image_file" t-att-src="'/web/image/rfp.section.diagram/%s/image_file' % diagram.id" class="card-img-top object-fit-cover" style="height: 150px; cursor: pointer;"/>
-                                                                    <div t-else="" class="card-img-top bg-secondary text-white d-flex align-items-center justify-content-center" style="height: 150px;">
-                                                                        <i class="fa fa-image fa-2x"/>
-                                                                    </div>
-                                                                    
-                                                                    <!-- Overlay Actions -->
-                                                                    <div class="position-absolute top-0 end-0 p-2 d-flex gap-1" t-if="rfp_project.current_stage != 'document_locked'">
-                                                                        <button class="btn btn-sm btn-light text-primary shadow-sm btn-ai-edit-diagram" t-att-data-diagram-id="diagram.id" title="Edit with AI">
-                                                                            <i class="fa fa-magic"/>
-                                                                        </button>
-                                                                        <button class="btn btn-sm btn-light text-danger shadow-sm btn-delete-diagram" t-att-data-diagram-id="diagram.id" title="Delete Image">
-                                                                            <i class="fa fa-trash"/>
-                                                                        </button>
-                                                                    </div>
-                                                                </div>
-                                                                <div class="card-body p-2">
-                                                                    <p class="card-text small text-muted text-truncate mb-0" t-att-title="diagram.description">
-                                                                        <t t-esc="diagram.description"/>
-                                                                    </p>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </t>
-                                                </t>
-                                            </div>
+                        <!-- Draggable List -->
+                        <div id="rfp_section_list" class="d-flex flex-column gap-3">
+                            <t t-foreach="rfp_project.document_section_ids.sorted('sequence')" t-as="section">
+                                <div class="card rfp-section-block" t-att-data-section-id="section.id" draggable="true">
+                                    <!-- Header -->
+                                    <div class="rfp-section-header d-flex align-items-center gap-2 handle">
+                                        <span class="rfp-section-num"><t t-esc="section_index + 1"/></span>
+                                        <i class="fa fa-grip-vertical text-muted" style="font-size: 0.7rem; opacity: 0.4;"/>
+                                        <input type="text" class="form-control fw-bold border-0 bg-transparent section-title-input flex-grow-1" t-att-value="section.section_title" placeholder="Section Title"/>
+                                        <div class="rfp-section-actions d-flex gap-1 ms-auto">
+                                            <button class="btn btn-sm btn-light btn-ai-edit-section" t-att-data-section-id="section.id" title="Edit with AI" t-att-disabled="rfp_project.current_stage == 'document_locked'">
+                                                <i class="fa fa-magic text-rfp-gold"/> AI
+                                            </button>
+                                            <button class="btn btn-sm btn-light text-danger btn-delete-section" t-att-disabled="rfp_project.current_stage == 'document_locked'">
+                                                <i class="fa fa-trash-o"/>
+                                            </button>
                                         </div>
                                     </div>
-                                </t>
-                            </div>
-                            
-                            <!-- Add Section Button -->
-                            <div class="text-center mt-4">
-                                <button id="btn_add_section" class="btn btn-outline-secondary dashed-border w-50 py-3">
-                                    <i class="fa fa-plus-circle fa-lg mb-2"/><br/>
-                                    Add New Section
-                                </button>
-                            </div>
 
+                                    <!-- Content Body -->
+                                    <div class="card-body p-0">
+                                        <div class="rfp-quill-editor" style="min-height: 180px;" t-att-id="'editor_' + str(section.id)">
+                                            <t t-out="section.content_html"/>
+                                        </div>
+                                    </div>
+
+                                    <!-- Diagrams Footer -->
+                                    <div class="rfp-diagrams-area">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <span class="text-muted" style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">
+                                                <i class="fa fa-image me-1"/> Diagrams
+                                            </span>
+                                            <button class="btn btn-sm btn-outline-secondary btn-upload-diagram-trigger" style="font-size: 0.75rem; padding: 0.2rem 0.6rem; border-radius: 5px;" t-att-data-section-id="section.id" t-att-disabled="rfp_project.current_stage == 'document_locked'">
+                                                <i class="fa fa-plus me-1"/> Add
+                                            </button>
+                                            <input type="file" class="d-none rfp-diagram-upload-input" accept="image/*" t-att-data-section-id="section.id"/>
+                                        </div>
+
+                                        <div class="row g-2 diagrams-container" t-att-id="'diagrams-container-' + str(section.id)">
+                                            <t t-if="section.diagram_ids">
+                                                <t t-foreach="section.diagram_ids" t-as="diagram">
+                                                    <div class="col-md-4 col-sm-6 diagram-wrapper" t-att-data-diagram-id="diagram.id">
+                                                        <div class="card h-100 diagram-card">
+                                                            <div class="position-relative" style="overflow: hidden; border-radius: 8px 8px 0 0;">
+                                                                <img t-if="diagram.image_file" t-att-src="'/web/image/rfp.section.diagram/%s/image_file' % diagram.id" class="card-img-top object-fit-cover" style="height: 130px; cursor: pointer;"/>
+                                                                <div t-else="" class="card-img-top d-flex align-items-center justify-content-center" style="height: 130px; background: #F3F4F6;">
+                                                                    <i class="fa fa-image fa-2x" style="color: #D1D5DB;"/>
+                                                                </div>
+
+                                                                <!-- Overlay Actions -->
+                                                                <div class="position-absolute top-0 end-0 p-1 d-flex gap-1" t-if="rfp_project.current_stage != 'document_locked'">
+                                                                    <button class="btn btn-sm btn-light btn-ai-edit-diagram" style="font-size: 0.7rem; padding: 2px 6px; border-radius: 5px;" t-att-data-diagram-id="diagram.id" title="Edit with AI">
+                                                                        <i class="fa fa-magic text-rfp-gold"/>
+                                                                    </button>
+                                                                    <button class="btn btn-sm btn-light text-danger btn-delete-diagram" style="font-size: 0.7rem; padding: 2px 6px; border-radius: 5px;" t-att-data-diagram-id="diagram.id" title="Delete">
+                                                                        <i class="fa fa-trash-o"/>
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                            <div class="card-body p-2">
+                                                                <p class="card-text text-muted text-truncate mb-0" style="font-size: 0.75rem;" t-att-title="diagram.description">
+                                                                    <t t-esc="diagram.description"/>
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </t>
+                                            </t>
+                                        </div>
+                                    </div>
+                                </div>
+                            </t>
                         </div>
+
+                        <!-- Add Section Button -->
+                        <div class="text-center mt-4">
+                            <button id="btn_add_section" class="btn rfp-add-section-btn w-100" t-att-disabled="rfp_project.current_stage == 'document_locked'">
+                                <i class="fa fa-plus-circle me-2"/>Add New Section
+                            </button>
+                        </div>
+
                     </div>
                 </div>
                 
                 <!-- Hidden Template for New Sections (cloned by JS) -->
                 <div id="section_template_clone" class="d-none">
-                    <div class="card shadow-sm rfp-section-block mb-4" data-section-id="0" draggable="true">
+                    <div class="card rfp-section-block" data-section-id="0" draggable="true">
                         <!-- Header -->
-                        <div class="card-header bg-white d-flex align-items-center gap-3 p-3 handle" style="cursor: move;">
-                            <i class="fa fa-bars text-muted fa-lg"/>
-                            <input type="text" class="form-control form-control-lg fw-bold border-0 bg-transparent section-title-input" value="" placeholder="Section Title"/>
-                            <button class="btn btn-sm text-danger btn-delete-section ms-auto">
-                                <i class="fa fa-trash"/>
-                            </button>
+                        <div class="rfp-section-header d-flex align-items-center gap-2 handle">
+                            <span class="rfp-section-num">+</span>
+                            <i class="fa fa-grip-vertical text-muted" style="font-size: 0.7rem; opacity: 0.4;"/>
+                            <input type="text" class="form-control fw-bold border-0 bg-transparent section-title-input flex-grow-1" value="" placeholder="Section Title"/>
+                            <div class="rfp-section-actions d-flex gap-1 ms-auto" style="opacity: 1;">
+                                <button class="btn btn-sm btn-light text-danger btn-delete-section">
+                                    <i class="fa fa-trash-o"/>
+                                </button>
+                            </div>
                         </div>
-        
+
                         <!-- Content Body -->
                         <div class="card-body p-0">
-                            <div class="rfp-quill-editor bg-white border-bottom" style="min-height: 200px;"></div>
+                            <div class="rfp-quill-editor" style="min-height: 180px;"></div>
                         </div>
-        
-                        <!-- Images Footer -->
-                        <div class="card-footer bg-light p-3">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h6 class="text-muted small text-uppercase fw-bold mb-0">Diagrams &amp; Visuals</h6>
-                                <button class="btn btn-sm btn-outline-primary btn-upload-diagram-trigger">
-                                    <i class="fa fa-upload"/> Add Image
+
+                        <!-- Diagrams Footer -->
+                        <div class="rfp-diagrams-area">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="text-muted" style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">
+                                    <i class="fa fa-image me-1"/> Diagrams
+                                </span>
+                                <button class="btn btn-sm btn-outline-secondary btn-upload-diagram-trigger" style="font-size: 0.75rem; padding: 0.2rem 0.6rem; border-radius: 5px;">
+                                    <i class="fa fa-plus me-1"/> Add
                                 </button>
                                 <input type="file" class="d-none rfp-diagram-upload-input" accept="image/*"/>
                             </div>
-                            <div class="row g-3 diagrams-container"></div>
+                            <div class="row g-2 diagrams-container"></div>
                         </div>
                     </div>
                 </div>
