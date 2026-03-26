@@ -344,10 +344,10 @@ Return ONLY the JSON object.
 4.  **Format**: Use semantic HTML5. Use `<h3>`, `<p>`, `<ul>`/`<li>`, `<strong>`, etc. Do NOT use `<h1>` or `<h2>` (reserved for titles). Do NOT use Markdown. Do NOT use `<html>`/`<body>` tags.
 
 **5. DIAGRAM RULES (CRITICAL):**
-   *   **SELECTIVITY RULE (MOST IMPORTANT):** Only add a diagram if the section **genuinely benefits from a visual representation**. Most sections do NOT need diagrams. Return an **empty `diagrams` list** (`[]`) for sections that are purely textual.
-   *   **Sections that SHOULD have diagrams:** Architecture overviews, system workflows, data flows, process pipelines, network topologies, deployment diagrams, integration maps, timeline/Gantt charts, organizational hierarchies.
-   *   **Sections that should NOT have diagrams:** Introduction, Executive Summary, Scope, Contact Information, Submission Instructions, Pricing/Cost tables, Terms & Conditions, Compliance/Legal, Vendor Qualifications, References, Appendices, Glossary, or any section that is primarily text-based narrative.
-   *   **Rule of thumb:** If the section content can be fully understood by reading text alone, do NOT add a diagram. Only add a diagram when a visual genuinely clarifies a complex relationship, flow, or structure that text alone cannot convey efficiently.
+   *   **Add a diagram only when it is necessary** — when a visual genuinely helps the reader understand something that text alone cannot convey clearly. Return an **empty `diagrams` list** (`[]`) when the section does not need one.
+   *   **Sections that benefit from diagrams:** Architecture overviews, system workflows, data flows, process pipelines, network topologies, deployment diagrams, integration maps, or any section describing interconnected components, layered structures, or directional flows.
+   *   **Sections that do NOT need diagrams:** Introduction, Executive Summary, Scope, Contact Information, Submission Instructions, Pricing/Cost tables, Terms &amp; Conditions, Compliance/Legal, Vendor Qualifications, References, Appendices, Glossary, or any section that is primarily narrative or list-based.
+   *   **Rule of thumb:** If the section content can be fully understood by reading text alone, do NOT add a diagram.
    *   **STRICT VISUAL BLUEPRINT RULE:** When you DO include a diagram, the `description` field MUST be an **EXACT, EXHAUSTIVE SPECIFICATION** of the image.
    *   **FORBIDDEN LANGUAGE:** Do NOT use: "like", "such as", "including", "phases like", "various", "etc".
    *   **REQUIREMENT:** You must explicitly list **EVERY SINGLE ELEMENT** that appears in the diagram.
