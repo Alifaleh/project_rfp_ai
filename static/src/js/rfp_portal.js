@@ -1005,14 +1005,9 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
                 $('#modal_ai_edit').modal('hide');
 
                 if (editType === 'section') {
-                    // Update Quill editor content
-                    if (this.quillInstances && this.quillInstances[targetId]) {
-                        this.quillInstances[targetId].root.innerHTML = result.new_content;
-                    } else {
-                        // Fallback: update DOM directly
-                        const $editor = this.$(`.rfp-section-block[data-section-id="${targetId}"] .rfp-quill-editor`);
-                        $editor.html(result.new_content);
-                    }
+                    // Reload page to ensure Quill renders the full updated content from DB
+                    window.location.reload();
+                    return;
                 } else if (editType === 'diagram') {
                     // Update image src with cache buster
                     const $img = this.$(`.diagram-wrapper[data-diagram-id="${targetId}"] img`);

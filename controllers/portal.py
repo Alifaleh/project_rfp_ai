@@ -492,16 +492,21 @@ class RfpCustomerPortal(CustomerPortal):
             if not prompt_record:
                 return {'error': 'AI prompt not configured. Please run module upgrade.'}
 
-            # Format system prompt and user content
-            system_prompt = prompt_record.template_text.format(
-                current_content=section.content_html or '<p>No content yet.</p>',
-                user_prompt=user_prompt
+            # System prompt = instructions only (no content embedded)
+            system_prompt = prompt_record.template_text
+
+            # User context = the actual content + editing instructions
+            current_html = section.content_html or '<p>No content yet.</p>'
+            user_context = (
+                f"**Editing Instruction:** {user_prompt}\n\n"
+                f"**Current Section Content (return the COMPLETE modified version):**\n"
+                f"{current_html}"
             )
 
             # Call AI via centralized method (routes to correct provider automatically)
             response = request.env['rfp.ai.log'].sudo().execute_request(
                 system_prompt=system_prompt,
-                user_context=f"Apply the following edit to the section content: {user_prompt}",
+                user_context=user_context,
                 env=request.env,
                 mode='text',
                 prompt_record=prompt_record
