@@ -1339,18 +1339,26 @@
                             </div>
                             <div class="card-body p-4 p-md-5 bg-light">
 
-                                <!-- Progress Bar -->
-                                <t t-set="raw_score" t-value="rfp_project.get_context_data().get('analysis_meta', {}).get('completeness_score', 0)"/>
-                                <t t-set="ai_completeness" t-value="raw_score if raw_score > 1 else raw_score * 100"/>
+                                <!-- Progress Bar (phase-aware, AI-score driven) -->
+                                <t t-set="blob" t-value="rfp_project.get_context_data()"/>
+                                <t t-set="raw_score" t-value="blob.get('analysis_meta', {}).get('completeness_score', 0)"/>
+                                <t t-set="ai_score" t-value="int(raw_score if raw_score > 1 else raw_score * 100)"/>
                                 <t t-set="total_inputs" t-value="len(rfp_project.form_input_ids) + len(rfp_project.practice_input_ids)"/>
                                 <t t-set="answered_inputs" t-value="len(rfp_project.form_input_ids.filtered(lambda i: i.user_value or i.is_irrelevant)) + len(rfp_project.practice_input_ids.filtered(lambda i: i.user_value or i.is_irrelevant))"/>
-                                <t t-set="fill_pct" t-value="int((answered_inputs / total_inputs) * 100) if total_inputs else 0"/>
-                                <t t-set="completeness" t-value="max(fill_pct, int(ai_completeness))"/>
-                                <!-- Cap at 95 while questions are still being asked (not yet 100% answered) -->
-                                <t t-if="questions_to_answer and completeness &gt; 95" t-set="completeness" t-value="95"/>
+
+                                <!-- Scale AI score to phase range: initialized=0-50%, specifications_gathered=50-95% -->
+                                <t t-if="rfp_project.current_stage == 'initialized'"
+                                   t-set="completeness" t-value="int(ai_score * 0.5)"/>
+                                <t t-elif="rfp_project.current_stage == 'specifications_gathered'"
+                                   t-set="completeness" t-value="50 + int(ai_score * 0.45)"/>
+                                <t t-else="" t-set="completeness" t-value="ai_score"/>
+
                                 <!-- Monotonize: never show less than the previous peak -->
-                                <t t-set="peak_completeness" t-value="rfp_project.get_context_data().get('peak_completeness', 0)"/>
-                                <t t-set="completeness" t-value="max(completeness, peak_completeness)"/>
+                                <t t-set="peak_completeness" t-value="blob.get('peak_completeness', 0)"/>
+                                <t t-set="completeness" t-value="max(completeness, int(peak_completeness))"/>
+                                <!-- Hard cap: never 100% while still in interview stages -->
+                                <t t-if="rfp_project.current_stage == 'initialized' and completeness &gt; 50" t-set="completeness" t-value="50"/>
+                                <t t-if="rfp_project.current_stage == 'specifications_gathered' and completeness &gt; 95" t-set="completeness" t-value="95"/>
 
                                 <div t-if="rfp_project.current_stage in ['initialized', 'specifications_gathered']" class="mb-4">
                                     <div class="d-flex justify-content-between align-items-end mb-2">

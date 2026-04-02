@@ -1053,26 +1053,29 @@ class RfpProject(models.Model):
         project.current_stage = STAGE_PRACTICES_REFINED
 
     def _update_peak_completeness(self, is_complete=False):
-        """Update peak_completeness in ai_context_blob based on current fill state."""
+        """Update peak_completeness in ai_context_blob using AI completeness score
+        scaled to phase range: initialized=0-50%, specifications_gathered=50-95%.
+        """
         self.ensure_one()
         project = self
         blob = project.get_context_data()
 
-        # Calculate fill percentage from actual answered vs total
-        all_inputs = project.form_input_ids
-        total = len(all_inputs)
-        answered = len(all_inputs.filtered(lambda i: i.user_value or i.is_irrelevant))
-        fill_pct = (answered / total * 100) if total else 0
+        # Use AI's completeness score (0-100) as the source of truth
+        ai_score = blob.get('analysis_meta', {}).get('completeness_score', 0)
+        stage = project.current_stage
 
-        # AI completeness score
-        ai_pct = blob.get('analysis_meta', {}).get('completeness_score', 0)
+        if stage == STAGE_INITIALIZED:
+            current = ai_score * 0.5  # Scale 0-100 → 0-50
+            cap = 50
+        elif stage == STAGE_SPECIFICATIONS_GATHERED:
+            current = 50 + (ai_score * 0.45)  # Scale 0-100 → 50-95
+            cap = 95
+        else:
+            current = ai_score
+            cap = 100 if is_complete else 95
 
-        # Use the higher of fill_pct and ai_pct
-        current = max(fill_pct, ai_pct)
-
-        # Cap at 95 if gathering is still ongoing
-        if not is_complete and current > 95:
-            current = 95
+        if current > cap:
+            current = cap
 
         # Monotonize: never go below previous peak
         old_peak = blob.get('peak_completeness', 0)
@@ -1090,6 +1093,9 @@ class RfpProject(models.Model):
         project = self
         import json
         from odoo.addons.project_rfp_ai.models.ai_schemas import get_interviewer_schema
+
+        # Snapshot current peak BEFORE AI call (captures "all answered" state)
+        self._update_peak_completeness(False)
 
         # 1. Call AI
         prompt_record = self.env['rfp.prompt'].search([('code', '=', prompt_code)], limit=1)
