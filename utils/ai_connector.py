@@ -161,6 +161,56 @@ def _call_gemini_api(system_instructions, user_content, env, response_mime_type=
         _logger.error(f"Gemini SDK Error: {error_msg}")
         raise e
 
+def _render_mermaid(mermaid_code):
+    """
+    Render Mermaid.js code to PNG image bytes via the Kroki.io API (POST).
+    Returns: image bytes (PNG) or None.
+    """
+    import json as _json, urllib.request
+
+    # Strip YAML frontmatter (---\n...\n---) that Kroki doesn't support
+    lines = mermaid_code.strip().split('\n')
+    if lines and lines[0].strip() == '---':
+        end_idx = next((i for i in range(1, len(lines)) if lines[i].strip() == '---'), None)
+        if end_idx is not None:
+            lines = lines[end_idx + 1:]
+    # Strip classDef/linkStyle lines that can cause errors
+    lines = [l for l in lines if not l.strip().startswith(('classDef ', 'linkStyle '))]
+    clean_code = '\n'.join(lines).strip()
+
+    # Prepend theme config for visible arrows and clean styling
+    theme_init = (
+        '%%{init: {"theme": "base", "themeVariables": {'
+        '"primaryColor": "#e8f0fe", "primaryBorderColor": "#1a73e8", '
+        '"primaryTextColor": "#1a1a1a", "lineColor": "#1a73e8", '
+        '"secondaryColor": "#f1f3f4", "tertiaryColor": "#fff"'
+        '}}}%%'
+    )
+    if not clean_code.startswith('%%{'):
+        clean_code = theme_init + '\n' + clean_code
+
+    try:
+        # Use POST for reliability with longer diagrams
+        payload = _json.dumps({"diagram_source": clean_code, "diagram_type": "mermaid", "output_format": "png"})
+        req = urllib.request.Request(
+            'https://kroki.io/',
+            data=payload.encode('utf-8'),
+            headers={'Content-Type': 'application/json', 'User-Agent': 'RFP-AI/1.0'},
+        )
+        resp = urllib.request.urlopen(req, timeout=30)
+        image_bytes = resp.read()
+
+        if image_bytes[:4] == bytes([0x89, 0x50, 0x4E, 0x47]):
+            _logger.info(f"Mermaid diagram rendered: {len(image_bytes)} bytes")
+            return image_bytes
+        else:
+            _logger.error("Kroki returned non-PNG response")
+            return None
+    except Exception as e:
+        _logger.error(f"Mermaid rendering failed: {e}")
+        raise
+
+
 def _generate_image_gemini(prompt, env, model_name='imagen-3.0-generate-001'):
     """
     Helper to generate images using Google Imagen 3 via GenAI SDK.

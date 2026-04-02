@@ -348,16 +348,50 @@ Return ONLY the JSON object.
    *   **Sections that benefit from diagrams:** Architecture overviews, system workflows, data flows, process pipelines, network topologies, deployment diagrams, integration maps, or any section describing interconnected components, layered structures, or directional flows.
    *   **Sections that do NOT need diagrams:** Introduction, Executive Summary, Scope, Contact Information, Submission Instructions, Pricing/Cost tables, Terms &amp; Conditions, Compliance/Legal, Vendor Qualifications, References, Appendices, Glossary, or any section that is primarily narrative or list-based.
    *   **Rule of thumb:** If the section content can be fully understood by reading text alone, do NOT add a diagram.
-   *   **STRICT VISUAL BLUEPRINT RULE:** When you DO include a diagram, the `description` field MUST be an **EXACT, EXHAUSTIVE SPECIFICATION** of the image.
-   *   **FORBIDDEN LANGUAGE:** Do NOT use: "like", "such as", "including", "phases like", "various", "etc".
-   *   **REQUIREMENT:** You must explicitly list **EVERY SINGLE ELEMENT** that appears in the diagram.
-   *   **BAD**: "A flowchart showing phases like A, B, and C."
-   *   **GOOD**: "A flowchart with exactly 4 boxes connected by arrows from left to right. Box 1: Label 'Input'. Box 2: Label 'Processing'. Box 3: Label 'Review'. Box 4: Label 'Final Output'. Arrows are grey. Background is white."
-   *   **INCLUDE**:
-       *   **Exact Labels**: You MUST write: "Node labeled 'X'".
-       *   **Exact Counts**: "Three cylinders", not "some databases".
-       *   **Visual Structure**: "Top-down hierarchy", "Left-to-Right funnel".
-   *   **The goal is to REMOVE ALL CREATIVITY from the Image Generation AI. It is a printer; YOU are the Architect.**
+
+   **TWO DIAGRAM TYPES — choose the right one:**
+
+   **A) `diagram_type: "mermaid"` — for logical/structural diagrams (PREFERRED for most cases)**
+   Use for: flowcharts, architecture diagrams, sequence diagrams, data flows, process pipelines, network topologies, deployment layouts, state diagrams, ER diagrams, Gantt charts.
+   *   Set `mermaid_code` to valid **Mermaid.js syntax**. This code is rendered programmatically — labels, arrows, and structure will be pixel-perfect.
+   *   Set `description` to a brief plain-text summary of what the diagram shows.
+   *   **Mermaid syntax rules:**
+       - Use `graph TD` (top-down) or `graph LR` (left-right) for flowcharts
+       - Use `sequenceDiagram` for sequence diagrams
+       - Use `classDiagram` for class/component diagrams
+       - Use descriptive node IDs and clear labels: `A[API Gateway]` not `A[Box 1]`
+       - Keep labels concise (under 40 chars) — no sentences inside nodes
+       - Use subgraphs to group related components: `subgraph "Backend Services"`
+       - Use proper arrow types: `-->` for flow, `-.->` for optional, `==>` for emphasis
+   *   **Example:**
+       ```
+       graph TD
+           Client[Client Application] --> GW[API Gateway]
+           GW --> Auth[Auth Service]
+           GW --> API[Core API]
+           API --> DB[(PostgreSQL)]
+           API --> Cache[(Redis Cache)]
+           subgraph "External"
+               Pay[Payment Provider]
+               Email[Email Service]
+           end
+           API --> Pay
+           API --> Email
+       ```
+
+   **B) `diagram_type: "illustration"` — for physical/engineering visuals ONLY**
+   Use for: physical equipment drawings, site layouts, cross-section views, hardware installations, mechanical assemblies — things that CANNOT be represented with boxes and arrows.
+   *   Set `mermaid_code` to an empty string `""`.
+   *   Set `description` to a **CONCEPTUAL VISUAL SPECIFICATION** of the image. Describe the physical components, their spatial arrangement, materials, and general appearance.
+   *   **CRITICAL — CONCEPTUAL ONLY:** The illustration must be a **general visual reference**, NOT a technical drawing.
+       - **NEVER** include measurements, distances, dimensions, or specific numbers (e.g. "3.5m", "150mm", "20 MW").
+       - **NEVER** include technical text, annotations with values, or specification callouts.
+       - **DO** include component labels (e.g. "Solar Module", "Concrete Pile", "Ground Level") — these are names, not measurements.
+       - **DO** describe shapes, materials, colors, and spatial relationships between components.
+       - All precise measurements and specs belong in the section text content, NOT in the image.
+   *   **FORBIDDEN LANGUAGE:** Do NOT use: "like", "such as", "including", "various", "etc".
+
+   **Default to `mermaid` unless the diagram genuinely requires a physical/engineering illustration.**
 
 6.  **Style**: Use **simple, clear, and easy-to-understand English**. Avoid complex jargon or overly formal legal phrasing unless necessary.
     *   **Comprehensive but Accessible**: Explain the idea fully so the reader understands it completely. Do not write filler content just to increase length; write exactly what is needed for clarity.

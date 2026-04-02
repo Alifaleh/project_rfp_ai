@@ -9,37 +9,46 @@ class RfpSectionDiagram(models.Model):
     section_id = fields.Many2one('rfp.document.section', string="Section", ondelete='cascade')
     title = fields.Char(string="Diagram Title", required=True)
     description = fields.Text(string="Description", required=True)
-    
+    diagram_type = fields.Selection([
+        ('mermaid', 'Mermaid (Flowchart/Architecture)'),
+        ('illustration', 'Illustration (Physical/Engineering)'),
+    ], string="Diagram Type", default='mermaid')
+    mermaid_code = fields.Text(string="Mermaid Code")
+
     image_file = fields.Binary(string="Generated Image", attachment=True)
     image_filename = fields.Char(string="Image Filename")
-    
+
     job_id = fields.Many2one('queue.job', string="Generation Job", readonly=True)
 
     def generate_image_job(self, prompt_record_id=None):
         self.ensure_one()
         try:
-            prompt_record = self.env['rfp.prompt'].browse(prompt_record_id) if prompt_record_id else None
-            
-            # Fallback Prompt Construction
-            project = self.section_id.project_id
-            if prompt_record:
-                prompt = prompt_record.template_text.format(
-                    project_name=project.name,
-                    domain=project.domain_id.name or 'General',
-                    description=self.description
-                )
+            if self.diagram_type == 'mermaid' and self.mermaid_code:
+                # Render Mermaid code to PNG via Kroki API
+                from odoo.addons.project_rfp_ai.utils.ai_connector import _render_mermaid
+                image_bytes = _render_mermaid(self.mermaid_code)
             else:
-                prompt = f" Generate a professional diagram based on this exact specification:\n\n{self.description}"
-            
-            image_bytes = self.env['rfp.ai.log'].execute_image_request(prompt=prompt, env=self.env, prompt_record=prompt_record)
-            
+                # Illustration: use Imagen to generate image
+                prompt_record = self.env['rfp.prompt'].browse(prompt_record_id) if prompt_record_id else None
+                project = self.section_id.project_id
+                if prompt_record:
+                    prompt = prompt_record.template_text.format(
+                        project_name=project.name,
+                        domain=project.domain_id.name or 'General',
+                        description=self.description
+                    )
+                else:
+                    prompt = f"Generate a professional diagram based on this exact specification:\n\n{self.description}"
+
+                image_bytes = self.env['rfp.ai.log'].execute_image_request(prompt=prompt, env=self.env, prompt_record=prompt_record)
+
             if image_bytes:
                 self.write({
                     'image_file': base64.b64encode(image_bytes),
                     'image_filename': f"diagram_{self.id}.png"
                 })
         except Exception as e:
-            raise e # Queue Job handles retry/failure
+            raise e
             
 
 class RfpDocumentSection(models.Model):
@@ -106,7 +115,9 @@ class RfpDocumentSection(models.Model):
                     {
                         'section_id': self.id,
                         'title': d.get('title'),
-                        'description': d.get('description')
+                        'description': d.get('description', ''),
+                        'diagram_type': d.get('diagram_type', 'mermaid'),
+                        'mermaid_code': d.get('mermaid_code', ''),
                     } for d in diagrams
                 ])
             

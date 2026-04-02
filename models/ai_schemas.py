@@ -133,11 +133,13 @@ def get_section_content_schema():
                     type=types.Type.OBJECT,
                     properties={
                         "title": types.Schema(type=types.Type.STRING, description="Title of the diagram"),
-                        "description": types.Schema(type=types.Type.STRING, description="Detailed description of what the diagram should visualize")
+                        "diagram_type": types.Schema(type=types.Type.STRING, description="Either 'mermaid' for flowcharts/architecture/sequence/data-flow diagrams (rendered as code), or 'illustration' for physical/engineering drawings that need a generated image."),
+                        "mermaid_code": types.Schema(type=types.Type.STRING, description="Valid Mermaid.js diagram code. REQUIRED when diagram_type is 'mermaid'. Must be empty string when diagram_type is 'illustration'."),
+                        "description": types.Schema(type=types.Type.STRING, description="For 'illustration' type: exhaustive visual specification for image generation. For 'mermaid' type: brief plain-text summary of what the diagram shows.")
                     },
-                    required=["title", "description"]
+                    required=["title", "diagram_type", "mermaid_code", "description"]
                 ),
-                description="List of diagrams ONLY if this section genuinely needs a visual (e.g. architecture, workflow, data flow). Return empty array [] for text-only sections. Most sections should have NO diagrams."
+                description="List of diagrams ONLY if this section genuinely needs a visual. Return empty array [] for text-only sections."
             )
         },
         required=["content_html"]
