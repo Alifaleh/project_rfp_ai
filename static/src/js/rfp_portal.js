@@ -10,6 +10,7 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         'click .btn-irrelevant-toggle': '_onIrrelevantToggle',
         'click .btn-irrelevant-cancel': '_onIrrelevantToggle',
         'click .btn-custom-answer-toggle': '_onCustomAnswerToggle',
+        'click .btn-custom-answer-save': '_onCustomAnswerSave',
         'click .btn-custom-answer-cancel': '_onCustomAnswerToggle',
         'change .rfp-input-group input, .rfp-input-group select, .rfp-input-group textarea': '_onInputChange',
         'submit form': '_onSubmit',
@@ -1166,6 +1167,53 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
             // Re-enable inputs
             $group.find('input, select, textarea').prop('disabled', false);
         }
+    },
+
+    _onCustomAnswerSave: function (ev) {
+        ev.preventDefault();
+        const $btn = $(ev.currentTarget);
+        const targetId = $btn.data('target');
+        const $box = this.$(`#${targetId}`);
+        const $group = $box.closest('.rfp-input-group');
+        const customVal = $box.find('input[type="text"]').val().trim();
+
+        if (!customVal) return;
+
+        // Add custom value as a selected option in the original widget
+        const $select = $group.find('select');
+        const $radios = $group.find('input[type="radio"]');
+
+        if ($select.length) {
+            // Dropdown: add custom option and select it
+            const optionExists = $select.find(`option[value="${customVal}"]`).length;
+            if (!optionExists) {
+                $select.append($('<option>', { value: customVal, text: customVal + ' (custom)' }));
+            }
+            $select.val(customVal).prop('disabled', false);
+        } else if ($radios.length) {
+            // Radio: uncheck all, add a custom radio and check it
+            $radios.prop('checked', false);
+            const fieldName = $radios.first().attr('name');
+            const customId = fieldName + '_custom';
+            if (!$group.find(`#${customId}`).length) {
+                const $customRadio = $(`
+                    <div class="form-check">
+                        <input class="form-check-input rfp-dynamic-input" type="radio" name="${fieldName}" id="${customId}" value="${customVal}" checked/>
+                        <label class="form-check-label" for="${customId}">${customVal} <span class="badge bg-info">custom</span></label>
+                    </div>
+                `);
+                $group.find('.rfp-radio-group').append($customRadio);
+            } else {
+                $group.find(`#${customId}`).val(customVal).prop('checked', true);
+                $group.find(`label[for="${customId}"]`).html(`${customVal} <span class="badge bg-info">custom</span>`);
+            }
+            $radios.prop('disabled', false);
+        }
+
+        // Hide custom answer box, clear flag (value is now in the main widget)
+        $box.addClass('d-none');
+        $box.find('.custom-answer-flag').val('false');
+        $group.find('input, select, textarea').prop('disabled', false);
     },
 
     // --- DEPENDENCY & SPECIFY TRIGGER CHECKS ---
