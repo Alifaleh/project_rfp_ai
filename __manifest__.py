@@ -12,7 +12,7 @@
         - Project-Agnostic Context Gathering
         - Automatic Document Generation (Writer Agent)
     """,
-    'author': "Antigravity",
+    'author': "Ali&Murtaja",
     'website': "https://www.odoo.com",
     'category': 'Services/Project',
     'version': '18.0.1.0.0',
