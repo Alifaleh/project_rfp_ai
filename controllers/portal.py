@@ -1,4 +1,4 @@
-from odoo import http, _
+from odoo import http, _, fields
 from odoo.http import request
 from odoo.addons.portal.controllers.portal import CustomerPortal
 import json
@@ -21,10 +21,26 @@ class RfpCustomerPortal(CustomerPortal):
         values = self._prepare_portal_layout_values()
         Project = request.env['rfp.project'].sudo()
         domain = [('user_id', '=', request.env.user.id)]
-        projects = Project.search(domain)
+        projects = Project.search(domain, order='write_date desc')
+
+        # Compute dashboard stats
+        today = fields.Date.today()
+        total = len(projects)
+        completed = len(projects.filtered(lambda p: p.current_stage in ('completed', 'completed_with_errors', 'document_locked')))
+        in_progress = len(projects.filtered(lambda p: p.current_stage not in ('draft', 'completed', 'completed_with_errors', 'document_locked')))
+        drafts = len(projects.filtered(lambda p: p.current_stage == 'draft'))
+        this_month = len(projects.filtered(lambda p: p.write_date and p.write_date.date() >= today.replace(day=1)))
+
         values.update({
             'projects': projects,
             'page_name': 'home',
+            'dashboard_stats': {
+                'total': total,
+                'completed': completed,
+                'in_progress': in_progress,
+                'drafts': drafts,
+                'this_month': this_month,
+            },
         })
         return request.render("project_rfp_ai.portal_my_rfps", values)
 
@@ -172,11 +188,10 @@ class RfpCustomerPortal(CustomerPortal):
              return request.redirect(f"/rfp/interface/{Project.id}")
         
         # 2. Redirect based on Major Phase
-        # 2. Redirect based on Major Phase
-        if Project.current_stage in [STAGE_SECTIONS_GENERATED, STAGE_GENERATING_CONTENT, STAGE_CONTENT_GENERATED, STAGE_GENERATING_IMAGES, STAGE_IMAGES_GENERATED]:
+        if Project.current_stage in [STAGE_SECTIONS_GENERATED, STAGE_GENERATING_CONTENT, STAGE_CONTENT_GENERATED, STAGE_GENERATING_IMAGES]:
              # UNIFIED PROCESSING PAGE
              return request.redirect(f"/rfp/processing/{Project.id}")
-        elif Project.current_stage in [STAGE_DOCUMENT_LOCKED, STAGE_COMPLETED, STAGE_COMPLETED_WITH_ERRORS]:
+        elif Project.current_stage in [STAGE_IMAGES_GENERATED, STAGE_DOCUMENT_LOCKED, STAGE_COMPLETED, STAGE_COMPLETED_WITH_ERRORS]:
              # FINAL VIEW / EDIT
              return request.redirect(f"/rfp/edit/{Project.id}")
 
@@ -667,6 +682,21 @@ class RfpCustomerPortal(CustomerPortal):
 
         try:
             Project.action_delete_export()
+            return {'success': True}
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
+
+    @http.route(['/rfp/delete/<int:project_id>'], type='json', auth="user", methods=['POST'])
+    def portal_rfp_delete_project(self, project_id, **kw):
+        """Delete a project entirely."""
+        Project = request.env['rfp.project'].sudo().browse(project_id)
+
+        if not Project.exists() or Project.user_id.id != request.env.user.id:
+            return {'success': False, 'error': 'Access denied'}
+
+        try:
+            Project.unlink()
+            Project.sudo().unlink()
             return {'success': True}
         except Exception as e:
             return {'success': False, 'error': str(e)}

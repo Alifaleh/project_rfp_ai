@@ -67,6 +67,16 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         'click .btn-duplicate-project': '_onDuplicateProject',
         'click #btn_confirm_duplicate': '_onConfirmDuplicate',
 
+        // Dashboard: Search, Filter, Sort, Actions
+        'input #rfp_dashboard_search': '_onDashboardSearch',
+        'click .rfp-filter-btn': '_onDashboardFilterClick',
+        'change #rfp_sort_select': '_onDashboardSortChange',
+        'click .btn-rfp-actions': '_onDashboardActionClick',
+        'click .rfp-action-dropdown-menu .btn-duplicate-project': '_onDashboardDuplicateFromMenu',
+        'click .rfp-action-dropdown-menu .btn-delete-project': '_onDashboardDeleteProject',
+        'click #btn_confirm_delete_project': '_onConfirmDeleteProject',
+        'click .rfp-action-dropdown-menu .btn-edit-locked': '_onDashboardEditDocument',
+
         // Start Project: Tabs + Upload
         'click .rfp-start-tab': '_onStartTabSwitch',
         'change #rfp_start_file': '_onStartFileChange',
@@ -85,14 +95,14 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
     },
 
     // --- CORE RPC WRAPPER ---
-    
+
     _loadingInterval: null,
-    
+
     _rpc: async function (options) {
         if (options.loading !== false) {
             this._setLoading(true, options.loadingMessage);
         }
-        
+
         try {
             const response = await fetch(options.route, {
                 method: 'POST',
@@ -116,11 +126,11 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
             if (data.error) {
                 throw new Error(data.error.data ? data.error.data.message : data.error.message);
             }
-            
+
             if (options.loading !== false) {
                 this._setLoading(false);
             }
-            
+
             return data.result;
         } catch (e) {
             if (options.loading !== false) {
@@ -229,6 +239,13 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
                 $modal.find('#proposal_file_error').addClass('d-none');
             }
             self._validateProposalFiles();
+        });
+
+        // Close action dropdowns on outside click
+        $(document).on('click.rfpDropdownClose', function (e) {
+            if (!$(e.target).closest('.rfp-action-dropdown').length) {
+                $('.rfp-action-dropdown-menu.show').removeClass('show');
+            }
         });
 
         // 3. Drag and Drop (Native Events)
@@ -1285,7 +1302,7 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
 
                 const iti = window.intlTelInput(input, {
                     initialCountry: "auto",
-                    geoIpLookup: function(success, failure) {
+                    geoIpLookup: function (success, failure) {
                         fetch("https://ipapi.co/json")
                             .then(res => res.json())
                             .then(data => success(data.country_code))
@@ -1298,7 +1315,7 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
                     allowDropdown: true,
                     dropdownContainer: document.body,
                 });
-                
+
                 $(input).data('iti', iti);
             });
         };
@@ -1687,45 +1704,45 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
                 const newId = result.id;
                 const cardHtml =
                     '<div class="card shadow-sm border-0 mb-3 eval-criterion-card" data-criterion-id="' + newId + '">' +
-                        '<div class="card-body">' +
-                            '<div class="row align-items-center">' +
-                                '<div class="col-md-4">' +
-                                    '<input type="text" class="form-control form-control-sm fw-bold criterion-name" value="' + (result.name || 'New Criterion') + '"/>' +
-                                    '<div class="mt-1">' +
-                                        '<span class="badge bg-secondary" style="text-transform: capitalize;">other</span>' +
-                                    '</div>' +
-                                '</div>' +
-                                '<div class="col-md-3">' +
-                                    '<label class="form-label small text-muted mb-0">Weight</label>' +
-                                    '<div class="d-flex align-items-center gap-2">' +
-                                        '<input type="range" class="form-range criterion-weight-slider" min="1" max="100" value="5"/>' +
-                                        '<span class="badge bg-rfp-gold criterion-weight-display" style="min-width: 40px;">5</span>' +
-                                    '</div>' +
-                                '</div>' +
-                                '<div class="col-md-2 text-center">' +
-                                    '<label class="form-label small text-muted mb-0 d-block">Must-Have</label>' +
-                                    '<div class="form-check form-switch d-inline-block">' +
-                                        '<input class="form-check-input criterion-must-have" type="checkbox"/>' +
-                                    '</div>' +
-                                '</div>' +
-                                '<div class="col-md-3 text-end">' +
-                                    '<button class="btn btn-sm btn-outline-secondary me-1" type="button" data-bs-toggle="collapse" data-bs-target="#detail_new_' + newId + '">' +
-                                        '<i class="fa fa-chevron-down"></i>' +
-                                    '</button>' +
-                                    '<button class="btn btn-sm btn-outline-danger btn-delete-criterion" type="button">' +
-                                        '<i class="fa fa-trash"></i>' +
-                                    '</button>' +
-                                '</div>' +
-                            '</div>' +
-                            '<div class="collapse show mt-3" id="detail_new_' + newId + '">' +
-                                '<div class="bg-light rounded p-3">' +
-                                    '<label class="form-label small fw-bold">Description</label>' +
-                                    '<textarea class="form-control form-control-sm mb-3 criterion-description" rows="2" placeholder="Describe what this criterion evaluates..."></textarea>' +
-                                    '<label class="form-label small fw-bold">Evaluation Guidance</label>' +
-                                    '<textarea class="form-control form-control-sm criterion-scoring-guidance" rows="2" placeholder="What constitutes high, medium, and low scores..."></textarea>' +
-                                '</div>' +
-                            '</div>' +
-                        '</div>' +
+                    '<div class="card-body">' +
+                    '<div class="row align-items-center">' +
+                    '<div class="col-md-4">' +
+                    '<input type="text" class="form-control form-control-sm fw-bold criterion-name" value="' + (result.name || 'New Criterion') + '"/>' +
+                    '<div class="mt-1">' +
+                    '<span class="badge bg-secondary" style="text-transform: capitalize;">other</span>' +
+                    '</div>' +
+                    '</div>' +
+                    '<div class="col-md-3">' +
+                    '<label class="form-label small text-muted mb-0">Weight</label>' +
+                    '<div class="d-flex align-items-center gap-2">' +
+                    '<input type="range" class="form-range criterion-weight-slider" min="1" max="100" value="5"/>' +
+                    '<span class="badge bg-rfp-gold criterion-weight-display" style="min-width: 40px;">5</span>' +
+                    '</div>' +
+                    '</div>' +
+                    '<div class="col-md-2 text-center">' +
+                    '<label class="form-label small text-muted mb-0 d-block">Must-Have</label>' +
+                    '<div class="form-check form-switch d-inline-block">' +
+                    '<input class="form-check-input criterion-must-have" type="checkbox"/>' +
+                    '</div>' +
+                    '</div>' +
+                    '<div class="col-md-3 text-end">' +
+                    '<button class="btn btn-sm btn-outline-secondary me-1" type="button" data-bs-toggle="collapse" data-bs-target="#detail_new_' + newId + '">' +
+                    '<i class="fa fa-chevron-down"></i>' +
+                    '</button>' +
+                    '<button class="btn btn-sm btn-outline-danger btn-delete-criterion" type="button">' +
+                    '<i class="fa fa-trash"></i>' +
+                    '</button>' +
+                    '</div>' +
+                    '</div>' +
+                    '<div class="collapse show mt-3" id="detail_new_' + newId + '">' +
+                    '<div class="bg-light rounded p-3">' +
+                    '<label class="form-label small fw-bold">Description</label>' +
+                    '<textarea class="form-control form-control-sm mb-3 criterion-description" rows="2" placeholder="Describe what this criterion evaluates..."></textarea>' +
+                    '<label class="form-label small fw-bold">Evaluation Guidance</label>' +
+                    '<textarea class="form-control form-control-sm criterion-scoring-guidance" rows="2" placeholder="What constitutes high, medium, and low scores..."></textarea>' +
+                    '</div>' +
+                    '</div>' +
+                    '</div>' +
                     '</div>';
 
                 const $newCard = $(cardHtml);
@@ -1871,30 +1888,30 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
                 var newId = result.id;
                 var cardHtml =
                     '<div class="card border mb-2 required-doc-card" data-doc-id="' + newId + '">' +
-                        '<div class="card-body py-2 px-3">' +
-                            '<div class="row align-items-center">' +
-                                '<div class="col-md-3">' +
-                                    '<input type="text" class="form-control form-control-sm fw-bold rdoc-name" value="' + (result.name || 'New Document') + '" placeholder="Document name"/>' +
-                                '</div>' +
-                                '<div class="col-md-3">' +
-                                    '<input type="text" class="form-control form-control-sm rdoc-description" value="" placeholder="Description / instructions"/>' +
-                                '</div>' +
-                                '<div class="col-md-2">' +
-                                    '<input type="text" class="form-control form-control-sm rdoc-accept-types" value=".pdf,.doc,.docx" placeholder=".pdf,.doc,.docx"/>' +
-                                '</div>' +
-                                '<div class="col-md-2 text-center">' +
-                                    '<label class="form-label small text-muted mb-0 d-block">Required</label>' +
-                                    '<div class="form-check form-switch d-inline-block">' +
-                                        '<input class="form-check-input rdoc-required" type="checkbox" checked="checked"/>' +
-                                    '</div>' +
-                                '</div>' +
-                                '<div class="col-md-2 text-end">' +
-                                    '<button class="btn btn-sm btn-outline-danger btn-delete-rdoc" type="button">' +
-                                        '<i class="fa fa-trash"></i>' +
-                                    '</button>' +
-                                '</div>' +
-                            '</div>' +
-                        '</div>' +
+                    '<div class="card-body py-2 px-3">' +
+                    '<div class="row align-items-center">' +
+                    '<div class="col-md-3">' +
+                    '<input type="text" class="form-control form-control-sm fw-bold rdoc-name" value="' + (result.name || 'New Document') + '" placeholder="Document name"/>' +
+                    '</div>' +
+                    '<div class="col-md-3">' +
+                    '<input type="text" class="form-control form-control-sm rdoc-description" value="" placeholder="Description / instructions"/>' +
+                    '</div>' +
+                    '<div class="col-md-2">' +
+                    '<input type="text" class="form-control form-control-sm rdoc-accept-types" value=".pdf,.doc,.docx" placeholder=".pdf,.doc,.docx"/>' +
+                    '</div>' +
+                    '<div class="col-md-2 text-center">' +
+                    '<label class="form-label small text-muted mb-0 d-block">Required</label>' +
+                    '<div class="form-check form-switch d-inline-block">' +
+                    '<input class="form-check-input rdoc-required" type="checkbox" checked="checked"/>' +
+                    '</div>' +
+                    '</div>' +
+                    '<div class="col-md-2 text-end">' +
+                    '<button class="btn btn-sm btn-outline-danger btn-delete-rdoc" type="button">' +
+                    '<i class="fa fa-trash"></i>' +
+                    '</button>' +
+                    '</div>' +
+                    '</div>' +
+                    '</div>' +
                     '</div>';
 
                 var $newCard = $(cardHtml);
@@ -1984,6 +2001,173 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
             this._showNotification('error', 'Save Failed', 'An error occurred: ' + e.message);
             $btn.html(originalText).prop('disabled', false);
         }
+    },
+
+    // ==================== DASHBOARD: Search, Filter, Sort, Actions ====================
+
+    _onDashboardSearch: function (ev) {
+        var query = $(ev.currentTarget).val().toLowerCase().trim();
+        this._applyDashboardFilters();
+    },
+
+    _onDashboardFilterClick: function (ev) {
+        ev.preventDefault();
+        var $btn = $(ev.currentTarget);
+        $btn.siblings('.rfp-filter-btn').removeClass('active');
+        $btn.addClass('active');
+        this._applyDashboardFilters();
+    },
+
+    _onDashboardSortChange: function (ev) {
+        var $select = $(ev.currentTarget);
+        var sortBy = $select.val();
+        this._applyDashboardFilters();
+    },
+
+    _applyDashboardFilters: function () {
+        var $wrappers = $('.rfp-project-wrapper');
+        var query = ($('#rfp_dashboard_search').val() || '').toLowerCase().trim();
+        var filter = $('.rfp-filter-btn.active').data('filter') || 'all';
+        var sortBy = ($('#rfp_sort_select').val()) || 'newest';
+        var visibleCount = 0;
+
+        $wrappers.each(function () {
+            var $w = $(this);
+            var name = ($w.data('name') || '').toLowerCase();
+            var stage = $w.data('stage') || '';
+            var status = $w.data('status') || '';
+            var date = $w.data('date') || '';
+
+            // Filter by search
+            var matchSearch = !query || name.indexOf(query) !== -1;
+            // Filter by stage filter
+            var matchFilter = filter === 'all' || status === filter;
+
+            if (matchSearch && matchFilter) {
+                $w.show();
+                visibleCount++;
+            } else {
+                $w.hide();
+            }
+        });
+
+        // Update result count
+        $('#rfp_result_count').text(visibleCount + ' project' + (visibleCount !== 1 ? 's' : ''));
+
+        // Show/hide no results message
+        if (visibleCount === 0 && $wrappers.length > 0) {
+            $('#rfp_no_results').show();
+        } else {
+            $('#rfp_no_results').hide();
+        }
+
+        // Sort visible cards
+        this._sortDashboardCards(sortBy);
+    },
+
+    _sortDashboardCards: function (sortBy) {
+        var $grid = $('#rfp_projects_grid');
+        var $visible = $grid.find('.rfp-project-wrapper:visible');
+
+        $visible.sort(function (a, b) {
+            if (sortBy === 'name') {
+                return ($(a).data('name') || '').localeCompare($(b).data('name') || '');
+            } else if (sortBy === 'oldest') {
+                return ($(a).data('date') || '').localeCompare($(b).data('date') || '');
+            } else if (sortBy === 'stage') {
+                return ($(a).data('stage') || '').localeCompare($(b).data('stage') || '');
+            }
+            // default: newest
+            return ($(b).data('date') || '').localeCompare($(a).data('date') || '');
+        });
+
+        $grid.append($visible);
+    },
+
+    _onDashboardActionClick: function (ev) {
+        ev.preventDefault();
+        var $btn = $(ev.currentTarget);
+        var $menu = $btn.siblings('.rfp-action-dropdown-menu');
+        $('.rfp-action-dropdown-menu.show').not($menu).removeClass('show');
+        $menu.toggleClass('show');
+    },
+
+    _onDashboardDuplicateFromMenu: function (ev) {
+        ev.preventDefault();
+        var $link = $(ev.currentTarget);
+        var projectId = $link.data('project-id');
+        var projectName = $link.data('project-name') || '';
+
+        // Close all dropdowns
+        $('.rfp-action-dropdown-menu.show').removeClass('show');
+
+        var $modal = $('#modal_duplicate_confirm');
+        $modal.data('project-id', projectId);
+        $modal.find('#duplicate_new_name').val(projectName ? projectName + ' - Copy' : '');
+        $modal.modal('show');
+    },
+
+    _onDashboardDeleteProject: function (ev) {
+        ev.preventDefault();
+        var $link = $(ev.currentTarget);
+        var projectId = $link.data('project-id');
+        var projectName = $link.data('project-name') || '';
+
+        // Close all dropdowns
+        $('.rfp-action-dropdown-menu.show').removeClass('show');
+
+        var $modal = $('#modal_delete_project_confirm');
+        $modal.data('project-id', projectId);
+        $modal.find('h6.fw-bold').text('Delete "' + (projectName || 'this project') + '"?');
+        $modal.modal('show');
+    },
+
+    _onConfirmDeleteProject: async function (ev) {
+        var $modal = $('#modal_delete_project_confirm');
+        var projectId = $modal.data('project-id');
+        var $btn = $(ev.currentTarget);
+        var originalText = $btn.html();
+
+        $btn.html('<i class="fa fa-spinner fa-spin me-1"></i> Deleting...').prop('disabled', true);
+
+        try {
+            var result = await this._rpc({
+                route: '/rfp/delete/' + projectId,
+                params: {},
+            });
+
+            $modal.modal('hide');
+            if (result && result.success) {
+                // Remove the card from the DOM
+                var $wrapper = $('.rfp-project-wrapper[data-project-id="' + projectId + '"]');
+                $wrapper.fadeOut(300, function () {
+                    $(this).remove();
+                    // Refresh the grid
+                    this._applyDashboardFilters && this._applyDashboardFilters();
+                }.bind(this));
+
+                if (this._showNotification) {
+                    this._showNotification('success', 'Deleted', 'Project deleted successfully');
+                }
+            } else {
+                if (this._showNotification) {
+                    this._showNotification('error', 'Delete Failed', (result && result.error) || 'Unknown error');
+                }
+            }
+            $btn.html(originalText).prop('disabled', false);
+        } catch (e) {
+            $modal.modal('hide');
+            if (this._showNotification) {
+                this._showNotification('error', 'Error', 'Deletion failed: ' + e.message);
+            }
+            $btn.html(originalText).prop('disabled', false);
+        }
+    },
+
+    _onDashboardEditDocument: function (ev) {
+        ev.preventDefault();
+        // Just let the link navigate normally
+        $('.rfp-action-dropdown-menu.show').removeClass('show');
     },
 
     // ==================== Project Duplication ====================
@@ -2081,7 +2265,7 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
 
         for (var i = 0; i < newFiles.length; i++) {
             var file = newFiles[i];
-            
+
             // Validate type
             var ext = file.name.split('.').pop().toLowerCase();
             if (ext !== 'pdf' && ext !== 'docx') {
@@ -2112,7 +2296,7 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
 
         // Sync input.files with our DataTransfer
         $('#rfp_start_file')[0].files = this._rfpStartDT.files;
-        
+
         this._renderStartFilePreview();
         this._validateStartForm();
     },
@@ -2121,12 +2305,12 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         var files = this._rfpStartDT ? this._rfpStartDT.files : [];
         var $preview = $('#rfp_start_file_preview');
         var $zone = $('#rfp_start_upload_zone');
-        
+
         $preview.empty();
 
         if (files.length > 0) {
             $zone.addClass('has-file');
-            
+
             for (var i = 0; i < files.length; i++) {
                 var file = files[i];
                 var $item = $('<div class="d-flex align-items-center gap-2 p-2 bg-light rounded-3 mb-1">').append(
@@ -2149,7 +2333,7 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
     _onRemoveStartFile: function (ev) {
         ev.preventDefault();
         var indexToRemove = $(ev.currentTarget).data('index');
-        
+
         var newDT = new DataTransfer();
         for (var i = 0; i < this._rfpStartDT.files.length; i++) {
             if (i !== indexToRemove) {
@@ -2158,7 +2342,7 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         }
         this._rfpStartDT = newDT;
         $('#rfp_start_file')[0].files = this._rfpStartDT.files;
-        
+
         this._renderStartFilePreview();
         this._validateStartForm();
     },
@@ -2174,13 +2358,13 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         this._validateStartForm();
     },
 
-    _validateStartForm: function() {
+    _validateStartForm: function () {
         // Clear previous validation states
         $('#rfp_start_description').removeClass('is-invalid');
         $('#rfp_start_file_error').addClass('d-none');
     },
 
-    _onStartFormSubmit: function(ev) {
+    _onStartFormSubmit: function (ev) {
         var activeTab = this._rfpActiveTab || 'describe';
         var hasFiles = $('#rfp_start_file')[0] && $('#rfp_start_file')[0].files.length > 0;
         var hasDesc = $('#rfp_start_description').val().trim().length > 0;
