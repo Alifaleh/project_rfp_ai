@@ -1438,15 +1438,17 @@ class RfpProject(models.Model):
                 self.env['rfp.document.section'].create({
                     'project_id': project.id,
                     'section_title': section.get('title'),
-                    'sequence': sequence
+                    'sequence': sequence,
+                    'section_type': section.get('section_type', 'narrative'),
                 })
                 sequence += 10
-                
+
                 for sub in section.get('subsections', []):
                     self.env['rfp.document.section'].create({
                         'project_id': project.id,
                         'section_title': sub.get('title'),
-                        'sequence': sequence
+                        'sequence': sequence,
+                        'section_type': sub.get('section_type', 'narrative'),
                     })
                     sequence += 10
 
@@ -1502,21 +1504,34 @@ class RfpProject(models.Model):
                     + json.dumps(kb_sections_ref, indent=2)
                 )
 
+            # Pre-fetch BOQ prompt template
+            boq_writer_template = self.env['rfp.prompt'].search(
+                [('code', '=', PROMPT_WRITER_BOQ)], limit=1).template_text or ''
+
             for section_record in project.document_section_ids:
                 if section_record.content_html:
                     continue
 
                 section_title = section_record.section_title
-                section_intent = "Write comprehensive details matching the project context."
 
-                writer_prompt = section_writer_template.format(
-                    project_name=project.name,
-                    domain=project.domain_id.name or 'General',
-                    toc_context=toc_context_str,
-                    section_title=section_title,
-                    section_intent=section_intent,
-                    context_str=context_str
-                )
+                if section_record.section_type == 'boq' and boq_writer_template:
+                    writer_prompt = boq_writer_template.format(
+                        project_name=project.name,
+                        domain=project.domain_id.name or 'General',
+                        toc_context=toc_context_str,
+                        section_title=section_title,
+                        context_str=context_str
+                    )
+                else:
+                    section_intent = "Write comprehensive details matching the project context."
+                    writer_prompt = section_writer_template.format(
+                        project_name=project.name,
+                        domain=project.domain_id.name or 'General',
+                        toc_context=toc_context_str,
+                        section_title=section_title,
+                        section_intent=section_intent,
+                        context_str=context_str
+                    )
 
                 user_context = f"Project Context:\n{context_str}\n\nPlease write the {section_title} section now.{kb_reference_text}"
                 
@@ -1761,6 +1776,17 @@ class RfpProject(models.Model):
             self.env['rfp.document.section'].browse(to_delete).unlink()
             
         return id_map
+
+    def action_update_boq_data(self, section_id, boq_data):
+        """Update BOQ structured data and re-render HTML from portal editor."""
+        self.ensure_one()
+        section = self.env['rfp.document.section'].browse(int(section_id))
+        if section.exists() and section.project_id == self and section.section_type == 'boq':
+            section.write({
+                'structured_data': json.dumps(boq_data),
+                'content_html': section._render_boq_html(boq_data),
+            })
+        return True
 
     def action_update_content_html(self, sections_content):
         """

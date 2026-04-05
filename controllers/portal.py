@@ -379,30 +379,38 @@ class RfpCustomerPortal(CustomerPortal):
         return request.render("project_rfp_ai.portal_rfp_unified_editor", values)
 
     @http.route(['/rfp/unified/save/<int:project_id>'], type='json', auth="user", website=True)
-    def portal_rfp_unified_save(self, project_id, structure_data=None, content_data=None):
+    def portal_rfp_unified_save(self, project_id, structure_data=None, content_data=None, boq_data=None):
         """
         Unified Save Endpoint.
         structure_data: List of {id, section_title, sequence}
         content_data: Dict of {id: html}
+        boq_data: Dict of {section_id: {introduction, categories: [...]}}
         """
         Project = request.env['rfp.project'].sudo().browse(project_id)
         if not Project.exists() or Project.user_id != request.env.user:
              return {'error': 'Access Denied'}
-             
+
         if structure_data:
-            # We need to map temp IDs to real IDs if new sections are created
-            # Assuming action_update_structure returns a map or we handle it here
             id_map = Project.action_update_structure(structure_data)
-            
+
             # Update content_data keys if we have mappings (for new sections)
             if id_map and content_data:
                 for temp_id, real_id in id_map.items():
                     if str(temp_id) in content_data:
                         content_data[str(real_id)] = content_data.pop(str(temp_id))
-                        
+            if id_map and boq_data:
+                for temp_id, real_id in id_map.items():
+                    if str(temp_id) in boq_data:
+                        boq_data[str(real_id)] = boq_data.pop(str(temp_id))
+
         if content_data:
             Project.action_update_content_html(content_data)
-            
+
+        if boq_data:
+            for section_id_str, data in boq_data.items():
+                if section_id_str.isdigit():
+                    Project.action_update_boq_data(int(section_id_str), data)
+
         return {'status': 'success'}
 
     @http.route(['/rfp/lock_toggle'], type='json', auth="user", website=True)

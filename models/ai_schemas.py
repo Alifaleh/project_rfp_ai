@@ -90,17 +90,27 @@ def get_toc_structure_schema():
                 type=types.Type.ARRAY,
                 items=types.Schema(
                     type=types.Type.OBJECT,
-                    required=["title", "subsections"],
+                    required=["title", "subsections", "section_type"],
                     properties={
                         "title": types.Schema(type=types.Type.STRING, description="Main Section Title (e.g. '1. Introduction')"),
                         "description_intent": types.Schema(type=types.Type.STRING, description="Brief instruction on what this section should contain."),
+                        "section_type": types.Schema(
+                            type=types.Type.STRING,
+                            enum=["narrative", "boq"],
+                            description="Set to 'boq' ONLY for a Bill of Quantities / Cost Breakdown / Pricing Schedule section. All other sections must be 'narrative'."
+                        ),
                         "subsections": types.Schema(
                             type=types.Type.ARRAY,
                             items=types.Schema(
                                 type=types.Type.OBJECT,
                                 properties={
                                     "title": types.Schema(type=types.Type.STRING, description="Subsection Title (e.g. '1.1 Purpose')"),
-                                    "description_intent": types.Schema(type=types.Type.STRING, description="Specific content instruction.")
+                                    "description_intent": types.Schema(type=types.Type.STRING, description="Specific content instruction."),
+                                    "section_type": types.Schema(
+                                        type=types.Type.STRING,
+                                        enum=["narrative", "boq"],
+                                        description="Set to 'boq' for BOQ subsections, 'narrative' for all others."
+                                    ),
                                 },
                                 required=["title"]
                             )
@@ -144,6 +154,62 @@ def get_section_content_schema():
         },
         required=["content_html"]
     )
+
+def get_boq_content_schema():
+    """Schema for AI-generated Bill of Quantities with categorized items."""
+    if not types:
+        return None
+    return types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            "introduction": types.Schema(
+                type=types.Type.STRING,
+                description="Brief paragraph explaining the BOQ scope and instructions for vendors on how to fill pricing."
+            ),
+            "categories": types.Schema(
+                type=types.Type.ARRAY,
+                items=types.Schema(
+                    type=types.Type.OBJECT,
+                    required=["category", "items"],
+                    properties={
+                        "category": types.Schema(
+                            type=types.Type.STRING,
+                            description="Category name grouping related items (e.g. 'Infrastructure', 'Software Licenses', 'Professional Services', 'Training & Support')."
+                        ),
+                        "items": types.Schema(
+                            type=types.Type.ARRAY,
+                            items=types.Schema(
+                                type=types.Type.OBJECT,
+                                required=["description", "unit", "quantity"],
+                                properties={
+                                    "description": types.Schema(
+                                        type=types.Type.STRING,
+                                        description="Detailed line item description."
+                                    ),
+                                    "unit": types.Schema(
+                                        type=types.Type.STRING,
+                                        description="Unit of measure (e.g. 'Each', 'Lot', 'Per Month', 'Man-Day', 'License', 'Sq. Meter')."
+                                    ),
+                                    "quantity": types.Schema(
+                                        type=types.Type.STRING,
+                                        description="Estimated quantity, a range like '5-10', or 'TBD' if vendor should propose."
+                                    ),
+                                    "notes": types.Schema(
+                                        type=types.Type.STRING,
+                                        description="Optional clarification, spec reference, or acceptable alternatives."
+                                    ),
+                                }
+                            ),
+                            description="Line items within this category."
+                        ),
+                    }
+                ),
+                description="BOQ items grouped by category. Be comprehensive — include all hardware, software, services, labor, and recurring costs from the project requirements."
+            ),
+        },
+        required=["introduction", "categories"]
+    )
+
 
 def get_domain_identification_schema():
     if not types:

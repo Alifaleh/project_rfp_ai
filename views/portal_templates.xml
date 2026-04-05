@@ -937,6 +937,52 @@
                 background: #FEE2E2;
             }
 
+            /* BOQ Table Editor */
+            .rfp-editor-inner .rfp-boq-table-edit {
+                font-size: 0.88rem;
+            }
+            .rfp-editor-inner .rfp-boq-table-edit th {
+                font-size: 0.75rem;
+                text-transform: uppercase;
+                letter-spacing: 0.3px;
+                color: #6c757d;
+                font-weight: 600;
+                white-space: nowrap;
+            }
+            .rfp-editor-inner .rfp-boq-table-edit td {
+                vertical-align: middle;
+                padding: 0.15rem 0.35rem;
+            }
+            .rfp-editor-inner .rfp-boq-table-edit td input {
+                border: none;
+                background: transparent;
+                width: 100%;
+                padding: 0.35rem 0.25rem;
+                font-size: 0.88rem;
+            }
+            .rfp-editor-inner .rfp-boq-table-edit td input:focus {
+                outline: none;
+                background: #fffef0;
+                border-radius: 3px;
+            }
+            .rfp-editor-inner .rfp-boq-table-edit .btn-boq-delete-row {
+                opacity: 0.2;
+                transition: opacity 0.15s;
+            }
+            .rfp-editor-inner .rfp-boq-table-edit tr:hover .btn-boq-delete-row {
+                opacity: 1;
+            }
+            .rfp-editor-inner .rfp-boq-table-edit .boq-category-row td {
+                background: #f0ead6;
+                font-weight: 700;
+                font-size: 0.85rem;
+                padding: 0.5rem 0.5rem;
+            }
+            .rfp-editor-inner .rfp-boq-table-edit .boq-category-row td input {
+                font-weight: 700;
+                background: transparent;
+            }
+
             /* Quill editor inside editor page */
             .rfp-editor-inner .rfp-quill-editor {
                 border: none !important;
@@ -2452,19 +2498,28 @@ Finalized</span>
                     <!-- Draggable List -->
                     <div id="rfp_section_list" class="d-flex flex-column gap-3">
                         <t t-foreach="rfp_project.document_section_ids.sorted('sequence')" t-as="section">
-                            <div class="card rfp-section-block" t-att-data-section-id="section.id" draggable="true">
+                            <div class="card rfp-section-block"
+                                 t-att-data-section-id="section.id"
+                                 t-att-data-section-type="section.section_type or 'narrative'"
+                                 draggable="true">
                                 <!-- Header -->
                                 <div class="rfp-section-header d-flex align-items-center gap-2 handle">
                                     <span class="rfp-section-num">
                                         <t t-esc="section_index + 1"/>
                                     </span>
                                     <i class="fa fa-grip-vertical text-muted" style="font-size: 0.7rem; opacity: 0.4;"/>
+                                    <t t-if="section.section_type == 'boq'">
+                                        <span class="badge" style="background:var(--rfp-gold-light); color:var(--rfp-gold-dark); font-size:0.65rem; padding:0.2rem 0.5rem;">
+                                            <i class="fa fa-table me-1"/>BOQ
+                                        </span>
+                                    </t>
                                     <input type="text" class="form-control fw-bold border-0 bg-transparent section-title-input flex-grow-1" t-att-value="section.section_title" placeholder="Section Title"/>
                                     <div class="rfp-section-actions d-flex gap-1 ms-auto">
-                                        <button class="btn btn-sm btn-light btn-ai-edit-section" t-att-data-section-id="section.id" title="Edit with AI" t-att-disabled="rfp_project.current_stage == 'document_locked'">
-                                            <i class="fa fa-magic text-rfp-gold"/>
- AI
-                                        </button>
+                                        <t t-if="section.section_type != 'boq'">
+                                            <button class="btn btn-sm btn-light btn-ai-edit-section" t-att-data-section-id="section.id" title="Edit with AI" t-att-disabled="rfp_project.current_stage == 'document_locked'">
+                                                <i class="fa fa-magic text-rfp-gold"/> AI
+                                            </button>
+                                        </t>
                                         <button class="btn btn-sm btn-light text-danger btn-delete-section" t-att-disabled="rfp_project.current_stage == 'document_locked'">
                                             <i class="fa fa-trash-o"/>
                                         </button>
@@ -2473,9 +2528,45 @@ Finalized</span>
 
                                 <!-- Content Body -->
                                 <div class="card-body p-0">
-                                    <div class="rfp-quill-editor" style="min-height: 180px;" t-att-id="'editor_' + str(section.id)">
-                                        <t t-out="section.content_html"/>
-                                    </div>
+                                    <t t-if="section.section_type == 'boq'">
+                                        <!-- BOQ Interactive Table Editor -->
+                                        <div class="rfp-boq-editor p-3"
+                                             t-att-data-section-id="section.id"
+                                             t-att-data-boq-json="section.structured_data or '{}'">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <span class="text-muted fw-bold" style="font-size:0.78rem; text-transform:uppercase; letter-spacing:0.5px;">
+                                                    <i class="fa fa-table me-1"/> Bill of Quantities
+                                                </span>
+                                                <button class="btn btn-sm btn-outline-primary btn-boq-add-row"
+                                                        t-att-data-section-id="section.id"
+                                                        t-att-disabled="rfp_project.current_stage == 'document_locked'">
+                                                    <i class="fa fa-plus me-1"/> Add Row
+                                                </button>
+                                            </div>
+                                            <div class="table-responsive">
+                                                <table class="table table-bordered table-sm mb-0 rfp-boq-table-edit">
+                                                    <thead class="table-light">
+                                                        <tr>
+                                                            <th style="width:4%">#</th>
+                                                            <th style="width:35%">Description</th>
+                                                            <th style="width:12%">Unit</th>
+                                                            <th style="width:10%">Qty</th>
+                                                            <th style="width:34%">Notes</th>
+                                                            <th style="width:5%"/>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody class="boq-table-body">
+                                                        <!-- Populated by JS from structured_data -->
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </t>
+                                    <t t-else="">
+                                        <div class="rfp-quill-editor" style="min-height: 180px;" t-att-id="'editor_' + str(section.id)">
+                                            <t t-out="section.content_html"/>
+                                        </div>
+                                    </t>
                                 </div>
 
                                 <!-- Diagrams Footer -->

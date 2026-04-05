@@ -24,6 +24,11 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         'click #btn_add_section': '_onAddSection',
         'click .btn-delete-section': '_onDeleteSection',
 
+        // BOQ Table
+        'click .btn-boq-add-row': '_onBoqAddRow',
+        'click .btn-boq-delete-row': '_onBoqDeleteRow',
+        'click .btn-boq-add-category': '_onBoqAddCategory',
+
         // Diagram Management
         'click .btn-upload-diagram-trigger': '_onUploadDiagramTrigger',
         'click #btn_save_diagram': '_onUploadDiagramSubmit',
@@ -273,6 +278,9 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
 
         // Initialize Quill Editors
         this._initQuillEditors();
+
+        // Initialize BOQ Table Editors
+        this._initBoqEditors();
     },
 
     // --- PHASE 2: STRUCTURE EDITOR ---
@@ -673,6 +681,187 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         }
     },
 
+    // --- BOQ TABLE EDITOR ---
+
+    _initBoqEditors: function () {
+        this.boqData = {};
+        var self = this;
+
+        this.$('.rfp-boq-editor').each(function () {
+            var $editor = $(this);
+            var sectionId = String($editor.data('section-id'));
+            var rawJson = $editor.attr('data-boq-json') || '{}';
+
+            try {
+                self.boqData[sectionId] = JSON.parse(rawJson);
+            } catch (e) {
+                self.boqData[sectionId] = { introduction: '', categories: [] };
+            }
+
+            // Ensure categories structure
+            if (!self.boqData[sectionId].categories) {
+                self.boqData[sectionId].categories = [];
+            }
+
+            self._renderBoqTable(sectionId);
+        });
+    },
+
+    _renderBoqTable: function (sectionId) {
+        var $editor = this.$('.rfp-boq-editor[data-section-id="' + sectionId + '"]');
+        var $tbody = $editor.find('.boq-table-body');
+        var data = this.boqData[sectionId] || { categories: [] };
+        var self = this;
+
+        $tbody.empty();
+
+        var globalIdx = 1;
+        data.categories.forEach(function (cat, catIdx) {
+            // Category header row
+            var $catRow = $(
+                '<tr class="boq-category-row" data-cat-idx="' + catIdx + '">' +
+                '<td colspan="5">' +
+                '<input type="text" class="boq-cat-field" value="' + self._escAttr(cat.category || '') + '" placeholder="Category name..."/>' +
+                '</td>' +
+                '<td class="text-center">' +
+                '<button class="btn btn-sm btn-link text-danger btn-boq-delete-row p-0" data-section-id="' + sectionId + '" data-cat-idx="' + catIdx + '" data-is-category="1" title="Delete category">' +
+                '<i class="fa fa-times"/>' +
+                '</button>' +
+                '</td>' +
+                '</tr>'
+            );
+            $tbody.append($catRow);
+
+            // Item rows
+            (cat.items || []).forEach(function (item, itemIdx) {
+                var $row = $(
+                    '<tr data-cat-idx="' + catIdx + '" data-item-idx="' + itemIdx + '">' +
+                    '<td class="text-center text-muted">' + globalIdx + '</td>' +
+                    '<td><input type="text" class="boq-field" data-field="description" value="' + self._escAttr(item.description || '') + '" placeholder="Item description..."/></td>' +
+                    '<td><input type="text" class="boq-field" data-field="unit" value="' + self._escAttr(item.unit || '') + '" placeholder="Each"/></td>' +
+                    '<td><input type="text" class="boq-field" data-field="quantity" value="' + self._escAttr(item.quantity || '') + '" placeholder="1"/></td>' +
+                    '<td><input type="text" class="boq-field" data-field="notes" value="' + self._escAttr(item.notes || '') + '" placeholder="Optional notes..."/></td>' +
+                    '<td class="text-center">' +
+                    '<button class="btn btn-sm btn-link text-danger btn-boq-delete-row p-0" data-section-id="' + sectionId + '" data-cat-idx="' + catIdx + '" data-item-idx="' + itemIdx + '" title="Delete row">' +
+                    '<i class="fa fa-times"/>' +
+                    '</button>' +
+                    '</td>' +
+                    '</tr>'
+                );
+                $tbody.append($row);
+                globalIdx++;
+            });
+
+            // "Add row" link under each category
+            var $addLink = $(
+                '<tr><td colspan="6" class="text-center" style="border:none; padding:0.25rem;">' +
+                '<button class="btn btn-sm btn-link text-muted btn-boq-add-row p-0" data-section-id="' + sectionId + '" data-cat-idx="' + catIdx + '" style="font-size:0.78rem;">' +
+                '<i class="fa fa-plus me-1"/>Add item' +
+                '</button>' +
+                '</td></tr>'
+            );
+            $tbody.append($addLink);
+        });
+
+        // "Add category" button at bottom
+        var $addCat = $(
+            '<tr><td colspan="6" class="text-center" style="border:none; padding:0.5rem;">' +
+            '<button class="btn btn-sm btn-outline-secondary btn-boq-add-category" data-section-id="' + sectionId + '" style="font-size:0.78rem;">' +
+            '<i class="fa fa-folder-o me-1"/>Add Category' +
+            '</button>' +
+            '</td></tr>'
+        );
+        $tbody.append($addCat);
+
+        // Bind inline field changes
+        $tbody.find('.boq-field').off('change').on('change', function () {
+            var $input = $(this);
+            var catIdx = $input.closest('tr').data('cat-idx');
+            var itemIdx = $input.closest('tr').data('item-idx');
+            var field = $input.data('field');
+            if (self.boqData[sectionId].categories[catIdx] &&
+                self.boqData[sectionId].categories[catIdx].items[itemIdx]) {
+                self.boqData[sectionId].categories[catIdx].items[itemIdx][field] = $input.val();
+            }
+        });
+
+        // Bind category name changes
+        $tbody.find('.boq-cat-field').off('change').on('change', function () {
+            var catIdx = $(this).closest('tr').data('cat-idx');
+            if (self.boqData[sectionId].categories[catIdx]) {
+                self.boqData[sectionId].categories[catIdx].category = $(this).val();
+            }
+        });
+    },
+
+    _escAttr: function (str) {
+        return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    },
+
+    _onBoqAddRow: function (ev) {
+        ev.preventDefault();
+        var sectionId = String($(ev.currentTarget).data('section-id'));
+        var catIdx = $(ev.currentTarget).data('cat-idx');
+
+        if (!this.boqData[sectionId]) return;
+
+        // If catIdx specified, add to that category; else add to last
+        if (catIdx === undefined || catIdx === null) {
+            var cats = this.boqData[sectionId].categories;
+            if (cats.length === 0) {
+                cats.push({ category: 'General', items: [] });
+            }
+            catIdx = cats.length - 1;
+        }
+
+        this.boqData[sectionId].categories[catIdx].items.push({
+            description: '', unit: 'Each', quantity: '1', notes: ''
+        });
+        this._renderBoqTable(sectionId);
+    },
+
+    _onBoqAddCategory: function (ev) {
+        ev.preventDefault();
+        var sectionId = String($(ev.currentTarget).data('section-id'));
+        if (!this.boqData[sectionId]) return;
+
+        this.boqData[sectionId].categories.push({
+            category: 'New Category',
+            items: [{ description: '', unit: 'Each', quantity: '1', notes: '' }]
+        });
+        this._renderBoqTable(sectionId);
+    },
+
+    _onBoqDeleteRow: function (ev) {
+        ev.preventDefault();
+        var $btn = $(ev.currentTarget);
+        var sectionId = String($btn.data('section-id'));
+        var catIdx = $btn.data('cat-idx');
+        var itemIdx = $btn.data('item-idx');
+        var isCategory = $btn.data('is-category');
+
+        if (!this.boqData[sectionId]) return;
+
+        if (isCategory) {
+            this.boqData[sectionId].categories.splice(catIdx, 1);
+        } else if (itemIdx !== undefined) {
+            this.boqData[sectionId].categories[catIdx].items.splice(itemIdx, 1);
+        }
+        this._renderBoqTable(sectionId);
+    },
+
+    _getBoqData: function () {
+        var boqData = {};
+        if (this.boqData) {
+            for (var sectionId in this.boqData) {
+                if (this.boqData.hasOwnProperty(sectionId)) {
+                    boqData[sectionId] = this.boqData[sectionId];
+                }
+            }
+        }
+        return boqData;
+    },
+
     _onUnifiedSave: async function (ev) {
         ev.preventDefault();
         const $btn = $(ev.currentTarget);
@@ -707,11 +896,15 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         }
 
         try {
+            // 3. Collect BOQ Data
+            const boqData = this._getBoqData();
+
             const result = await this._rpc({
                 route: `/rfp/unified/save/${projectId}`,
                 params: {
                     structure_data: sectionsData,
-                    content_data: contentData
+                    content_data: contentData,
+                    boq_data: boqData
                 }
             });
 

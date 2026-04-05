@@ -302,7 +302,8 @@ Return ONLY the JSON object.
 3.  **GRANULARITY RULE:** Do NOT group everything into generic headers like "Technical Requirements". Break it down! (e.g., instead of one section "Tech", have "Cloud Architecture", "Security Standards", "Data Privacy", "API Integrations").
 4.  **QUANTITY RULE:** Generate **AS MANY SECTIONS AS NEEDED** to fully cover the scope. Aim for **8-12 Main Sections** minimum for a robust RFP.
 5.  **MANDATORY**: You MUST include a final section titled "**Project Schedule & Deadlines**".
-6.  **Strict JSON:** Return ONLY valid JSON matching the schema.
+6.  **BOQ/PRICING RULE**: If the project involves procuring hardware, software, services, or any quantifiable deliverables, you MUST include exactly ONE **"Bill of Quantities"** section. Set its `section_type` to `"boq"`. This section must be a **standalone section with NO subsections** — the BOQ table internally groups items by category (hardware, software, services, etc.), so subsections are unnecessary and forbidden. Do NOT create subsections like "Hardware Costs" or "Software Licensing" under the BOQ — those become categories inside the single BOQ table. ALL other sections MUST have `section_type` set to `"narrative"`.
+7.  **Strict JSON:** Return ONLY valid JSON matching the schema.
 
 **Constraints:**
 - Do NOT generate content. Only titles and intent.
@@ -403,6 +404,43 @@ Return ONLY the JSON object.
             </field>
         </record>
 
+
+        <!-- Phase 7b: BOQ Content Generation -->
+        <record id="prompt_writer_boq_content" model="rfp.prompt">
+            <field name="name">Phase 7b: BOQ Writer</field>
+            <field name="code">writer_boq_content</field>
+            <field name="ai_model_id" ref="model_gemini_3_flash_preview"/>
+            <field name="description">Generates a Bill of Quantities (BOQ) with categorized line items for an RFP section.</field>
+            <field name="template_text"><![CDATA[
+# Bill of Quantities Generator
+
+**Role:** You are a Professional Quantity Surveyor and Cost Estimation Specialist.
+**Goal:** Generate a comprehensive Bill of Quantities (BOQ) for the specified section of an RFP document.
+
+**Context:**
+- Project Name: {project_name}
+- Domain: {domain}
+- **Document Structure**: {toc_context}
+- **Current Section**: {section_title}
+
+**User Requirements (Source Material):**
+{context_str}
+
+## Instructions:
+
+1.  **Categorize items** logically (e.g. "Infrastructure", "Software Licenses", "Professional Services", "Training & Support", "Recurring Costs"). Use domain-appropriate categories.
+2.  **Be exhaustive** — include ALL quantifiable deliverables identified in the requirements: hardware, software, services, labor, training, support, infrastructure, recurring costs, and any domain-specific items.
+3.  **Use appropriate units**: Each, Lot, Per Month, Man-Day, License, Sq. Meter, Per User, Per Year, Hour, etc.
+4.  **For quantities**: use specific numbers when requirements state them. Use "TBD" or a range like "5-10" when the vendor should propose.
+5.  **Add notes** for items needing clarification, specification references, or where multiple options exist.
+6.  **Order items logically** within each category from most to least important.
+7.  **Write a brief introduction** explaining the BOQ purpose and how vendors should respond (e.g. "Vendors must provide unit pricing for each line item. All prices should be in the project currency and inclusive of applicable taxes unless stated otherwise.").
+8.  **Do NOT include unit rates or totals** — those are for the vendor to fill in.
+
+**Output:** Return ONLY valid JSON matching the schema.
+]]>
+            </field>
+        </record>
 
         <!-- Phase 8: Image Generation -->
         <record id="prompt_image_generator" model="rfp.prompt">
