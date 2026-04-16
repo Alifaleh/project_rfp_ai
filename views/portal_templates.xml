@@ -393,7 +393,7 @@
             .rfp-project-card {
                 background: var(--rfp-white);
                 border-radius: var(--rfp-radius);
-                padding: 1.5rem;
+                padding: 1.75rem;
                 box-shadow: var(--rfp-shadow);
                 transition: all 0.3s ease;
                 border-left: 4px solid var(--rfp-gold);
@@ -443,24 +443,24 @@
                 box-shadow: var(--rfp-shadow-hover);
             }
             .rfp-stat-card .stat-icon {
-                width: 48px;
-                height: 48px;
-                border-radius: 12px;
+                width: 54px;
+                height: 54px;
+                border-radius: 14px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                font-size: 1.25rem;
+                font-size: 1.4rem;
                 margin-bottom: 0.75rem;
             }
             .rfp-stat-card .stat-value {
-                font-size: 1.75rem;
+                font-size: 2.2rem;
                 font-weight: 700;
                 color: var(--rfp-dark);
                 line-height: 1;
                 margin-bottom: 0.25rem;
             }
             .rfp-stat-card .stat-label {
-                font-size: 0.8rem;
+                font-size: 0.92rem;
                 color: var(--rfp-gray);
                 font-weight: 500;
                 text-transform: uppercase;
@@ -505,10 +505,10 @@
                 box-shadow: 0 0 0 3px rgba(201,162,39,0.1);
             }
             .rfp-filter-btn {
-                padding: 0.5rem 1rem;
+                padding: 0.55rem 1.1rem;
                 border-radius: var(--rfp-radius-sm);
                 font-weight: 500;
-                font-size: 0.85rem;
+                font-size: 0.95rem;
                 border: 1px solid #E5E7EB;
                 background: #FFFFFF;
                 color: var(--rfp-gray);
@@ -523,10 +523,10 @@
             }
             .rfp-filter-btn i { margin-right: 0.35rem; }
             .rfp-sort-select {
-                padding: 0.5rem 2rem 0.5rem 0.75rem;
+                padding: 0.55rem 2rem 0.55rem 0.75rem;
                 border-radius: var(--rfp-radius-sm);
                 border: 1px solid #E5E7EB;
-                font-size: 0.85rem;
+                font-size: 0.95rem;
                 font-weight: 500;
                 color: var(--rfp-gray);
                 background: #FFFFFF;
@@ -535,9 +535,9 @@
 
             /* === STAGE BADGES (Dashboard) === */
             .rfp-stage-badge {
-                padding: 0.25rem 0.75rem;
+                padding: 0.3rem 0.85rem;
                 border-radius: 50px;
-                font-size: 0.7rem;
+                font-size: 0.82rem;
                 font-weight: 600;
                 text-transform: uppercase;
                 letter-spacing: 0.05em;
@@ -560,7 +560,7 @@
 
             /* === PROGRESS BAR (Dashboard) === */
             .rfp-card-progress {
-                height: 4px;
+                height: 6px;
                 background: #F3F4F6;
                 border-radius: 50px;
                 overflow: hidden;
@@ -575,7 +575,7 @@
 
             /* === ENHANCED PROJECT CARD === */
             .rfp-project-card .card-meta {
-                font-size: 0.78rem;
+                font-size: 0.92rem;
                 color: #9CA3AF;
                 margin-top: 0.5rem;
             }
@@ -596,12 +596,13 @@
             .rfp-action-dropdown-menu {
                 position: absolute;
                 right: 0;
-                top: 100%;
+                bottom: 100%;
+                margin-bottom: 4px;
                 background: #FFFFFF;
                 border-radius: var(--rfp-radius-sm);
-                box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+                box-shadow: 0 -4px 20px rgba(0,0,0,0.12);
                 border: 1px solid #E5E7EB;
-                min-width: 160px;
+                min-width: 175px;
                 z-index: 1050;
                 display: none;
                 overflow: hidden;
@@ -611,8 +612,8 @@
                 display: flex;
                 align-items: center;
                 gap: 0.5rem;
-                padding: 0.6rem 1rem;
-                font-size: 0.82rem;
+                padding: 0.65rem 1.1rem;
+                font-size: 0.92rem;
                 color: var(--rfp-gray);
                 text-decoration: none;
                 transition: all 0.15s;
@@ -647,7 +648,7 @@
                 margin-top: 1.5rem;
             }
             .rfp-activity-section h5 {
-                font-size: 0.95rem;
+                font-size: 1.15rem;
                 font-weight: 700;
                 color: var(--rfp-dark);
                 margin-bottom: 1rem;
@@ -681,7 +682,7 @@
                 min-width: 0;
             }
             .rfp-activity-content .activity-title {
-                font-size: 0.85rem;
+                font-size: 1rem;
                 font-weight: 500;
                 color: var(--rfp-dark);
                 text-decoration: none;
@@ -690,12 +691,12 @@
                 color: var(--rfp-gold);
             }
             .rfp-activity-content .activity-desc {
-                font-size: 0.78rem;
+                font-size: 0.88rem;
                 color: #9CA3AF;
                 margin-top: 0.15rem;
             }
             .rfp-activity-content .activity-time {
-                font-size: 0.72rem;
+                font-size: 0.82rem;
                 color: #C0C7D0;
                 margin-top: 0.1rem;
             }
@@ -750,7 +751,7 @@
 
             /* Result count */
             .rfp-result-count {
-                font-size: 0.82rem;
+                font-size: 0.95rem;
                 color: #9CA3AF;
                 font-weight: 500;
             }
@@ -1064,10 +1065,9 @@
                 padding: 0.65rem 1.25rem;
             }
             .rfp-toolbar-v2 .toolbar-title {
-                font-size: 1rem;
+                font-size: 1.1rem;
                 font-weight: 700;
                 color: var(--rfp-dark);
-                max-width: 280px;
             }
             .rfp-toolbar-v2 .btn {
                 font-size: 0.82rem;
@@ -1361,16 +1361,16 @@ My RFP Projects</h2>
                     <div id="rfp_projects_grid" class="row g-4">
                         <t t-foreach="projects" t-as="project">
                             <div class="col-md-6 col-lg-4 col-xl-4 rfp-project-wrapper" t-att-data-project-id="project.id" t-att-data-name="project.name" t-att-data-stage="project.current_stage" t-att-data-date="project.write_date" t-att-data-status="project.current_stage in ('completed', 'completed_with_errors', 'document_locked') and 'completed' or project.current_stage == 'draft' and 'draft' or 'in_progress'">
-                                <div class="rfp-project-card h-100">
-                                    <div class="d-flex justify-content-between align-items-start mb-2">
-                                        <h5 class="mb-0 text-rfp-gold" style="font-size:0.95rem;flex:1;min-width:0;" t-att-title="project.name">
-                                            <span class="text-truncate d-block" t-field="project.name"/>
-                                        </h5>
-                                        <span class="rfp-stage-badge" t-attf-class="rfp-stage-badge rfp-stage-#{project.current_stage}" t-field="project.current_stage"/>
-                                    </div>
-                                    <p class="text-muted small mb-2" style="max-height:38px;overflow:hidden;line-height:1.35em;" t-field="project.description"/>
+                                <div class="rfp-project-card h-100 d-flex flex-column">
+                                    <!-- Title -->
+                                    <h5 class="mb-2 text-rfp-gold" style="font-size:1.2rem;line-height:1.35;" t-att-title="project.name">
+                                        <span class="d-block" t-field="project.name"/>
+                                    </h5>
 
-                                    <!-- Progress Bar -->
+                                    <!-- Description -->
+                                    <p class="text-muted mb-3" style="max-height:56px;overflow:hidden;line-height:1.5em;font-size:0.95rem;flex-grow:1;" t-field="project.description"/>
+
+                                    <!-- Progress Bar with percentage -->
                                     <t t-set="stage_progress" t-value="{
                                         'draft': 0,
                                         'initialized': 10,
@@ -1387,8 +1387,13 @@ My RFP Projects</h2>
                                         'completed': 100,
                                         'completed_with_errors': 100
                                     }"/>
-                                    <div class="rfp-card-progress">
-                                        <div class="rfp-card-progress-bar" t-attf-style="width: #{stage_progress.get(project.current_stage, 0)}%"/>
+                                    <div class="d-flex align-items-center gap-2 mb-2">
+                                        <div class="rfp-card-progress flex-grow-1" style="margin-top:0;">
+                                            <div class="rfp-card-progress-bar" t-attf-style="width: #{stage_progress.get(project.current_stage, 0)}%"/>
+                                        </div>
+                                        <span style="font-size:0.85rem; font-weight:700; color:var(--rfp-gold); min-width:36px; text-align:right;">
+                                            <t t-esc="stage_progress.get(project.current_stage, 0)"/>%
+                                        </span>
                                     </div>
 
                                     <!-- Meta Info -->
@@ -1401,7 +1406,7 @@ My RFP Projects</h2>
 
                                     <!-- Actions -->
                                     <div class="card-actions d-flex gap-2 mt-3 align-items-center">
-                                        <a t-attf-href="/rfp/interface/#{project.id}" class="btn btn-rfp-gold-outline btn-sm flex-fill" style="font-size:0.8rem;">
+                                        <a t-attf-href="/rfp/interface/#{project.id}" class="btn btn-rfp-gold-outline btn-sm flex-fill" style="font-size:0.95rem;">
                                             <i class="fa fa-arrow-right me-1"/>
                                             <t t-if="project.current_stage in ('completed', 'completed_with_errors', 'document_locked')">View</t>
                                             <t t-else="">Continue</t>
@@ -1442,32 +1447,7 @@ My RFP Projects</h2>
                         <p class="mb-0">No projects match your search or filter criteria</p>
                     </div>
 
-                    <!-- Activity Section -->
-                    <t t-set="recent_projects" t-value="projects.sorted(key=lambda p: p.write_date, reverse=True)[:5]"/>
-                    <t t-if="recent_projects">
-                        <div class="rfp-activity-section">
-                            <h5>
-                                <i class="fa fa-history text-rfp-gold"/>
- Recent Activity</h5>
-                            <t t-foreach="recent_projects" t-as="project">
-                                <div class="rfp-activity-item">
-                                    <t t-set="dot_color" t-value="'rfp-activity-dot-green' if project.current_stage in ('completed', 'completed_with_errors') else 'rfp-activity-dot-gold' if project.current_stage in ('document_locked',) else 'rfp-activity-dot-blue' if project.write_date else 'rfp-activity-dot-gray'"/>
-                                    <div class="rfp-activity-dot" t-attf-class="#{dot_color}"/>
-                                    <div class="rfp-activity-content">
-                                        <a t-attf-href="/rfp/interface/#{project.id}" class="activity-title" t-field="project.name"/>
-                                        <div class="activity-desc">
-                                            <span class="rfp-stage-badge" t-attf-class="rfp-stage-badge rfp-stage-#{project.current_stage}" style="font-size:0.65rem;padding:0.15rem 0.5rem;" t-field="project.current_stage"/>
-                                            <t t-if="project.domain_id"> in <span t-field="project.domain_id.name"/>
-                                            </t>
-                                        </div>
-                                        <div class="activity-time">
-                                            <t t-esc="project.write_date.strftime('%b %d, %Y at %H:%M') if project.write_date else 'Unknown'"/>
-                                        </div>
-                                    </div>
-                                </div>
-                            </t>
-                        </div>
-                    </t>
+                    <!-- Activity Section (hidden) -->
                 </t>
 
                 <!-- Duplicate Confirmation Modal -->
@@ -2175,7 +2155,7 @@ Skip Question
                             <div class="d-flex align-items-center justify-content-center rounded-circle" style="width: 32px; height: 32px; background: var(--rfp-gold-light); flex-shrink: 0;">
                                 <i class="fa fa-file-text-o text-rfp-gold" style="font-size: 0.85rem;"/>
                             </div>
-                            <span class="toolbar-title text-truncate" t-field="rfp_project.name"/>
+                            <span class="toolbar-title" t-field="rfp_project.name"/>
                             <t t-if="rfp_project.current_stage == 'completed'">
                                 <span class="badge bg-rfp-gold" style="font-size: 0.7rem;">Ready</span>
                             </t>
@@ -2309,8 +2289,8 @@ Locked</span>
                 <div class="card shadow-sm border-0 mb-4" style="border-left: 4px solid var(--rfp-gold) !important;">
                     <div class="card-header bg-white d-flex justify-content-between align-items-center py-3" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#eval_criteria_panel" aria-expanded="false">
                         <div class="d-flex align-items-center">
-                            <i class="fa fa-balance-scale me-2 text-rfp-gold"/>
-                            <h6 class="mb-0 fw-bold">Evaluation Criteria</h6>
+                            <i class="fa fa-balance-scale me-2 text-rfp-gold" style="font-size:1.1rem;"/>
+                            <h6 class="mb-0 fw-bold" style="font-size:1.15rem;">Evaluation Criteria</h6>
                             <span class="badge bg-rfp-gold ms-2">
                                 <t t-esc="len(rfp_project.evaluation_criterion_ids.filtered('active'))"/>
                             </span>
@@ -2327,7 +2307,7 @@ Finalized</span>
                             </t>
                         </div>
                         <div class="d-flex align-items-center gap-2">
-                            <small class="text-muted">Evaluation rubric for proposals</small>
+                            <span class="text-muted" style="font-size:0.95rem;">Evaluation rubric for proposals</span>
                             <i class="fa fa-chevron-down"/>
                         </div>
                     </div>
@@ -2374,53 +2354,63 @@ Finalized</span>
                             <!-- Criteria Cards -->
                             <div id="eval_criteria_container" t-att-data-project-id="rfp_project.id">
                                 <t t-foreach="rfp_project.evaluation_criterion_ids.filtered('active').sorted('sequence')" t-as="c">
-                                    <div class="card border mb-2 eval-criterion-card" t-att-data-criterion-id="c.id">
-                                        <div class="card-body py-2 px-3">
-                                            <div class="row align-items-center">
-                                                <!-- Name + Category -->
-                                                <div class="col-md-4">
-                                                    <input type="text" class="form-control form-control-sm fw-bold criterion-name" t-att-value="c.name"/>
-                                                    <div class="mt-1">
-                                                        <span t-attf-class="badge bg-{{ 'primary' if c.category == 'technical' else ('success' if c.category == 'commercial' else ('info' if c.category == 'experience' else ('warning' if c.category == 'compliance' else 'secondary'))) }}" t-esc="c.category" style="text-transform: capitalize; font-size: 0.7em;"/>
-                                                        <span t-if="c.is_must_have" class="badge bg-danger ms-1" style="font-size: 0.7em;">Must-Have</span>
+                                    <div class="eval-criterion-card mb-3" t-att-data-criterion-id="c.id"
+                                         style="background:var(--rfp-white); border-radius:var(--rfp-radius); box-shadow:0 2px 12px rgba(0,0,0,0.06); border:1px solid rgba(0,0,0,0.05); overflow:hidden;">
+                                        <!-- Card header with dark gradient -->
+                                        <div t-attf-style="background:linear-gradient(135deg, var(--rfp-dark) 0%, #16213E 100%); padding:1rem 1.5rem; color:white; position:relative; overflow:hidden; #{'border-bottom:3px solid #dc3545;' if c.is_must_have else 'border-bottom:3px solid var(--rfp-gold);'}">
+                                            <div style="position:absolute; top:-50%; right:-20%; width:50%; height:200%; background:radial-gradient(circle, rgba(201,162,39,0.1) 0%, transparent 60%); pointer-events:none;"/>
+                                            <div class="d-flex align-items-center gap-3" style="position:relative; z-index:1;">
+                                                <div style="width:46px; height:46px; border-radius:50%; border:2.5px solid rgba(201,162,39,0.5); background:rgba(201,162,39,0.12); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:1rem; color:var(--rfp-gold); flex-shrink:0;">
+                                                    <t t-esc="c.weight"/>%
+                                                </div>
+                                                <div class="flex-grow-1 min-w-0">
+                                                    <input type="text" class="form-control fw-bold criterion-name" t-att-value="c.name"
+                                                           style="background:transparent; border:1px solid rgba(255,255,255,0.15); color:white; font-size:1.1rem; padding:0.35rem 0.75rem; border-radius:8px;"/>
+                                                    <div class="d-flex align-items-center gap-2 mt-1">
+                                                        <span t-attf-class="badge bg-{{ 'primary' if c.category == 'technical' else ('success' if c.category == 'commercial' else ('info' if c.category == 'experience' else ('warning' if c.category == 'compliance' else 'secondary'))) }}" t-esc="c.category" style="text-transform:capitalize; font-size:0.82em;"/>
+                                                        <span t-if="c.is_must_have" class="badge bg-danger ms-1" style="font-size:0.82em;">Must-Have</span>
                                                     </div>
                                                 </div>
-                                                <!-- Weight Slider -->
-                                                <div class="col-md-3">
-                                                    <label class="form-label small text-muted mb-0">Weight</label>
-                                                    <div class="d-flex align-items-center gap-2">
-                                                        <input type="range" class="form-range criterion-weight-slider" min="1" max="100" t-att-value="c.weight"/>
-                                                        <span class="badge bg-rfp-gold criterion-weight-display" style="min-width: 35px;">
-                                                            <t t-esc="c.weight"/>
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                                <!-- Must-Have Toggle -->
-                                                <div class="col-md-2 text-center">
-                                                    <label class="form-label small text-muted mb-0 d-block">Must-Have</label>
-                                                    <div class="form-check form-switch d-inline-block">
-                                                        <input class="form-check-input criterion-must-have" type="checkbox" t-att-checked="'checked' if c.is_must_have else None"/>
-                                                    </div>
-                                                </div>
-                                                <!-- Actions -->
-                                                <div class="col-md-3 text-end">
-                                                    <button class="btn btn-sm btn-outline-secondary me-1 btn-toggle-details" type="button" data-bs-toggle="collapse" t-attf-data-bs-target="#editor_detail_#{c.id}">
+                                                <div class="d-flex gap-1">
+                                                    <button class="btn btn-sm btn-toggle-details" type="button" data-bs-toggle="collapse" t-attf-data-bs-target="#editor_detail_#{c.id}"
+                                                            style="color:rgba(255,255,255,0.6); border:1px solid rgba(255,255,255,0.15); background:transparent;">
                                                         <i class="fa fa-chevron-down"/>
                                                     </button>
-                                                    <button class="btn btn-sm btn-outline-danger btn-delete-criterion" type="button">
+                                                    <button class="btn btn-sm btn-delete-criterion" type="button"
+                                                            style="color:rgba(255,140,140,0.8); border:1px solid rgba(220,53,69,0.3); background:transparent;">
                                                         <i class="fa fa-trash"/>
                                                     </button>
                                                 </div>
                                             </div>
+                                        </div>
+                                        <!-- Card body -->
+                                        <div style="padding:1.25rem 1.5rem;">
+                                            <div class="row align-items-center">
+                                                <div class="col-md-7">
+                                                    <label class="form-label text-muted mb-1" style="font-size:0.88rem; font-weight:600;">Weight</label>
+                                                    <div class="d-flex align-items-center gap-2">
+                                                        <input type="range" class="form-range criterion-weight-slider" min="1" max="100" t-att-value="c.weight"/>
+                                                        <span class="badge bg-rfp-gold criterion-weight-display" style="min-width:42px; font-size:0.92rem; padding:0.35rem 0.5rem;">
+                                                            <t t-esc="c.weight"/>
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-5 text-center">
+                                                    <label class="form-label text-muted mb-1 d-block" style="font-size:0.88rem; font-weight:600;">Must-Have Requirement</label>
+                                                    <div class="form-check form-switch d-inline-block">
+                                                        <input class="form-check-input criterion-must-have" type="checkbox" t-att-checked="'checked' if c.is_must_have else None" style="width:2.5em; height:1.25em;"/>
+                                                    </div>
+                                                </div>
+                                            </div>
                                             <!-- Collapsible Details -->
-                                            <div class="collapse mt-2" t-attf-id="editor_detail_#{c.id}">
-                                                <div class="bg-light rounded p-3">
-                                                    <label class="form-label small fw-bold">Description</label>
-                                                    <textarea class="form-control form-control-sm mb-2 criterion-description" rows="2" placeholder="Describe what this criterion evaluates...">
+                                            <div class="collapse mt-3" t-attf-id="editor_detail_#{c.id}">
+                                                <div style="background:var(--rfp-light); border-radius:var(--rfp-radius-sm); padding:1.25rem;">
+                                                    <label class="form-label fw-bold" style="font-size:0.95rem;">Description</label>
+                                                    <textarea class="form-control mb-3 criterion-description" rows="2" placeholder="Describe what this criterion evaluates..." style="font-size:0.95rem;">
                                                         <t t-esc="c.description or ''"/>
                                                     </textarea>
-                                                    <label class="form-label small fw-bold">Evaluation Guidance</label>
-                                                    <textarea class="form-control form-control-sm criterion-scoring-guidance" rows="2" placeholder="What constitutes high, medium, and low scores...">
+                                                    <label class="form-label fw-bold" style="font-size:0.95rem;">Evaluation Guidance</label>
+                                                    <textarea class="form-control criterion-scoring-guidance" rows="2" placeholder="What constitutes high, medium, and low scores..." style="font-size:0.95rem;">
                                                         <t t-esc="c.scoring_guidance or ''"/>
                                                     </textarea>
                                                 </div>
