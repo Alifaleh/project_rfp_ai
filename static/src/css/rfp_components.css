@@ -1,0 +1,1093 @@
+/* ============================================================
+   Screen-specific components for the RFP mockups
+   ============================================================ */
+
+/* ---------- Dashboard ---------- */
+.dash-hero {
+  background: var(--rfp-grad-ink);
+  color: var(--rfp-paper);
+  border-radius: var(--rfp-r-lg);
+  padding: 28px 32px;
+  display: flex; justify-content: space-between; align-items: center; gap: 24px;
+  position: relative; overflow: hidden;
+}
+.dash-hero::after {
+  content: ""; position: absolute; right: -120px; top: -60px;
+  width: 320px; height: 320px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(201,162,39,.22) 0%, transparent 70%);
+  pointer-events: none;
+}
+.dash-hero .kicker {
+  font-family: var(--rfp-font-mono); font-size: 11px;
+  color: var(--rfp-gold); letter-spacing: .15em; text-transform: uppercase;
+}
+.dash-hero h2 { font-size: var(--rfp-fs-2xl); margin: 6px 0 4px; color: var(--rfp-paper); }
+.dash-hero p  { margin: 0; color: rgba(255,255,255,.7); font-size: var(--rfp-fs-sm); max-width: 560px; }
+
+.stat-strip {
+  display: grid; grid-template-columns: repeat(5, 1fr);
+  gap: 12px; margin-top: 20px;
+}
+.stat-card {
+  background: var(--rfp-paper);
+  border: 1px solid var(--rfp-ink-100);
+  border-radius: var(--rfp-r-lg);
+  padding: 18px 20px;
+  position: relative;
+}
+.stat-card .stat-k {
+  font-family: var(--rfp-font-mono); font-size: 10px;
+  text-transform: uppercase; letter-spacing: .12em;
+  color: var(--rfp-ink-500);
+}
+.stat-card .stat-v { font-size: 30px; font-weight: 700; margin-top: 4px; letter-spacing: -0.02em; }
+.stat-card .stat-d { font-size: var(--rfp-fs-xs); color: var(--rfp-ink-500); margin-top: 2px; }
+.stat-card.accent { border-top: 3px solid var(--rfp-gold); }
+
+/* Featured cards (up to 3 projects in progress) */
+.featured-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 24px;
+}
+.featured-card {
+  background: var(--rfp-paper);
+  border: 1px solid var(--rfp-ink-100);
+  border-radius: var(--rfp-r-lg);
+  padding: 20px;
+  display: flex; flex-direction: column; gap: 14px;
+  position: relative;
+  transition: border-color var(--rfp-t-fast), box-shadow var(--rfp-t-fast);
+}
+.featured-card:hover { border-color: var(--rfp-gold); box-shadow: var(--rfp-sh-sm); }
+.featured-card .head {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+}
+.featured-card h3 { font-size: var(--rfp-fs-md); line-height: var(--rfp-lh-snug); margin: 0; }
+.featured-card .sub { font-size: var(--rfp-fs-xs); color: var(--rfp-ink-500); font-family: var(--rfp-font-mono);
+  text-transform: uppercase; letter-spacing: .08em; margin-bottom: 6px; }
+.featured-card .progress {
+  display: flex; align-items: center; gap: 10px; font-size: var(--rfp-fs-xs);
+}
+.featured-card .pbar { flex: 1; height: 4px; background: var(--rfp-ink-050); border-radius: 999px; overflow: hidden; }
+.featured-card .pbar i { display: block; height: 100%; background: var(--rfp-grad-gold); border-radius: inherit; }
+.featured-card .stage {
+  font-size: var(--rfp-fs-xs); color: var(--rfp-ink-500);
+  display: flex; align-items: center; gap: 6px;
+}
+.featured-card .foot {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 6px; padding-top: 12px; border-top: 1px dashed var(--rfp-ink-100);
+  font-size: var(--rfp-fs-xs); color: var(--rfp-ink-500);
+}
+
+/* Table */
+.project-toolbar {
+  display: flex; align-items: center; gap: 12px; margin-top: 32px; margin-bottom: 16px;
+}
+.search-input {
+  flex: 1; display: flex; align-items: center; gap: 10px;
+  background: var(--rfp-paper); border: 1px solid var(--rfp-ink-100);
+  border-radius: var(--rfp-r-md); padding: 9px 14px;
+}
+.search-input input {
+  flex: 1; border: 0; outline: 0; background: transparent;
+  font: inherit; color: var(--rfp-ink);
+}
+.search-input input::placeholder { color: var(--rfp-ink-300); }
+.chip-group { display: inline-flex; background: var(--rfp-ink-050); border-radius: var(--rfp-r-pill); padding: 3px; }
+.chip-group button {
+  border: 0; background: transparent; padding: 6px 14px; border-radius: var(--rfp-r-pill);
+  font-size: var(--rfp-fs-xs); font-weight: 600; color: var(--rfp-ink-500); cursor: pointer;
+}
+.chip-group button.active { background: var(--rfp-paper); color: var(--rfp-ink); box-shadow: var(--rfp-sh-xs); }
+
+.project-table {
+  background: var(--rfp-paper);
+  border: 1px solid var(--rfp-ink-100);
+  border-radius: var(--rfp-r-lg);
+  overflow: hidden;
+}
+.project-table table { width: 100%; border-collapse: collapse; }
+.project-table th {
+  text-align: left; padding: 12px 20px;
+  font-size: var(--rfp-fs-xs); color: var(--rfp-ink-500); font-weight: 600;
+  text-transform: uppercase; letter-spacing: .08em;
+  border-bottom: 1px solid var(--rfp-ink-100); background: var(--rfp-ink-050);
+}
+.project-table td {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--rfp-ink-100);
+  font-size: var(--rfp-fs-sm);
+  vertical-align: middle;
+}
+.project-table tr:last-child td { border-bottom: 0; }
+.project-table tr:hover td { background: var(--rfp-gold-050); }
+.project-table .proj-name { font-weight: 600; color: var(--rfp-ink); }
+.project-table .proj-desc { color: var(--rfp-ink-500); font-size: var(--rfp-fs-xs); margin-top: 2px; }
+.project-table .mini-bar { width: 90px; height: 4px; background: var(--rfp-ink-050); border-radius: 999px; overflow: hidden; display: inline-block; vertical-align: middle; }
+.project-table .mini-bar i { display: block; height: 100%; background: var(--rfp-grad-gold); }
+.lang-tag {
+  font-family: var(--rfp-font-mono); font-size: 10px;
+  border: 1px solid var(--rfp-ink-100); color: var(--rfp-ink-500);
+  padding: 2px 6px; border-radius: 4px; vertical-align: middle; margin-left: 6px;
+}
+
+/* ---------- Interviewer ---------- */
+.iv-shell {
+  display: grid; grid-template-columns: 320px 1fr; gap: 0;
+  min-height: 700px;
+}
+.iv-nav {
+  border-right: 1px solid var(--rfp-ink-100);
+  background: var(--rfp-ink-050);
+  padding: 20px 0;
+  overflow: auto;
+}
+.iv-nav .nav-head {
+  padding: 0 20px 16px; border-bottom: 1px solid var(--rfp-ink-100); margin-bottom: 12px;
+}
+.iv-nav .nav-head .label {
+  font-family: var(--rfp-font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .12em; color: var(--rfp-ink-500);
+}
+.iv-nav .nav-head h4 { font-size: var(--rfp-fs-md); margin: 2px 0 6px; }
+.iv-nav .nav-head .mini-prog { height: 4px; background: var(--rfp-ink-100); border-radius: 999px; overflow: hidden; margin-top: 8px; }
+.iv-nav .nav-head .mini-prog i { display: block; height: 100%; background: var(--rfp-grad-gold); }
+.iv-group { padding: 4px 0; }
+.iv-group .group-title {
+  font-family: var(--rfp-font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .12em; color: var(--rfp-ink-500);
+  padding: 8px 20px 6px;
+}
+.iv-q {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 20px; font-size: var(--rfp-fs-sm);
+  color: var(--rfp-ink-500); cursor: pointer; position: relative;
+  border-left: 3px solid transparent;
+}
+.iv-q:hover { background: var(--rfp-paper); color: var(--rfp-ink); }
+.iv-q.active { background: var(--rfp-paper); color: var(--rfp-ink); font-weight: 600; border-left-color: var(--rfp-gold); }
+.iv-q .q-state {
+  width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center; font-size: 9px;
+  background: var(--rfp-paper); border: 1px solid var(--rfp-ink-100); color: var(--rfp-ink-500);
+}
+.iv-q.answered .q-state { background: var(--rfp-success); border-color: var(--rfp-success); color: #fff; }
+.iv-q.ai-prefilled .q-state { background: var(--rfp-gold-100); border-color: var(--rfp-gold); color: var(--rfp-ink); }
+.iv-q.flagged .q-state { background: var(--rfp-danger-bg); border-color: var(--rfp-danger); color: var(--rfp-danger); }
+.iv-q.irrelevant { color: var(--rfp-ink-300); text-decoration: line-through; }
+.iv-q .q-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.iv-q .q-num { font-family: var(--rfp-font-mono); font-size: 10px; color: var(--rfp-ink-300); }
+
+.iv-detail { padding: 32px 40px; max-width: 780px; }
+.iv-detail .q-eyebrow {
+  display: flex; align-items: center; gap: 12px;
+  font-family: var(--rfp-font-mono); font-size: 11px; color: var(--rfp-ink-500);
+  text-transform: uppercase; letter-spacing: .1em;
+  margin-bottom: 10px;
+}
+.iv-detail .q-title { font-size: var(--rfp-fs-xl); line-height: var(--rfp-lh-snug); margin-bottom: 8px; }
+.iv-detail .q-help {
+  background: var(--rfp-info-bg); border-left: 3px solid var(--rfp-info);
+  padding: 12px 14px; border-radius: 0 6px 6px 0;
+  font-size: var(--rfp-fs-sm); color: var(--rfp-ink);
+  margin: 16px 0 20px;
+}
+.iv-detail label { display: block; font-size: var(--rfp-fs-xs); font-weight: 600; color: var(--rfp-ink-500);
+  text-transform: uppercase; letter-spacing: .08em; margin-bottom: 6px; }
+.input-rfp, textarea.input-rfp {
+  display: block; width: 100%;
+  padding: 11px 14px;
+  border: 1px solid var(--rfp-ink-100); border-radius: var(--rfp-r-md);
+  background: var(--rfp-paper); font: inherit; color: var(--rfp-ink);
+  transition: border-color var(--rfp-t-fast), box-shadow var(--rfp-t-fast);
+}
+.input-rfp:focus, textarea.input-rfp:focus {
+  outline: 0; border-color: var(--rfp-gold);
+  box-shadow: 0 0 0 3px rgba(201,162,39,.15);
+}
+textarea.input-rfp { min-height: 96px; resize: vertical; }
+
+.radio-list { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+.radio-list label {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--rfp-ink-100); border-radius: var(--rfp-r-md);
+  text-transform: none; letter-spacing: 0; font-weight: 500; font-size: var(--rfp-fs-sm);
+  color: var(--rfp-ink); cursor: pointer; background: var(--rfp-paper);
+}
+.radio-list label:hover { border-color: var(--rfp-gold); background: var(--rfp-gold-050); }
+.radio-list label.selected { border-color: var(--rfp-gold); background: var(--rfp-gold-050); box-shadow: inset 0 0 0 1px var(--rfp-gold); }
+.radio-list .dot {
+  width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--rfp-ink-300);
+  flex-shrink: 0; margin-top: 2px; position: relative;
+}
+.radio-list label.selected .dot { border-color: var(--rfp-gold); }
+.radio-list label.selected .dot::after {
+  content: ""; position: absolute; inset: 3px; border-radius: 50%; background: var(--rfp-gold);
+}
+
+.suggestion-row {
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: var(--rfp-gold-050); border: 1px dashed var(--rfp-gold);
+  border-radius: var(--rfp-r-md);
+}
+.suggestion-row .label {
+  display: flex; align-items: center; gap: 8px;
+  font-size: var(--rfp-fs-xs); color: var(--rfp-ink); font-weight: 600;
+  text-transform: uppercase; letter-spacing: .08em; margin-bottom: 8px;
+}
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  background: var(--rfp-paper); border: 1px solid var(--rfp-gold);
+  border-radius: var(--rfp-r-pill); padding: 6px 12px;
+  font-size: var(--rfp-fs-xs); color: var(--rfp-ink); cursor: pointer;
+}
+.chip:hover { background: var(--rfp-gold); }
+
+.iv-actions {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--rfp-ink-100);
+}
+.save-state { font-size: var(--rfp-fs-xs); color: var(--rfp-ink-500); display: flex; align-items: center; gap: 6px; }
+.save-state .tick { color: var(--rfp-success); }
+.save-state.saving .tick { color: var(--rfp-gold); animation: pulse 1s infinite; }
+.save-state.error .tick { color: var(--rfp-danger); }
+
+.iv-meta-bar {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 14px; background: var(--rfp-ink-050); border-radius: var(--rfp-r-md);
+  margin-bottom: 18px; font-size: var(--rfp-fs-xs); color: var(--rfp-ink-500);
+}
+
+/* ---------- Editor ---------- */
+.ed-shell {
+  display: grid; grid-template-columns: 280px 1fr 320px;
+  min-height: 820px;
+}
+.ed-outline { border-right: 1px solid var(--rfp-ink-100); background: var(--rfp-paper);
+  position: sticky; top: 0; height: fit-content; max-height: 100vh; overflow: auto; padding: 20px 0; }
+.ed-outline .out-head { padding: 0 20px 14px; border-bottom: 1px solid var(--rfp-ink-100); }
+.ed-outline .out-head h4 { font-size: var(--rfp-fs-md); }
+.ed-outline .out-head .meta { font-size: var(--rfp-fs-xs); color: var(--rfp-ink-500); font-family: var(--rfp-font-mono); margin-top: 4px; }
+
+.ed-outline .section-item {
+  display: flex; gap: 10px; padding: 10px 20px; font-size: var(--rfp-fs-sm);
+  border-left: 3px solid transparent; cursor: pointer;
+}
+.ed-outline .section-item:hover { background: var(--rfp-ink-050); }
+.ed-outline .section-item.active { background: var(--rfp-gold-050); border-left-color: var(--rfp-gold); }
+.ed-outline .section-item .num { font-family: var(--rfp-font-mono); font-size: 11px; color: var(--rfp-ink-500); min-width: 24px; }
+.ed-outline .section-item .s-title { flex: 1; }
+.ed-outline .section-item .s-status {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 6px;
+  background: var(--rfp-ink-100);
+}
+.ed-outline .section-item.done .s-status { background: var(--rfp-success); }
+.ed-outline .section-item.editing .s-status { background: var(--rfp-gold); box-shadow: 0 0 0 3px rgba(201,162,39,.2); }
+.ed-outline .section-item.locked .s-status { background: var(--rfp-ink); }
+/* Active row (scroll-spy): gold dot with a soft halo, overriding the
+   per-state color above. Also bold the title for extra emphasis. */
+.ed-outline .section-item.active .s-status {
+  background: var(--rfp-gold) !important;
+  box-shadow: 0 0 0 3px rgba(201,162,39,.2);
+}
+.ed-outline .section-item.active .s-title { font-weight: 600; }
+
+.ed-canvas { padding: 24px 40px; background: var(--rfp-canvas); overflow: auto; }
+.ed-tabs {
+  display: flex; gap: 2px; border-bottom: 1px solid var(--rfp-ink-100);
+  margin-bottom: 24px;
+}
+.ed-tabs button {
+  border: 0; background: transparent; padding: 10px 16px;
+  font-size: var(--rfp-fs-sm); color: var(--rfp-ink-500); font-weight: 500; cursor: pointer;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.ed-tabs button.active { color: var(--rfp-ink); border-color: var(--rfp-gold); font-weight: 600; }
+
+.ed-section-card {
+  background: var(--rfp-paper);
+  border: 1px solid var(--rfp-ink-100);
+  border-radius: var(--rfp-r-lg);
+  padding: 28px 32px;
+  margin-bottom: 20px;
+}
+.ed-section-card h2 {
+  font-family: var(--rfp-font-serif);
+  font-size: var(--rfp-fs-xl);
+  margin-bottom: 4px;
+}
+.ed-section-card .sec-num {
+  font-family: var(--rfp-font-mono); font-size: var(--rfp-fs-xs);
+  color: var(--rfp-gold-600); letter-spacing: .1em; text-transform: uppercase; font-weight: 600;
+}
+.ed-section-card .sec-head {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
+  margin-bottom: 18px; padding-bottom: 16px; border-bottom: 1px dashed var(--rfp-ink-100);
+}
+.ed-section-card .prose {
+  font-family: var(--rfp-font-serif);
+  font-size: var(--rfp-fs-md);
+  color: var(--rfp-ink); line-height: 1.7;
+}
+.ed-section-card .prose p { margin: 0 0 1em; }
+
+.ai-hint {
+  margin-top: 14px; padding: 12px 14px;
+  background: var(--rfp-ink-050); border-radius: var(--rfp-r-md);
+  display: flex; align-items: center; gap: 10px;
+  font-size: var(--rfp-fs-xs); color: var(--rfp-ink-500);
+}
+.ai-hint button {
+  margin-left: auto; background: var(--rfp-paper); border: 1px solid var(--rfp-ink-100);
+  border-radius: var(--rfp-r-md); padding: 5px 10px; font-size: 11px; font-weight: 600; cursor: pointer;
+}
+
+/* BOQ table */
+.boq-table { width: 100%; border-collapse: collapse; font-size: var(--rfp-fs-sm); }
+.boq-table thead th {
+  background: var(--rfp-ink); color: var(--rfp-paper);
+  padding: 10px 14px; text-align: left;
+  font-size: var(--rfp-fs-xs); text-transform: uppercase; letter-spacing: .08em;
+}
+.boq-table thead th:first-child { border-top-left-radius: var(--rfp-r-md); }
+.boq-table thead th:last-child { border-top-right-radius: var(--rfp-r-md); text-align: right; }
+.boq-table .cat-row td {
+  background: var(--rfp-gold-050);
+  padding: 10px 14px;
+  font-weight: 700;
+  color: var(--rfp-ink);
+  font-family: var(--rfp-font-mono);
+  font-size: var(--rfp-fs-xs);
+  text-transform: uppercase; letter-spacing: .08em;
+  border-bottom: 1px solid var(--rfp-gold-100);
+}
+.boq-table tbody td {
+  padding: 10px 14px; border-bottom: 1px solid var(--rfp-ink-100);
+}
+.boq-table tbody td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.boq-table tfoot td { padding: 12px 14px; font-weight: 700; background: var(--rfp-ink-050); }
+.boq-table tfoot td.num { text-align: right; font-variant-numeric: tabular-nums; font-size: var(--rfp-fs-md); }
+
+/* Right rail */
+.ed-rail { border-left: 1px solid var(--rfp-ink-100); background: var(--rfp-paper); padding: 20px; }
+.rail-card { border: 1px solid var(--rfp-ink-100); border-radius: var(--rfp-r-md); padding: 14px; margin-bottom: 14px; }
+.rail-card .rc-label { font-size: var(--rfp-fs-xs); color: var(--rfp-ink-500); font-family: var(--rfp-font-mono); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 6px; }
+.rail-card h5 { font-size: var(--rfp-fs-sm); margin-bottom: 8px; }
+
+/* ---------- Vendor V01 dashboard ---------- */
+.vendor-hero {
+  background: var(--rfp-grad-ink);
+  color: var(--rfp-paper);
+  border-radius: var(--rfp-r-lg);
+  padding: 28px 32px;
+  display: flex; align-items: center; justify-content: space-between; gap: 24px;
+  position: relative; overflow: hidden;
+}
+.vendor-hero::before {
+  content: ""; position: absolute; inset: 0;
+  background: radial-gradient(600px 200px at 85% 50%, rgba(201,162,39,.15), transparent);
+}
+.vendor-hero h2 { font-size: var(--rfp-fs-2xl); color: var(--rfp-paper); }
+.vendor-hero .side { display: flex; gap: 10px; align-items: center; position: relative; }
+.vendor-hero .kicker { color: var(--rfp-gold); font-family: var(--rfp-font-mono); letter-spacing: .15em; font-size: 11px; text-transform: uppercase; }
+
+.submission-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.sub-card {
+  background: var(--rfp-paper); border: 1px solid var(--rfp-ink-100); border-radius: var(--rfp-r-lg);
+  padding: 20px; display: flex; flex-direction: column; gap: 14px;
+  transition: border-color var(--rfp-t-fast), box-shadow var(--rfp-t-fast);
+}
+.sub-card:hover { border-color: var(--rfp-gold); box-shadow: var(--rfp-sh-sm); }
+.sub-card .sub-top { display: flex; gap: 14px; align-items: flex-start; }
+.sub-card .score {
+  width: 56px; height: 56px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: var(--rfp-fs-md); font-variant-numeric: tabular-nums;
+  background: conic-gradient(var(--rfp-gold) 0 0deg, var(--rfp-ink-050) 0deg 360deg);
+  position: relative; flex-shrink: 0;
+}
+.sub-card .score::before {
+  content: ""; position: absolute; inset: 4px; background: var(--rfp-paper); border-radius: 50%;
+}
+.sub-card .score span { position: relative; z-index: 1; }
+.sub-card .score.none { background: var(--rfp-ink-050); color: var(--rfp-ink-300); font-weight: 600; }
+.sub-card .score.none::before { display: none; }
+.sub-card h3 { font-size: var(--rfp-fs-md); line-height: var(--rfp-lh-snug); margin-bottom: 4px; }
+.sub-card .meta { font-size: var(--rfp-fs-xs); color: var(--rfp-ink-500); display: flex; gap: 10px; align-items: center; }
+.sub-card .meta span + span::before { content: "·"; margin-right: 10px; color: var(--rfp-ink-300); }
+.sub-card .foot { display: flex; justify-content: space-between; align-items: center; padding-top: 12px; border-top: 1px dashed var(--rfp-ink-100); font-size: var(--rfp-fs-xs); color: var(--rfp-ink-500); }
+
+/* ---------- V04 scored run ---------- */
+.run-hero {
+  display: grid; grid-template-columns: minmax(380px, 0.9fr) 1fr; gap: 28px;
+  background: var(--rfp-grad-ink); border-radius: var(--rfp-r-lg);
+  padding: 28px 32px; color: var(--rfp-paper);
+  position: relative; overflow: hidden;
+  align-items: start;
+}
+.run-hero .score-col { display: flex; flex-direction: column; gap: 18px; position: relative; z-index: 1; min-width: 0; }
+.run-hero::before {
+  content: ""; position: absolute; right: -80px; bottom: -80px;
+  width: 320px; height: 320px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(201,162,39,.22), transparent 70%);
+}
+.run-hero .kicker { font-family: var(--rfp-font-mono); font-size: 11px; color: var(--rfp-gold); letter-spacing: .15em; text-transform: uppercase; }
+.run-hero h2 { font-size: var(--rfp-fs-xl); color: var(--rfp-paper); margin: 4px 0 8px; }
+.run-hero .score-block { display: flex; align-items: center; gap: 20px; position: relative; z-index: 1; }
+.score-ring {
+  width: 140px; height: 140px; border-radius: 50%;
+  background: conic-gradient(var(--rfp-gold) 0 198deg, rgba(255,255,255,.12) 198deg 360deg);
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  position: relative;
+}
+.score-ring::before { content: ""; position: absolute; inset: 8px; background: var(--rfp-ink); border-radius: 50%; }
+.score-ring .score-val { position: relative; z-index: 1; text-align: center; }
+.score-ring .score-val .num { font-size: 44px; font-weight: 700; letter-spacing: -0.02em; }
+.score-ring .score-val .total { color: rgba(255,255,255,.5); font-size: 12px; font-family: var(--rfp-font-mono); }
+.score-ring .score-val .band { display: block; margin-top: 2px; font-size: 10px; color: var(--rfp-gold); font-family: var(--rfp-font-mono); letter-spacing: .12em; text-transform: uppercase; }
+
+.run-hero .breakdown { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; }
+.run-hero .bd-item {
+  background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1);
+  border-radius: var(--rfp-r-md); padding: 10px 12px;
+}
+.run-hero .bd-item .bd-k {
+  font-family: var(--rfp-font-mono); font-size: 9px; letter-spacing: .12em; text-transform: uppercase;
+  color: rgba(255,255,255,.6);
+}
+.run-hero .bd-item .bd-v { font-size: var(--rfp-fs-lg); font-weight: 700; margin-top: 2px; }
+
+/* Fixes hero (top 3) */
+.fixes-panel {
+  background: var(--rfp-paper);
+  border-radius: var(--rfp-r-lg);
+  padding: 24px;
+  position: relative; z-index: 1;
+  color: var(--rfp-ink);
+  box-shadow: var(--rfp-sh-sm);
+}
+.fixes-panel h3 { font-size: var(--rfp-fs-md); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+.fix-row {
+  display: grid; grid-template-columns: 28px 1fr auto; gap: 12px; align-items: flex-start;
+  padding: 10px 0; border-top: 1px solid var(--rfp-ink-100);
+}
+.fix-row:first-of-type { border-top: 0; }
+.fix-rank {
+  width: 24px; height: 24px; border-radius: 50%;
+  background: var(--rfp-danger-bg); color: var(--rfp-danger);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 11px; font-family: var(--rfp-font-mono);
+}
+.fix-row .fix-title { font-weight: 600; font-size: var(--rfp-fs-sm); }
+.fix-row .fix-desc { font-size: var(--rfp-fs-xs); color: var(--rfp-ink-500); margin-top: 2px; }
+.fix-impact {
+  font-family: var(--rfp-font-mono); font-size: 10px;
+  padding: 3px 8px; border-radius: var(--rfp-r-pill);
+  background: var(--rfp-danger-bg); color: var(--rfp-danger); white-space: nowrap;
+}
+
+/* Criterion-by-criterion list */
+.crit-row {
+  background: var(--rfp-paper); border: 1px solid var(--rfp-ink-100);
+  border-radius: var(--rfp-r-md); padding: 14px 18px; margin-bottom: 8px;
+  display: grid; grid-template-columns: 24px 1fr 140px 110px 80px; gap: 16px; align-items: center;
+  position: relative;
+}
+.crit-row::before {
+  content: ""; position: absolute; left: -1px; top: -1px; bottom: -1px;
+  width: 4px; border-radius: var(--rfp-r-md) 0 0 var(--rfp-r-md);
+}
+.crit-row.met::before     { background: var(--rfp-success); }
+.crit-row.partial::before { background: var(--rfp-warning); }
+.crit-row.notmet::before  { background: var(--rfp-danger); }
+.crit-row.na::before      { background: var(--rfp-ink-300); }
+
+.crit-icon {
+  width: 24px; height: 24px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 13px;
+}
+.crit-row.met .crit-icon     { background: var(--rfp-success-bg); color: var(--rfp-success); }
+.crit-row.partial .crit-icon { background: var(--rfp-warning-bg); color: var(--rfp-warning); }
+.crit-row.notmet .crit-icon  { background: var(--rfp-danger-bg);  color: var(--rfp-danger);  }
+.crit-row.na .crit-icon      { background: var(--rfp-ink-050);    color: var(--rfp-ink-500); }
+
+.crit-title { font-weight: 600; font-size: var(--rfp-fs-sm); }
+.crit-sub { font-size: var(--rfp-fs-xs); color: var(--rfp-ink-500); margin-top: 2px; }
+
+.crit-bar { height: 6px; border-radius: 999px; background: var(--rfp-ink-050); position: relative; overflow: hidden; }
+.crit-bar i { display: block; height: 100%; border-radius: 999px; }
+.crit-row.met .crit-bar i     { background: var(--rfp-success); }
+.crit-row.partial .crit-bar i { background: repeating-linear-gradient(45deg, var(--rfp-warning), var(--rfp-warning) 4px, #c78b0e 4px, #c78b0e 8px); }
+.crit-row.notmet .crit-bar i  { background: repeating-linear-gradient(45deg, var(--rfp-danger), var(--rfp-danger) 4px, #981d11 4px, #981d11 8px); }
+.crit-row.na .crit-bar i      { background: var(--rfp-ink-300); }
+
+.crit-status-label {
+  font-family: var(--rfp-font-mono); font-size: 10px;
+  letter-spacing: .1em; text-transform: uppercase; font-weight: 700;
+}
+.crit-row.met     .crit-status-label { color: var(--rfp-success); }
+.crit-row.partial .crit-status-label { color: var(--rfp-warning); }
+.crit-row.notmet  .crit-status-label { color: var(--rfp-danger);  }
+.crit-row.na      .crit-status-label { color: var(--rfp-ink-500); }
+.crit-weight { font-family: var(--rfp-font-mono); font-size: var(--rfp-fs-xs); color: var(--rfp-ink-500); text-align: right; }
+
+/* Annotations */
+.anno {
+  background: var(--rfp-ink-050);
+  border-left: 3px solid var(--rfp-gold);
+  border-radius: 0 var(--rfp-r-md) var(--rfp-r-md) 0;
+  padding: 14px 18px;
+  margin-top: 16px;
+  font-size: var(--rfp-fs-sm);
+  color: var(--rfp-ink-500);
+  display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: flex-start;
+}
+.anno .a-k {
+  font-family: var(--rfp-font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .12em;
+  color: var(--rfp-ink); font-weight: 600; white-space: nowrap;
+}
+.anno strong { color: var(--rfp-ink); }
+
+/* RTL */
+[dir="rtl"] .iv-shell { grid-template-columns: 320px 1fr; direction: rtl; }
+[dir="rtl"] .iv-nav { border-right: 0; border-left: 1px solid var(--rfp-ink-100); }
+[dir="rtl"] .iv-q { border-left: 3px solid transparent; border-right: 3px solid transparent; }
+[dir="rtl"] .iv-q.active { border-left-color: transparent; border-right-color: var(--rfp-gold); }
+
+/* Section nav (mini table of contents between screens) */
+.toc-nav {
+  position: sticky; top: 0; z-index: 10;
+  background: rgba(250,250,247,.9); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--rfp-ink-100);
+  padding: 10px 48px;
+  display: flex; gap: 16px; align-items: center; overflow: auto;
+  font-size: var(--rfp-fs-xs); font-family: var(--rfp-font-mono); letter-spacing: .05em;
+}
+.toc-nav a {
+  color: var(--rfp-ink-500); white-space: nowrap;
+  padding: 4px 10px; border-radius: 4px;
+}
+.toc-nav a:hover { background: var(--rfp-gold-050); color: var(--rfp-ink); }
+.toc-nav strong { color: var(--rfp-ink); font-weight: 700; }
+
+/* ==========================================================================
+   Coexistence overrides
+   The legacy <style> block inside the rfp_theme_styles template sets generic
+   rules like `.rfp-portal-wrapper h2 { color: var(--rfp-dark) }` that beat
+   our component colors on source-order tie. These selectors add one more
+   class to the chain so they win on specificity regardless of order.
+   Remove this block once the legacy <style> block is fully retired.
+   ========================================================================== */
+
+/* Dark hero — force paper-colored text so it reads on the navy gradient */
+.rfp-portal-wrapper .dash-hero,
+.rfp-portal-wrapper .dash-hero h1,
+.rfp-portal-wrapper .dash-hero h2,
+.rfp-portal-wrapper .dash-hero h3,
+.rfp-portal-wrapper .dash-hero h4 { color: var(--rfp-paper); }
+.rfp-portal-wrapper .dash-hero p { color: rgba(255, 255, 255, 0.72); }
+.rfp-portal-wrapper .dash-hero .kicker { color: var(--rfp-gold); }
+
+.rfp-portal-wrapper .vendor-hero,
+.rfp-portal-wrapper .vendor-hero h1,
+.rfp-portal-wrapper .vendor-hero h2,
+.rfp-portal-wrapper .vendor-hero h3 { color: var(--rfp-paper); }
+.rfp-portal-wrapper .vendor-hero .kicker { color: var(--rfp-gold); }
+
+.rfp-portal-wrapper .run-hero,
+.rfp-portal-wrapper .run-hero h1,
+.rfp-portal-wrapper .run-hero h2,
+.rfp-portal-wrapper .run-hero h3 { color: var(--rfp-paper); }
+.rfp-portal-wrapper .run-hero .kicker { color: var(--rfp-gold); }
+
+/* Button text colors — beat the generic `.rfp-portal-wrapper a { color }` rule */
+.rfp-portal-wrapper .btn-rfp-gold,
+.rfp-portal-wrapper a.btn-rfp-gold,
+.rfp-portal-wrapper button.btn-rfp-gold { color: var(--rfp-ink); }
+.rfp-portal-wrapper .btn-rfp-gold:hover,
+.rfp-portal-wrapper a.btn-rfp-gold:hover { color: var(--rfp-ink); }
+
+.rfp-portal-wrapper .btn-rfp-dark,
+.rfp-portal-wrapper a.btn-rfp-dark,
+.rfp-portal-wrapper button.btn-rfp-dark { color: var(--rfp-paper); }
+.rfp-portal-wrapper .btn-rfp-dark:hover,
+.rfp-portal-wrapper a.btn-rfp-dark:hover { color: var(--rfp-paper); }
+
+.rfp-portal-wrapper .btn-rfp-ghost,
+.rfp-portal-wrapper a.btn-rfp-ghost,
+.rfp-portal-wrapper button.btn-rfp-ghost { color: var(--rfp-ink); }
+
+/* Stat card numerals — avoid the generic `p { color: var(--rfp-gray) }` bleed */
+.rfp-portal-wrapper .stat-card .stat-v { color: var(--rfp-ink); }
+
+/* Featured card titles — avoid the `h2/h3 { color: var(--rfp-dark) }` bleed.
+   (Dark is what we want but we want our token color explicitly.) */
+.rfp-portal-wrapper .featured-card h3,
+.rfp-portal-wrapper .sub-card h3 { color: var(--rfp-ink); }
+
+/* Project table — explicit link colors for row action buttons */
+.rfp-portal-wrapper .project-table a.btn-rfp-ghost { color: var(--rfp-ink); }
+.rfp-portal-wrapper .project-table .proj-name { color: var(--rfp-ink); }
+
+/* Actions column: single ellipsis button with a drop-DOWN menu.
+   Override the legacy `.rfp-action-dropdown-menu { bottom: 100% }` that made
+   the menu pop up and off-screen when a row is near the top of the viewport. */
+.rfp-portal-wrapper .rfp-col-actions { text-align: right; white-space: nowrap; }
+.rfp-portal-wrapper .rfp-col-actions .rfp-action-dropdown {
+  position: relative;
+  display: inline-block;
+}
+.rfp-portal-wrapper .rfp-action-dropdown-menu--down {
+  top: calc(100% + 4px) !important;
+  bottom: auto !important;
+  right: 0 !important;
+  left: auto !important;
+  box-shadow: var(--rfp-sh-md) !important;
+  border: 1px solid var(--rfp-ink-100) !important;
+  border-radius: var(--rfp-r-md) !important;
+  min-width: 180px !important;
+}
+.rfp-portal-wrapper .rfp-action-dropdown-menu--down a {
+  color: var(--rfp-ink) !important;
+  font-size: var(--rfp-fs-sm) !important;
+  padding: 8px 14px !important;
+}
+.rfp-portal-wrapper .rfp-action-dropdown-menu--down a.text-danger {
+  color: var(--rfp-danger) !important;
+}
+.rfp-portal-wrapper .rfp-action-dropdown-menu--down a:hover {
+  background: var(--rfp-gold-050) !important;
+  color: var(--rfp-ink) !important;
+}
+.rfp-portal-wrapper .rfp-action-dropdown-menu--down a.text-danger:hover {
+  background: var(--rfp-danger-bg) !important;
+  color: var(--rfp-danger) !important;
+}
+/* Clickable featured cards / table rows (JS reads data-href and navigates).
+   Give them cursor + hover affordance so users know they're interactive. */
+.rfp-portal-wrapper .featured-card[data-href],
+.rfp-portal-wrapper .project-table tr.rfp-project-wrapper[data-href] {
+  cursor: pointer;
+}
+.rfp-portal-wrapper .project-table tr.rfp-project-wrapper[data-href]:hover td {
+  background: var(--rfp-gold-050);
+}
+
+.rfp-portal-wrapper .rfp-action-dropdown-menu--down .divider {
+  background: var(--rfp-ink-100);
+  margin: 4px 0;
+}
+
+/* Criterion description — clamp to 2 lines so rows stay consistent height
+   even when the underlying text is long. Users can expand via the ⋯ menu. */
+.rfp-portal-wrapper .eval-criterion-desc {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ==========================================================================
+   Editor page — wider canvas, hidden right rail, outline polish.
+   Scoped via .rfp-editor-page so it only affects the unified editor.
+   ========================================================================== */
+
+/* Page-header fills the parent (.rfp-editor-page) edge-to-edge horizontally,
+   with a larger vertical band for a taller, more prominent header section.
+   Eval-criteria card + banner share the same zero horizontal padding so
+   their content aligns on the same left/right rules as the header. */
+.rfp-portal-wrapper.rfp-editor-page .page-header {
+  max-width: none !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 28px 8px 24px !important;
+}
+/* Hide the Evaluation Criteria card on the editor page — not part of the
+   handoff editor design. Criteria live in the dedicated /rfp/eval-review page. */
+.rfp-portal-wrapper.rfp-editor-page > .card {
+  display: none !important;
+}
+.rfp-portal-wrapper.rfp-editor-page .rfp-published-banner {
+  padding: 14px 8px !important;
+}
+
+@media (max-width: 768px) {
+  .rfp-portal-wrapper.rfp-editor-page .page-header {
+    padding: 20px 8px 16px !important;
+  }
+  .rfp-portal-wrapper.rfp-editor-page > .card > .card-header,
+  .rfp-portal-wrapper.rfp-editor-page > .card > .collapse .card-body,
+  .rfp-portal-wrapper.rfp-editor-page .rfp-published-banner {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
+}
+
+/* ==========================================================================
+   Proposals (owner view) — matches the editor page: full-width header band
+   with a consistent 24px horizontal padding, and design-system cards below.
+   ========================================================================== */
+.rfp-portal-wrapper.rfp-proposals-page {
+  padding: 0 24px 40px;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+.rfp-portal-wrapper.rfp-proposals-page .page-header {
+  max-width: 100% !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 24px 0 16px !important;
+}
+
+.rfp-portal-wrapper.rfp-proposals-page .proposals-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--rfp-fs-sm);
+}
+.rfp-portal-wrapper.rfp-proposals-page .proposals-table thead th {
+  font-family: var(--rfp-font-mono);
+  font-size: var(--rfp-fs-xs);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--rfp-ink-500);
+  font-weight: 600;
+  border: 0;
+  border-bottom: 1px solid var(--rfp-ink-100);
+  padding: 12px 16px;
+  background: var(--rfp-ink-050);
+}
+.rfp-portal-wrapper.rfp-proposals-page .proposals-table tbody td {
+  border: 0;
+  border-bottom: 1px solid var(--rfp-ink-100);
+  padding: 14px 16px;
+  vertical-align: middle;
+}
+.rfp-portal-wrapper.rfp-proposals-page .proposals-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+.rfp-portal-wrapper.rfp-proposals-page .proposals-table tbody tr:hover {
+  background: var(--rfp-ink-050);
+}
+
+@media (max-width: 768px) {
+  .rfp-portal-wrapper.rfp-proposals-page { padding: 0 16px 32px; }
+}
+
+/* Hide the right activity rail so the document canvas gets the width */
+.rfp-portal-wrapper.rfp-editor-page .ed-shell {
+  grid-template-columns: 280px 1fr;
+  min-height: 600px;
+  gap: 0;
+}
+.rfp-portal-wrapper.rfp-editor-page .ed-rail { display: none; }
+
+/* Left outline — narrower, sticky with subtle scrollbar */
+.rfp-portal-wrapper.rfp-editor-page .ed-outline {
+  position: sticky;
+  top: 80px;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+  background: var(--rfp-paper);
+  border-right: 1px solid var(--rfp-ink-100);
+  scrollbar-width: thin;
+  scrollbar-color: var(--rfp-ink-100) transparent;
+}
+.rfp-portal-wrapper.rfp-editor-page .ed-outline::-webkit-scrollbar { width: 6px; }
+.rfp-portal-wrapper.rfp-editor-page .ed-outline::-webkit-scrollbar-track { background: transparent; }
+.rfp-portal-wrapper.rfp-editor-page .ed-outline::-webkit-scrollbar-thumb {
+  background: var(--rfp-ink-100); border-radius: 3px;
+}
+.rfp-portal-wrapper.rfp-editor-page .ed-outline::-webkit-scrollbar-thumb:hover {
+  background: var(--rfp-ink-300);
+}
+
+/* Canvas takes all remaining width */
+.rfp-portal-wrapper.rfp-editor-page .ed-canvas {
+  padding: 24px 32px;
+  background: var(--rfp-canvas);
+  min-width: 0; /* allows flex/grid children to shrink */
+}
+
+/* Section card header — match the handoff's typography:
+   - "SECTION NN" mono label (small + uppercase) above the title
+   - Larger, heavier section title */
+.rfp-portal-wrapper.rfp-editor-page .rfp-section-header {
+  padding: 16px 20px;
+}
+.rfp-portal-wrapper.rfp-editor-page .rfp-section-header .rfp-section-num {
+  background: transparent !important;
+  color: var(--rfp-ink-500) !important;
+  font-family: var(--rfp-font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  width: auto !important;
+  height: auto !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+}
+.rfp-portal-wrapper.rfp-editor-page .rfp-section-header .rfp-section-num::before {
+  content: "Section ";
+}
+.rfp-portal-wrapper.rfp-editor-page .rfp-section-header .section-title-input {
+  font-size: 20px !important;
+  font-weight: 700 !important;
+  color: var(--rfp-ink) !important;
+  padding: 4px 0 !important;
+}
+
+/* Action buttons: use the same ghost style as the page-header action cluster. */
+.rfp-portal-wrapper.rfp-editor-page .rfp-section-header .btn-ai-edit-section,
+.rfp-portal-wrapper.rfp-editor-page .rfp-section-header .btn-delete-section {
+  background: transparent;
+  border: 1px solid var(--rfp-ink-100);
+  border-radius: var(--rfp-r-md);
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--rfp-ink);
+  transition: background var(--rfp-t-fast), border-color var(--rfp-t-fast);
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.rfp-portal-wrapper.rfp-editor-page .rfp-section-header .btn-ai-edit-section:hover {
+  background: var(--rfp-gold-050);
+  border-color: var(--rfp-gold);
+}
+.rfp-portal-wrapper.rfp-editor-page .rfp-section-header .btn-ai-edit-section .fa { color: var(--rfp-gold-600); }
+.rfp-portal-wrapper.rfp-editor-page .rfp-section-header .btn-delete-section:hover {
+  background: var(--rfp-danger-bg);
+  border-color: var(--rfp-danger);
+  color: var(--rfp-danger);
+}
+
+/* Shrink the page-header action cluster so all 5 buttons fit on one line on wide screens */
+.rfp-portal-wrapper.rfp-editor-page .page-header .btn-rfp-ghost,
+.rfp-portal-wrapper.rfp-editor-page .page-header .btn-rfp-dark,
+.rfp-portal-wrapper.rfp-editor-page .page-header .btn-rfp-gold {
+  padding: 7px 12px !important;
+  font-size: 12px;
+}
+
+/* Legacy sticky toolbar inside the editor — keep permanently hidden */
+.rfp-portal-wrapper.rfp-editor-page .rfp-toolbar-v2 { display: none !important; }
+
+/* Processing screen — step state classes set by the polling JS */
+.rfp-portal-wrapper .rfp-step--done .step-icon { color: var(--rfp-success); }
+.rfp-portal-wrapper .rfp-step--done .status-badge { color: var(--rfp-success); }
+.rfp-portal-wrapper .rfp-step--done > span:nth-child(2) { color: var(--rfp-ink-500); }
+.rfp-portal-wrapper .rfp-step--active .step-icon { color: var(--rfp-gold); animation: pulse 2s infinite; }
+.rfp-portal-wrapper .rfp-step--active .status-badge { color: var(--rfp-gold-600); }
+.rfp-portal-wrapper .rfp-step--active > span:nth-child(2) { color: var(--rfp-ink); font-weight: 600; }
+.rfp-portal-wrapper .rfp-step--pending .step-icon { color: var(--rfp-ink-300); }
+.rfp-portal-wrapper .rfp-step--pending .status-badge { color: var(--rfp-ink-300); }
+.rfp-portal-wrapper .rfp-step--pending > span:nth-child(2) { color: var(--rfp-ink-300); }
+
+/* Spin ring used by the vendor "new submission" upload state. Rotates the
+   conic-gradient itself so the inner content (icon) stays upright. */
+.rfp-portal-wrapper .rfp-spin-ring {
+  background: conic-gradient(var(--rfp-gold) 0 72deg, var(--rfp-ink-100) 72deg 360deg);
+  animation: rfp-spin 1.4s linear infinite;
+}
+@keyframes rfp-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+/* Inner face counter-rotates so its icon stays upright (approximated visually) */
+.rfp-portal-wrapper .rfp-spin-ring > * { animation: rfp-spin-reverse 1.4s linear infinite; }
+@keyframes rfp-spin-reverse {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(-360deg); }
+}
+
+/* Wizard — tabs + panes (JS toggles .active class). Default styles live here
+   so they don't get baked into inline attributes that fight class toggles. */
+.rfp-portal-wrapper .rfp-start-tab {
+  padding: 14px;
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  font: inherit;
+  font-weight: 500;
+  color: var(--rfp-ink-500);
+  cursor: pointer;
+  font-size: 14px;
+  margin-bottom: -1px;
+  transition: color var(--rfp-t-fast), background var(--rfp-t-fast), border-color var(--rfp-t-fast);
+}
+.rfp-portal-wrapper .rfp-start-tab:hover {
+  background: var(--rfp-gold-050);
+  color: var(--rfp-ink);
+}
+.rfp-portal-wrapper .rfp-start-tab.active {
+  background: var(--rfp-paper);
+  color: var(--rfp-ink);
+  border-bottom-color: var(--rfp-gold);
+  font-weight: 600;
+}
+
+.rfp-portal-wrapper .rfp-tab-pane {
+  display: none;
+  padding: 28px 32px;
+}
+.rfp-portal-wrapper .rfp-tab-pane.active { display: block; }
+
+/* Wizard — drop zone hover / has-file states */
+.rfp-portal-wrapper .rfp-upload-zone:hover {
+  border-color: var(--rfp-gold) !important;
+  background: var(--rfp-gold-050) !important;
+}
+.rfp-portal-wrapper .rfp-upload-zone.has-file {
+  border-color: var(--rfp-gold) !important;
+  border-style: solid !important;
+  background: var(--rfp-gold-050) !important;
+}
+
+/* ==========================================================================
+   Responsive — the mockup is desktop-first at 1440px.
+   Scale down cleanly for tablets (< 992px) and phones (< 576px).
+   ========================================================================== */
+
+/* ---- Tablet (< 992px) ---------------------------------------------------- */
+@media (max-width: 992px) {
+  .rfp-portal-wrapper .dash-hero,
+  .rfp-portal-wrapper .vendor-hero,
+  .rfp-portal-wrapper .run-hero {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 24px;
+  }
+  .rfp-portal-wrapper .run-hero { grid-template-columns: 1fr; }
+
+  .rfp-portal-wrapper .stat-strip { grid-template-columns: repeat(3, 1fr); }
+  .rfp-portal-wrapper .stat-strip > .stat-card:nth-child(4),
+  .rfp-portal-wrapper .stat-strip > .stat-card:nth-child(5) { grid-column: span 1; }
+
+  .rfp-portal-wrapper .featured-grid { grid-template-columns: repeat(2, 1fr); }
+  .rfp-portal-wrapper .submission-grid { grid-template-columns: repeat(2, 1fr); }
+
+  /* Multi-pane shells collapse to stacked sections */
+  .rfp-portal-wrapper .iv-shell { grid-template-columns: 1fr; }
+  .rfp-portal-wrapper .iv-nav {
+    border-right: 0; border-bottom: 1px solid var(--rfp-ink-100);
+    max-height: 320px;
+  }
+  .rfp-portal-wrapper .ed-shell { grid-template-columns: 1fr; }
+  .rfp-portal-wrapper .ed-outline,
+  .rfp-portal-wrapper .ed-rail {
+    border-right: 0; border-left: 0;
+    border-bottom: 1px solid var(--rfp-ink-100);
+    position: static; max-height: none;
+  }
+
+  /* Toolbar stacks: search full-width, chips + sort on second row */
+  .rfp-portal-wrapper .project-toolbar {
+    flex-wrap: wrap; gap: 10px;
+  }
+  .rfp-portal-wrapper .project-toolbar .search-input { flex: 1 1 100%; }
+
+  /* Page-header row — stack stepper under heading */
+  .rfp-portal-wrapper .page-header .row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  .rfp-portal-wrapper .page-header .row .stepper { width: 100% !important; }
+
+  /* Scored-run criterion rows — let the bar take remaining space, drop the weight column */
+  .rfp-portal-wrapper .crit-row {
+    grid-template-columns: 24px 1fr 100px 80px;
+    gap: 12px;
+  }
+  .rfp-portal-wrapper .crit-weight { display: none; }
+
+  /* Run-hero stacks its two columns vertically */
+  .rfp-portal-wrapper .run-hero {
+    grid-template-columns: 1fr;
+    padding: 24px;
+  }
+
+  /* Strengths / Weaknesses grid — single column */
+  .rfp-portal-wrapper .rfp-strengths-weak-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Evaluation-criteria rows — collapse to 2 rows: (name+desc+menu) above, (slider+weight) below */
+  .rfp-portal-wrapper .eval-criterion-card {
+    grid-template-columns: 1fr auto !important;
+    gap: 10px !important;
+    padding: 16px !important;
+  }
+  .rfp-portal-wrapper .eval-criterion-card > *:nth-child(1) { grid-column: 1 / 2; grid-row: 1; }
+  .rfp-portal-wrapper .eval-criterion-card > *:nth-child(4) { grid-column: 2 / 3; grid-row: 1; }
+  .rfp-portal-wrapper .eval-criterion-card > *:nth-child(2) { grid-column: 1 / 3; grid-row: 2; }
+  .rfp-portal-wrapper .eval-criterion-card > *:nth-child(3) { grid-column: 1 / 3; grid-row: 3; text-align: left !important; font-size: 20px !important; }
+
+  /* Total-weight card stacks: label/pills row above, bar row below */
+  .rfp-portal-wrapper #eval_weight_alert {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+}
+
+/* ---- Phone (< 576px) ----------------------------------------------------- */
+@media (max-width: 576px) {
+  .rfp-portal-wrapper .dash-hero,
+  .rfp-portal-wrapper .vendor-hero,
+  .rfp-portal-wrapper .run-hero { padding: 20px; }
+  .rfp-portal-wrapper .dash-hero h2,
+  .rfp-portal-wrapper .vendor-hero h2 { font-size: var(--rfp-fs-xl); }
+
+  .rfp-portal-wrapper .stat-strip { grid-template-columns: repeat(2, 1fr); }
+
+  .rfp-portal-wrapper .featured-grid { grid-template-columns: 1fr; }
+  .rfp-portal-wrapper .submission-grid { grid-template-columns: 1fr; }
+
+  .rfp-portal-wrapper .stepper-phases { grid-template-columns: 1fr; }
+
+  /* Project table: turn rows into cards */
+  .rfp-portal-wrapper .project-table { border: 0; background: transparent; }
+  .rfp-portal-wrapper .project-table table,
+  .rfp-portal-wrapper .project-table thead,
+  .rfp-portal-wrapper .project-table tbody,
+  .rfp-portal-wrapper .project-table tr,
+  .rfp-portal-wrapper .project-table td { display: block; width: 100%; }
+  .rfp-portal-wrapper .project-table thead { display: none; }
+  .rfp-portal-wrapper .project-table tr {
+    background: var(--rfp-paper);
+    border: 1px solid var(--rfp-ink-100);
+    border-radius: var(--rfp-r-lg);
+    margin-bottom: 12px; padding: 12px 16px;
+  }
+  .rfp-portal-wrapper .project-table td {
+    padding: 6px 0; border: 0;
+  }
+  .rfp-portal-wrapper .project-table td::before {
+    content: attr(data-label);
+    display: block;
+    font-family: var(--rfp-font-mono);
+    font-size: 10px; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--rfp-ink-500);
+    margin-bottom: 2px;
+  }
+
+  /* Criterion rows — stack bar under title, hide status column */
+  .rfp-portal-wrapper .crit-row {
+    grid-template-columns: 24px 1fr auto;
+    gap: 8px; padding: 12px;
+  }
+
+  /* Toolbar chips wrap, sort goes full-width last line */
+  .rfp-portal-wrapper .chip-group { flex-wrap: wrap; }
+
+  /* Top nav: hide locale/divider to save space */
+  .rfp-portal-wrapper .topnav { padding: 12px 16px; }
+  .rfp-portal-wrapper .topnav .divider,
+  .rfp-portal-wrapper .topnav nav { display: none; }
+}

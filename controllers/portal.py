@@ -31,9 +31,20 @@ class RfpCustomerPortal(CustomerPortal):
         drafts = len(projects.filtered(lambda p: p.current_stage == 'draft'))
         this_month = len(projects.filtered(lambda p: p.write_date and p.write_date.date() >= today.replace(day=1)))
 
+        # Time-of-day greeting (in user's timezone when available)
+        now = fields.Datetime.context_timestamp(request.env.user, fields.Datetime.now())
+        hour = now.hour
+        if hour < 12:
+            greeting = 'Good morning'
+        elif hour < 18:
+            greeting = 'Good afternoon'
+        else:
+            greeting = 'Good evening'
+
         values.update({
             'projects': projects,
             'page_name': 'home',
+            'greeting': greeting,
             'dashboard_stats': {
                 'total': total,
                 'completed': completed,

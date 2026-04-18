@@ -1,0 +1,219 @@
+/* RFP Portal — shared chrome (top nav, page header, 13-stage stepper, generics).
+   Scoped to .rfp-portal-wrapper so it never leaks to other Odoo frontend pages.
+   Mockup-only scaffolding (.mockup-page, .frame, .toc-nav) is intentionally
+   stripped — those only exist in the Claude Design preview HTML. */
+
+.rfp-portal-wrapper,
+.rfp-portal-wrapper *,
+.rfp-portal-wrapper *::before,
+.rfp-portal-wrapper *::after { box-sizing: border-box; }
+
+.rfp-portal-wrapper {
+  font-family: var(--rfp-font-sans);
+  font-size: var(--rfp-fs-base);
+  color: var(--rfp-ink);
+  background: var(--rfp-canvas);
+  line-height: var(--rfp-lh-normal);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Page shell — max-width container with breathing room.
+   Matches the design mockup's .mockup-page + .frame padding. */
+.rfp-portal-wrapper .rfp-page {
+  max-width: var(--rfp-container, 1280px);
+  margin: 0 auto;
+  padding: 32px 40px 64px;
+}
+@media (max-width: 768px) {
+  .rfp-portal-wrapper .rfp-page { padding: 20px 16px 40px; }
+}
+
+.rfp-portal-wrapper a { color: var(--rfp-ink); text-decoration: none; }
+.rfp-portal-wrapper a:hover { color: var(--rfp-gold-600); }
+
+.rfp-portal-wrapper h1,
+.rfp-portal-wrapper h2,
+.rfp-portal-wrapper h3,
+.rfp-portal-wrapper h4,
+.rfp-portal-wrapper h5 {
+  margin: 0;
+  font-weight: 700;
+  line-height: var(--rfp-lh-tight);
+  letter-spacing: -0.01em;
+}
+
+/* Product top nav */
+.rfp-portal-wrapper .topnav {
+  display: flex; align-items: center;
+  padding: 14px 32px;
+  border-bottom: 1px solid var(--rfp-ink-100);
+  background: var(--rfp-paper);
+}
+.rfp-portal-wrapper .topnav .brand {
+  display: flex; align-items: center; gap: 10px;
+  font-weight: 700; font-size: var(--rfp-fs-md);
+  letter-spacing: -0.01em;
+}
+.rfp-portal-wrapper .topnav .brand .mark {
+  width: 30px; height: 30px; border-radius: 8px;
+  background: var(--rfp-grad-gold);
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--rfp-ink); font-weight: 800;
+  box-shadow: var(--rfp-sh-gold);
+  font-family: var(--rfp-font-serif);
+}
+.rfp-portal-wrapper .topnav .divider {
+  width: 1px; height: 24px; background: var(--rfp-ink-100); margin: 0 20px;
+}
+.rfp-portal-wrapper .topnav nav {
+  display: flex; gap: 22px;
+  font-size: var(--rfp-fs-sm); color: var(--rfp-ink-500); font-weight: 500;
+}
+.rfp-portal-wrapper .topnav nav a.active { color: var(--rfp-ink); position: relative; }
+.rfp-portal-wrapper .topnav nav a.active::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -19px;
+  height: 2px; background: var(--rfp-gold);
+}
+.rfp-portal-wrapper .topnav .spacer { flex: 1; }
+.rfp-portal-wrapper .topnav .user {
+  display: flex; align-items: center; gap: 10px; font-size: var(--rfp-fs-sm);
+}
+.rfp-portal-wrapper .topnav .user .avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--rfp-ink); color: var(--rfp-gold);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 12px;
+}
+.rfp-portal-wrapper .topnav .locale-badge {
+  font-family: var(--rfp-font-mono); font-size: 11px;
+  padding: 3px 8px; border: 1px solid var(--rfp-ink-100);
+  border-radius: var(--rfp-r-pill); color: var(--rfp-ink-500);
+}
+
+/* Page header — matches .rfp-page so header + body are always aligned at the
+   same max-width, with a divider between them. Responsive padding at ≤768px. */
+.rfp-portal-wrapper .page-header {
+  max-width: var(--rfp-container, 1280px);
+  margin: 0 auto;
+  padding: 32px 40px 20px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--rfp-ink-100);
+}
+@media (max-width: 768px) {
+  .rfp-portal-wrapper .page-header { padding: 20px 16px 16px; }
+}
+/* When the template still has a nested .rfp-page inside .page-header (legacy
+   pattern from early rewrites), reset its max-width/margin/padding so the
+   outer .page-header owns the sizing. */
+.rfp-portal-wrapper .page-header .rfp-page {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+.rfp-portal-wrapper .page-header .breadcrumb {
+  font-size: var(--rfp-fs-xs); color: var(--rfp-ink-500);
+  font-family: var(--rfp-font-mono); letter-spacing: .05em;
+  margin-bottom: 10px; text-transform: uppercase;
+}
+.rfp-portal-wrapper .page-header h1 {
+  font-size: var(--rfp-fs-2xl); margin-bottom: 4px;
+}
+.rfp-portal-wrapper .page-header p {
+  color: var(--rfp-ink-500); margin: 0; font-size: var(--rfp-fs-sm);
+}
+.rfp-portal-wrapper .page-header .row {
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 24px;
+}
+
+/* 13-stage stepper */
+.rfp-portal-wrapper .stepper {
+  background: var(--rfp-paper);
+  border: 1px solid var(--rfp-ink-100);
+  border-radius: var(--rfp-r-lg);
+  padding: 20px 24px;
+}
+.rfp-portal-wrapper .stepper-top {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 10px;
+}
+.rfp-portal-wrapper .stepper-top .label {
+  font-size: var(--rfp-fs-xs); color: var(--rfp-ink-500);
+  font-family: var(--rfp-font-mono); letter-spacing: .08em; text-transform: uppercase;
+}
+.rfp-portal-wrapper .stepper-top .count {
+  font-size: var(--rfp-fs-sm); color: var(--rfp-ink); font-weight: 600;
+}
+.rfp-portal-wrapper .stepper-bar {
+  height: 8px; background: var(--rfp-ink-050); border-radius: var(--rfp-r-pill);
+  position: relative; overflow: hidden;
+}
+.rfp-portal-wrapper .stepper-bar .fill {
+  height: 100%; background: var(--rfp-grad-gold);
+  border-radius: var(--rfp-r-pill); transition: width var(--rfp-t-slow);
+}
+.rfp-portal-wrapper .stepper-current {
+  margin-top: 12px; display: flex; align-items: center; gap: 10px;
+  font-size: var(--rfp-fs-sm);
+}
+.rfp-portal-wrapper .stepper-current .dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--rfp-gold);
+  box-shadow: 0 0 0 4px rgba(201,162,39,.18);
+  animation: rfp-pulse 2s infinite;
+}
+@keyframes pulse {
+  0%,100% { box-shadow: 0 0 0 4px rgba(201,162,39,.18); }
+  50%     { box-shadow: 0 0 0 8px rgba(201,162,39,.02); }
+}
+@keyframes rfp-pulse {
+  0%,100% { box-shadow: 0 0 0 4px rgba(201,162,39,.18); }
+  50%     { box-shadow: 0 0 0 8px rgba(201,162,39,.02); }
+}
+.rfp-portal-wrapper .stepper-current strong { font-weight: 600; }
+.rfp-portal-wrapper .stepper-current .tech {
+  color: var(--rfp-ink-300); font-family: var(--rfp-font-mono);
+  font-size: 11px; margin-left: auto;
+}
+
+.rfp-portal-wrapper .stepper-phases {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  margin-top: 16px; padding-top: 16px; border-top: 1px dashed var(--rfp-ink-100);
+}
+.rfp-portal-wrapper .phase {
+  border-left: 2px solid var(--rfp-ink-100);
+  padding: 6px 12px;
+}
+.rfp-portal-wrapper .phase.done { border-color: var(--rfp-gold); }
+.rfp-portal-wrapper .phase.active {
+  border-color: var(--rfp-gold);
+  background: var(--rfp-gold-050);
+  border-radius: 0 6px 6px 0;
+}
+.rfp-portal-wrapper .phase .phase-label {
+  font-size: 10px; font-family: var(--rfp-font-mono);
+  color: var(--rfp-ink-500); text-transform: uppercase; letter-spacing: .1em;
+}
+.rfp-portal-wrapper .phase .phase-title {
+  font-size: var(--rfp-fs-sm); font-weight: 600; margin-top: 2px;
+}
+.rfp-portal-wrapper .phase .phase-substeps {
+  font-size: 11px; color: var(--rfp-ink-500); margin-top: 4px;
+}
+
+/* Primitive buttons already come from rfp_tokens.css; this just ensures the
+   cursor + font are set correctly inside the portal wrapper. */
+.rfp-portal-wrapper .btn-rfp-gold,
+.rfp-portal-wrapper .btn-rfp-ghost,
+.rfp-portal-wrapper .btn-rfp-dark {
+  cursor: pointer; font-family: inherit;
+}
+
+/* Generic helpers (scoped) */
+.rfp-portal-wrapper .muted { color: var(--rfp-ink-500); }
+.rfp-portal-wrapper .mono  { font-family: var(--rfp-font-mono); }
+.rfp-portal-wrapper .divider-h { height: 1px; background: var(--rfp-ink-100); border: 0; margin: 0; }
+
+/* Icons: inline SVG, colored via currentColor */
+.rfp-portal-wrapper .ico { width: 16px; height: 16px; display: inline-block; vertical-align: -3px; }
+.rfp-portal-wrapper .ico-sm { width: 14px; height: 14px; }
+.rfp-portal-wrapper .ico-lg { width: 20px; height: 20px; }

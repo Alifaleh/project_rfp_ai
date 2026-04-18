@@ -41,6 +41,9 @@
     ],
     'assets': {
         'web.assets_frontend': [
+            'project_rfp_ai/static/src/css/rfp_tokens.css',
+            'project_rfp_ai/static/src/css/rfp_shared.css',
+            'project_rfp_ai/static/src/css/rfp_components.css',
             'project_rfp_ai/static/src/js/rfp_portal.js',
         ],
     },

@@ -1,0 +1,155 @@
+/* ==========================================================================
+   RFP Portal — Design Tokens
+   Drop this into your Odoo theme block or load as a separate asset.
+   All tokens are CSS custom properties scoped to :root so they cascade
+   everywhere — override per-module by re-declaring on a wrapper element.
+   ========================================================================== */
+
+:root {
+  /* ---- Brand palette ---------------------------------------------------- */
+  --rfp-gold:            #C9A227;
+  --rfp-gold-600:        #B08E1C;  /* hover / pressed on gold buttons */
+  --rfp-gold-300:        #E8D48B;  /* mid-gradient stop */
+  --rfp-gold-100:        #F5ECD7;  /* gold tint bg */
+  --rfp-gold-050:        #FBF6E8;  /* gold whisper bg */
+
+  --rfp-ink:             #1A1A2E;  /* primary dark / text */
+  --rfp-ink-700:         #2A2A44;  /* cards on dark */
+  --rfp-ink-500:         #4A5568;  /* secondary text */
+  --rfp-ink-300:         #8A94A6;  /* tertiary / placeholder */
+  --rfp-ink-100:         #E4E7EC;  /* border */
+  --rfp-ink-050:         #F4F5F7;  /* subtle bg */
+
+  --rfp-paper:           #FFFFFF;
+  --rfp-canvas:          #FAFAF7;  /* page bg — warm off-white */
+
+  /* ---- Status (a11y-tested against --rfp-paper) ------------------------- */
+  --rfp-success:         #1F7A4D;
+  --rfp-success-bg:      #E8F3EC;
+  --rfp-warning:         #9A6A00;
+  --rfp-warning-bg:      #FBF1D8;
+  --rfp-danger:          #B42318;
+  --rfp-danger-bg:       #FDEBE9;
+  --rfp-info:            #175CD3;
+  --rfp-info-bg:         #E6EEFB;
+
+  /* ---- Gradients -------------------------------------------------------- */
+  --rfp-grad-gold:       linear-gradient(135deg, #C9A227 0%, #E8D48B 50%, #C9A227 100%);
+  --rfp-grad-ink:        linear-gradient(135deg, #1A1A2E 0%, #2A2A44 100%);
+
+  /* ---- Typography ------------------------------------------------------- */
+  --rfp-font-sans:       "Open Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --rfp-font-serif:      "Source Serif Pro", "Georgia", serif; /* for RFP document body */
+  --rfp-font-mono:       "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --rfp-fs-xs:           12px;
+  --rfp-fs-sm:           13px;
+  --rfp-fs-base:         14px;
+  --rfp-fs-md:           16px;
+  --rfp-fs-lg:           18px;
+  --rfp-fs-xl:           22px;
+  --rfp-fs-2xl:          28px;
+  --rfp-fs-3xl:          36px;
+  --rfp-fs-4xl:          48px;
+
+  --rfp-lh-tight:        1.2;
+  --rfp-lh-snug:         1.4;
+  --rfp-lh-normal:       1.55;
+
+  /* ---- Spacing (4px base) ---------------------------------------------- */
+  --rfp-s-1:   4px;
+  --rfp-s-2:   8px;
+  --rfp-s-3:   12px;
+  --rfp-s-4:   16px;
+  --rfp-s-5:   20px;
+  --rfp-s-6:   24px;
+  --rfp-s-8:   32px;
+  --rfp-s-10:  40px;
+  --rfp-s-12:  48px;
+  --rfp-s-16:  64px;
+
+  /* ---- Radii ------------------------------------------------------------ */
+  --rfp-r-sm:   6px;
+  --rfp-r-md:   8px;    /* buttons, inputs */
+  --rfp-r-lg:   12px;   /* cards */
+  --rfp-r-xl:   16px;
+  --rfp-r-pill: 999px;
+
+  /* ---- Shadows (layered, understated) ---------------------------------- */
+  --rfp-sh-xs:  0 1px 2px rgba(26, 26, 46, 0.06);
+  --rfp-sh-sm:  0 2px 8px rgba(26, 26, 46, 0.06);
+  --rfp-sh-md:  0 4px 20px rgba(26, 26, 46, 0.08);
+  --rfp-sh-lg:  0 10px 40px rgba(26, 26, 46, 0.10);
+  --rfp-sh-gold: 0 4px 14px rgba(201, 162, 39, 0.30);
+
+  /* ---- Motion ----------------------------------------------------------- */
+  --rfp-t-fast:   120ms cubic-bezier(.4,0,.2,1);
+  --rfp-t-med:    200ms cubic-bezier(.4,0,.2,1);
+  --rfp-t-slow:   320ms cubic-bezier(.4,0,.2,1);
+
+  /* ---- Layout ----------------------------------------------------------- */
+  --rfp-container:     1280px;
+  --rfp-sidebar-w:     280px;
+  --rfp-editor-outline-w: 300px;
+}
+
+/* ==========================================================================
+   Primitives
+   ========================================================================== */
+
+.btn-rfp-gold {
+  background: var(--rfp-grad-gold);
+  color: var(--rfp-ink);
+  font-weight: 600;
+  border: 0;
+  border-radius: var(--rfp-r-md);
+  padding: 10px 18px;
+  box-shadow: var(--rfp-sh-gold);
+  transition: transform var(--rfp-t-fast), box-shadow var(--rfp-t-fast);
+}
+.btn-rfp-gold:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(201,162,39,.40); color: var(--rfp-ink); }
+.btn-rfp-gold:active { transform: translateY(0); }
+
+.btn-rfp-ghost {
+  background: transparent;
+  color: var(--rfp-ink);
+  border: 1px solid var(--rfp-ink-100);
+  border-radius: var(--rfp-r-md);
+  padding: 9px 16px;
+  font-weight: 500;
+}
+.btn-rfp-ghost:hover { background: var(--rfp-ink-050); border-color: var(--rfp-ink-300); }
+
+.btn-rfp-dark {
+  background: var(--rfp-ink);
+  color: var(--rfp-paper);
+  border: 0;
+  border-radius: var(--rfp-r-md);
+  padding: 10px 18px;
+  font-weight: 600;
+}
+.btn-rfp-dark:hover { background: var(--rfp-ink-700); color: var(--rfp-paper); }
+
+.card-rfp {
+  background: var(--rfp-paper);
+  border: 1px solid var(--rfp-ink-100);
+  border-radius: var(--rfp-r-lg);
+  box-shadow: var(--rfp-sh-xs);
+}
+
+/* Status pills — icon + text so color isn't the only signal */
+.pill-rfp {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: var(--rfp-fs-xs);
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: var(--rfp-r-pill);
+  line-height: 1.4;
+  letter-spacing: .01em;
+}
+.pill-rfp--success { background: var(--rfp-success-bg); color: var(--rfp-success); }
+.pill-rfp--warning { background: var(--rfp-warning-bg); color: var(--rfp-warning); }
+.pill-rfp--danger  { background: var(--rfp-danger-bg);  color: var(--rfp-danger);  }
+.pill-rfp--info    { background: var(--rfp-info-bg);    color: var(--rfp-info);    }
+.pill-rfp--neutral { background: var(--rfp-ink-050);    color: var(--rfp-ink-500);}
+.pill-rfp--gold    { background: var(--rfp-gold-100);   color: var(--rfp-ink);    }

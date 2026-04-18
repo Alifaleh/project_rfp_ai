@@ -81,6 +81,8 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         'click .rfp-action-dropdown-menu .btn-delete-project': '_onDashboardDeleteProject',
         'click #btn_confirm_delete_project': '_onConfirmDeleteProject',
         'click .rfp-action-dropdown-menu .btn-edit-locked': '_onDashboardEditDocument',
+        'click .rfp-project-wrapper[data-href]': '_onRowOrCardClick',
+        'click .featured-card[data-href]': '_onRowOrCardClick',
 
         // Start Project: Tabs + Upload
         'click .rfp-start-tab': '_onStartTabSwitch',
@@ -281,6 +283,43 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
 
         // Initialize BOQ Table Editors
         this._initBoqEditors();
+
+        // Editor outline scroll-spy — highlights the outline entry whose
+        // corresponding section card is currently in view.
+        this._initOutlineScrollSpy();
+    },
+
+    _initOutlineScrollSpy: function () {
+        const outline = this.el.querySelector('.ed-outline');
+        if (!outline) return;
+        const sections = this.el.querySelectorAll('.rfp-section-block[id^="section_anchor_"]');
+        if (!sections.length) return;
+
+        const itemFor = (id) => outline.querySelector('.section-item[href="#' + id + '"]');
+        const setActive = (id) => {
+            outline.querySelectorAll('.section-item.active').forEach(el => el.classList.remove('active'));
+            const target = itemFor(id);
+            if (target) target.classList.add('active');
+        };
+
+        // Track intersection ratio per section; the section with the highest
+        // visible ratio becomes the active one.
+        const ratios = new Map();
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(e => ratios.set(e.target.id, e.intersectionRatio));
+            let bestId = null, bestRatio = 0;
+            ratios.forEach((r, id) => { if (r > bestRatio) { bestRatio = r; bestId = id; } });
+            if (bestId && bestRatio > 0) setActive(bestId);
+        }, {
+            // Trigger around the top third of the viewport so the "active"
+            // section is the one the user is reading, not the one at bottom.
+            rootMargin: '-10% 0px -55% 0px',
+            threshold: [0, 0.25, 0.5, 0.75, 1],
+        });
+        sections.forEach(s => observer.observe(s));
+
+        // Seed with the first section so the outline is never blank on load.
+        if (sections[0]) setActive(sections[0].id);
     },
 
     // --- PHASE 2: STRUCTURE EDITOR ---
@@ -519,14 +558,32 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         const $progressBar = this.$('#rfp_generation_progress');
         if (!$progressBar.length) return;
 
-        const projectId = $progressBar.data('project-id');
+        // The data-project-id lives on the ring wrapper (#rfp_processing_ring),
+        // not on the inner %-text span. Fall back to the span for legacy markup.
+        const projectId = this.$('#rfp_processing_ring').data('project-id')
+            || $progressBar.data('project-id');
+        if (!projectId) return;
         const self = this;
         const $statusText = this.$('#rfp_status_text');
 
-        // Steps
+        // Steps (6-stage layout matching the handoff)
+        const $stepInfo      = this.$('#step_info');
+        const $stepPractices = this.$('#step_practices');
         const $stepStructure = this.$('#step_structure');
-        const $stepContent = this.$('#step_content');
-        const $stepImages = this.$('#step_images');
+        const $stepContent   = this.$('#step_content');
+        const $stepImages    = this.$('#step_images');
+        const $stepLock      = this.$('#step_lock');
+        const $phaseText     = this.$('#rfp_phase_text');
+        const $contentProgress = this.$('#step_content_progress');
+
+        // Stage → phase label (for the "Phase N · Name" pill above the title)
+        const phaseFor = (st) => {
+            if (['generating_content', 'content_generated'].includes(st)) return 'Phase 3 · Generating content';
+            if (['generating_images', 'images_generated'].includes(st))   return 'Phase 4 · Generating diagrams';
+            if (['sections_generated'].includes(st))                      return 'Phase 2 · Structure ready';
+            if (['document_locked', 'completed'].includes(st))            return 'Phase 5 · Finalizing';
+            return 'Phase 1 · Initializing';
+        };
 
         const interval = setInterval(async () => {
             try {
@@ -540,52 +597,77 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
                 const stage = result.stage;
                 // Stages: sections_generated, generating_content, content_generated, generating_images, images_generated, completed...
 
-                // Helper to set step status
+                // Helper to set step status (supports both legacy Bootstrap badges
+                // and the new design-system step markup with .step-icon + state classes)
                 const setStep = ($el, state) => {
                     const $badge = $el.find('.status-badge');
+                    const $icon = $el.find('.step-icon');
+                    $el.removeClass('rfp-step--done rfp-step--active rfp-step--pending');
                     if (state === 'done') {
                         $badge.removeClass('bg-secondary bg-primary').addClass('bg-success').text('Completed');
-                        $el.addClass('list-group-item-success');
+                        $el.addClass('list-group-item-success rfp-step--done');
+                        $icon.text('✓');
                     } else if (state === 'active') {
                         $badge.removeClass('bg-secondary bg-success').addClass('bg-primary').text('In Progress');
-                        $el.removeClass('list-group-item-success').addClass('list-group-item-light');
+                        $el.removeClass('list-group-item-success').addClass('list-group-item-light rfp-step--active');
+                        $icon.text('●');
                     } else {
                         $badge.removeClass('bg-success bg-primary').addClass('bg-secondary').text('Pending');
-                        $el.removeClass('list-group-item-success list-group-item-light');
+                        $el.removeClass('list-group-item-success list-group-item-light').addClass('rfp-step--pending');
+                        $icon.text('○');
                     }
                 };
 
-                // Logic to update steps based on stage
-                // 1. Structure
-                // Structure is instantaneous usually, so it's likely done if we are here? 
-                // Actually `sections_generated` means it IS done.
-                if (['sections_generated', 'generating_content', 'content_generated', 'generating_images', 'images_generated', 'completed', 'document_locked'].includes(stage)) {
+                // Phase label above the title
+                if ($phaseText.length) $phaseText.text(phaseFor(stage));
+
+                // Info + Practices: always done by the time we land on processing
+                setStep($stepInfo, 'done');
+                setStep($stepPractices, 'done');
+
+                // Structure
+                if (['sections_generated', 'generating_content', 'content_generated',
+                     'generating_images', 'images_generated', 'completed', 'document_locked'].includes(stage)) {
                     setStep($stepStructure, 'done');
                 } else {
                     setStep($stepStructure, 'active');
                 }
 
-                // 2. Content
-                if (['content_generated', 'generating_images', 'images_generated', 'completed', 'document_locked'].includes(stage)) {
+                // Content
+                if (['content_generated', 'generating_images', 'images_generated',
+                     'completed', 'document_locked'].includes(stage)) {
                     setStep($stepContent, 'done');
-                } else if (stage === 'generating_content') {
+                    if ($contentProgress.length) $contentProgress.text('');
+                } else if (stage === 'generating_content' || stage === 'sections_generated') {
                     setStep($stepContent, 'active');
-                    $statusText.text("Writing granular content for each section...");
-                } else if (stage === 'sections_generated') {
-                    // It might be waiting to pick up job
-                    setStep($stepContent, 'active');
+                    $statusText.text("Writing granular content for each section…");
+                    // Dynamic "(X of Y sections done)" hint — requires the backend status
+                    // response to include sections_done / sections_total. Silently skip
+                    // if unavailable.
+                    if ($contentProgress.length && result.completed !== undefined && result.total) {
+                        $contentProgress.text('(' + result.completed + ' of ' + result.total + ' sections done)');
+                    }
                 } else {
                     setStep($stepContent, 'pending');
                 }
 
-                // 3. Images
+                // Images
                 if (['images_generated', 'completed', 'document_locked'].includes(stage)) {
                     setStep($stepImages, 'done');
                 } else if (stage === 'generating_images') {
                     setStep($stepImages, 'active');
-                    $statusText.text("Generating architectural diagrams...");
+                    $statusText.text("Generating architectural diagrams…");
                 } else {
                     setStep($stepImages, 'pending');
+                }
+
+                // Finalize & lock
+                if (['document_locked', 'completed'].includes(stage)) {
+                    setStep($stepLock, 'done');
+                } else if (['images_generated'].includes(stage)) {
+                    setStep($stepLock, 'active');
+                } else {
+                    setStep($stepLock, 'pending');
                 }
 
                 // Global Progress Bar
@@ -610,13 +692,25 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
 
                 // Ensure int
                 pct = Math.round(pct);
-                $progressBar.css('width', pct + '%').text(pct + '%');
+                // The new design-system %-text is just a <span> inside the ring —
+                // only update the text. Do NOT set width/height or Bootstrap
+                // progress-bar classes (those made the span overflow the ring).
+                $progressBar.text(pct + '%');
+
+                // Also update the new design-system conic-gradient ring (if present)
+                const $ring = self.$('#rfp_processing_ring');
+                if ($ring.length) {
+                    const deg = Math.round(pct * 3.6);
+                    $ring.css(
+                        'background',
+                        'conic-gradient(var(--rfp-gold) 0 ' + deg + 'deg, var(--rfp-ink-100) ' + deg + 'deg 360deg)'
+                    );
+                }
 
                 // Completion Redirect
                 if (['images_generated', 'completed', 'document_locked'].includes(stage)) {
                     clearInterval(interval);
-                    $progressBar.removeClass('progress-bar-animated').addClass('bg-success');
-                    $statusText.text("All Done! Redirecting to Editor...");
+                    $statusText.text("All Done! Redirecting to Editor…");
 
                     setTimeout(() => {
                         window.location.href = `/rfp/edit/${projectId}`;
@@ -2279,10 +2373,33 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
 
     _onDashboardActionClick: function (ev) {
         ev.preventDefault();
+        ev.stopPropagation();
         var $btn = $(ev.currentTarget);
         var $menu = $btn.siblings('.rfp-action-dropdown-menu');
         $('.rfp-action-dropdown-menu.show').not($menu).removeClass('show');
         $menu.toggleClass('show');
+    },
+
+    /**
+     * Navigate when a project row or featured card is clicked, unless the
+     * click originated from an interactive child (button, link, input,
+     * dropdown menu, etc.) — those handle themselves.
+     */
+    _onRowOrCardClick: function (ev) {
+        // If any real interactive child was clicked, don't hijack.
+        var interactive = ev.target.closest(
+            'a, button, input, select, textarea, label, ' +
+            '.rfp-action-dropdown, .rfp-action-dropdown-menu'
+        );
+        if (interactive) { return; }
+        var href = ev.currentTarget.getAttribute('data-href');
+        if (!href) { return; }
+        // Middle-click / ctrl+click → open in new tab
+        if (ev.metaKey || ev.ctrlKey || ev.button === 1) {
+            window.open(href, '_blank');
+        } else {
+            window.location.href = href;
+        }
     },
 
     _onDashboardDuplicateFromMenu: function (ev) {
