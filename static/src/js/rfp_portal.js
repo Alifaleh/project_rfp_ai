@@ -1486,6 +1486,7 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         // Add custom value as a selected option in the original widget
         const $select = $group.find('select');
         const $radios = $group.find('input[type="radio"]');
+        const $checkboxes = $group.find('input[type="checkbox"]').not('.custom-answer-flag');
 
         if ($select.length) {
             // Dropdown: add custom option and select it
@@ -1512,6 +1513,32 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
                 $group.find(`label[for="${customId}"]`).html(`${customVal} <span class="badge bg-info">custom</span>`);
             }
             $radios.prop('disabled', false);
+        } else if ($checkboxes.length) {
+            // Multi-select: keep existing selections, add a custom checkbox and check it.
+            // Checkbox names are usually field_key[] — strip the brackets for the ID.
+            const fieldName = $checkboxes.first().attr('name');
+            const baseId = (fieldName || 'custom').replace(/\[\]$/, '');
+            const customId = baseId + '_custom';
+            if (!$group.find(`#${customId}`).length) {
+                const $customCheck = $(`
+                    <div class="form-check">
+                        <input class="form-check-input rfp-dynamic-input" type="checkbox" name="${fieldName}" id="${customId}" value="${customVal}" checked/>
+                        <label class="form-check-label" for="${customId}">${customVal} <span class="badge bg-info">custom</span></label>
+                    </div>
+                `);
+                // Prefer appending inside the first .form-check's parent so the
+                // new checkbox shares the same column/group layout.
+                const $firstGroup = $checkboxes.first().closest('.form-check').parent();
+                if ($firstGroup.length) {
+                    $firstGroup.append($customCheck);
+                } else {
+                    $group.append($customCheck);
+                }
+            } else {
+                $group.find(`#${customId}`).val(customVal).prop('checked', true);
+                $group.find(`label[for="${customId}"]`).html(`${customVal} <span class="badge bg-info">custom</span>`);
+            }
+            $checkboxes.prop('disabled', false);
         }
 
         // Hide custom answer box, clear flag (value is now in the main widget)
