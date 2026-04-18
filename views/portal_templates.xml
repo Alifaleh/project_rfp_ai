@@ -1439,9 +1439,10 @@
                                                 </span>
                                             </div>
                                         </div>
+                                        <t t-set="_fp_pct" t-value="fp.get_progress_percent()"/>
                                         <div class="progress">
-                                            <div class="pbar"><i t-attf-style="width: #{stage_progress.get(fp.current_stage, 0)}%;"/></div>
-                                            <span class="mono"><t t-esc="stage_progress.get(fp.current_stage, 0)"/>%</span>
+                                            <div class="pbar"><i t-attf-style="width: #{_fp_pct}%;"/></div>
+                                            <span class="mono"><t t-esc="_fp_pct"/>%</span>
                                         </div>
                                         <div class="stage">
                                             <span style="width:6px;height:6px;border-radius:50%;background:var(--rfp-gold);display:inline-block;"/>
@@ -1533,9 +1534,10 @@
                                                 </span>
                                             </td>
                                             <td data-label="Progress">
-                                                <span class="mini-bar"><i t-attf-style="width: #{stage_progress.get(project.current_stage, 0)}%;"/></span>
+                                                <t t-set="_p_pct" t-value="project.get_progress_percent()"/>
+                                                <span class="mini-bar"><i t-attf-style="width: #{_p_pct}%;"/></span>
                                                 <span class="mono" style="margin-left: 8px; font-size: 11px;">
-                                                    <t t-esc="stage_progress.get(project.current_stage, 0)"/>%
+                                                    <t t-esc="_p_pct"/>%
                                                 </span>
                                             </td>
                                             <td class="muted" data-label="Updated">
@@ -1755,7 +1757,6 @@
                         <t t-esc="input_field.label"/>
                     </span>
 
-                    <!-- NEW: Premium CSS-Driven Rationale Popup (Avoids Bootstrap conflicts) -->
                     <div t-if="input_field.question_rationale" class="rfp-rationale-wrapper position-relative d-inline-block">
                         <i class="fa fa-question-circle text-muted rfp-rationale-icon" style="cursor: pointer; font-size: 0.9em; transition: all 0.2s;"></i>
                         <div class="rfp-rationale-popup shadow-lg p-4 rounded-4 border-0">

@@ -949,7 +949,10 @@ class RfpCustomerPortal(CustomerPortal):
             Project.action_gather_eval_criteria()
             return request.redirect(f"/rfp/eval/setup/{Project.id}")
 
-        if Project.eval_criteria_status == 'gathering':
+        # Some records end up with the legacy "generating" value (from an older
+        # state machine) — treat it the same as "gathering" so the interview
+        # loop continues rather than falling through to a silent redirect.
+        if Project.eval_criteria_status in ('gathering', 'generating'):
             # Show unanswered eval questions
             questions = Project.eval_input_ids.filtered(lambda i: not i.user_value and not i.is_irrelevant)
             if not questions:

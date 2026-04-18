@@ -59,8 +59,9 @@
 }
 .featured-card:hover { border-color: var(--rfp-gold); box-shadow: var(--rfp-sh-sm); }
 .featured-card .head {
-  display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
 }
+.featured-card .head h3 { flex: 1 1 auto; min-width: 0; }
 .featured-card h3 { font-size: var(--rfp-fs-md); line-height: var(--rfp-lh-snug); margin: 0; }
 .featured-card .sub { font-size: var(--rfp-fs-xs); color: var(--rfp-ink-500); font-family: var(--rfp-font-mono);
   text-transform: uppercase; letter-spacing: .08em; margin-bottom: 6px; }

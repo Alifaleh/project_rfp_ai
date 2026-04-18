@@ -58,6 +58,7 @@ class RfpProject(models.Model):
     evaluation_criterion_ids = fields.One2many('rfp.evaluation.criterion', 'project_id', string="Evaluation Criteria")
     eval_criteria_status = fields.Selection([
         ('not_started', 'Not Started'),
+        ('gathering', 'Gathering Input'),
         ('generating', 'Generating...'),
         ('generated', 'Criteria Generated'),
         ('finalized', 'Finalized'),
@@ -94,6 +95,54 @@ class RfpProject(models.Model):
             'type': 'success',
             'sticky': True,
         })
+
+    def get_progress_percent(self):
+        """Return the real progress percent matching the interview header.
+
+        Interview stages (initialized, specifications_gathered): use AI
+        completeness score + peak_completeness with per-stage caps.
+        Post-interview stages: use a fixed stage→% map since the AI score
+        stops updating once generation starts.
+        """
+        self.ensure_one()
+        stage = self.current_stage
+
+        stage_map = {
+            STAGE_DRAFT: 0,
+            STAGE_INITIALIZED: 10,
+            STAGE_INFO_GATHERED: 25,
+            STAGE_PRACTICES_REFINED: 35,
+            STAGE_SPECIFICATIONS_GATHERED: 45,
+            STAGE_PRACTICES_GAP_GATHERED: 55,
+            STAGE_SECTIONS_GENERATED: 65,
+            STAGE_GENERATING_CONTENT: 70,
+            STAGE_CONTENT_GENERATED: 80,
+            STAGE_GENERATING_IMAGES: 85,
+            STAGE_IMAGES_GENERATED: 95,
+            STAGE_DOCUMENT_LOCKED: 100,
+            STAGE_COMPLETED: 100,
+            STAGE_COMPLETED_WITH_ERRORS: 100,
+        }
+
+        if stage not in (STAGE_INITIALIZED, STAGE_SPECIFICATIONS_GATHERED):
+            return stage_map.get(stage, 0)
+
+        blob = self.get_context_data()
+        raw_score = blob.get('analysis_meta', {}).get('completeness_score', 0) or 0
+        ai_score = int(raw_score if raw_score > 1 else raw_score * 100)
+
+        if stage == STAGE_INITIALIZED:
+            completeness = int(ai_score * 0.5)
+            cap = 50
+        else:
+            completeness = 50 + int(ai_score * 0.45)
+            cap = 95
+
+        peak = int(blob.get('peak_completeness', 0) or 0)
+        completeness = max(completeness, peak)
+        if completeness > cap:
+            completeness = cap
+        return completeness
 
     def _notify_stage_progress(self, stage):
         """Send notification when a major generation stage completes."""

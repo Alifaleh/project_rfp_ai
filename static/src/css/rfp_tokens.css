@@ -142,10 +142,12 @@
   display: inline-flex; align-items: center; gap: 6px;
   font-size: var(--rfp-fs-xs);
   font-weight: 600;
-  padding: 3px 10px;
+  padding: 4px 10px;
   border-radius: var(--rfp-r-pill);
-  line-height: 1.4;
+  line-height: 1;
   letter-spacing: .01em;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .pill-rfp--success { background: var(--rfp-success-bg); color: var(--rfp-success); }
 .pill-rfp--warning { background: var(--rfp-warning-bg); color: var(--rfp-warning); }
