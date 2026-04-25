@@ -143,21 +143,39 @@ def _call_gemini_api(system_instructions, user_content, env, response_mime_type=
             max_output_tokens=65536,
         )
 
-        # Non-streaming call for simplicity in Odoo backend (we wait anyway)
-        response = client.models.generate_content(
-            model=model_name,
-            contents=contents,
-            config=generate_content_config,
-        )
-        
-        return response.text
-        
+        # Non-streaming call. Retry once on transient disconnect/read-timeout errors
+        # — Gemini occasionally closes the socket before responding on large payloads.
+        import time as _time
+        last_err = None
+        for attempt in range(2):
+            try:
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=contents,
+                    config=generate_content_config,
+                )
+                return response.text
+            except Exception as inner_e:
+                msg = str(inner_e)
+                transient = any(s in msg.lower() for s in (
+                    "server disconnected", "read timeout", "readtimeout",
+                    "remote end closed", "connection reset", "eof occurred",
+                ))
+                if transient and attempt == 0:
+                    _logger.warning(f"Gemini transient error (attempt {attempt+1}): {msg[:200]} — retrying")
+                    _time.sleep(5)
+                    last_err = inner_e
+                    continue
+                raise
+        if last_err:
+            raise last_err
+
     except Exception as e:
         error_msg = str(e)
         if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg:
             _logger.warning(f"Gemini Rate Limit Exceeded: {error_msg}")
             raise RateLimitError("Rate Limit Exceeded")
-            
+
         _logger.error(f"Gemini SDK Error: {error_msg}")
         raise e
 
