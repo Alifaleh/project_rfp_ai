@@ -329,7 +329,10 @@ def _call_openai_api(system_instructions, user_content, env, response_mime_type=
         # Reasoning models don't support temperature or max_tokens in the same way
         if not is_reasoning_model:
             kwargs["temperature"] = 0.4
-            kwargs["max_tokens"] = 65536
+            # 16384 is the maximum completion-token cap supported by current
+            # OpenAI chat models (gpt-4o, gpt-4o-mini, gpt-4-turbo). Higher
+            # values are rejected with HTTP 400.
+            kwargs["max_tokens"] = 16384
 
         # JSON structured output via response_format
         if response_mime_type == "application/json" and response_schema:

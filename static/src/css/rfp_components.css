@@ -2250,3 +2250,158 @@ textarea.input-rfp {
     display: none;
   }
 }
+
+/* ============================================================
+   GLOSSARY: Floating Action Button + Side Drawer
+   ============================================================ */
+
+.rfp-glossary-fab {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 1040;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 18px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--rfp-ink, #1A1A2E);
+    color: #fff;
+    font-weight: 600;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+    cursor: pointer;
+    transition: transform 120ms ease, box-shadow 120ms ease;
+}
+.rfp-glossary-fab:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22);
+    color: var(--rfp-gold-100, #F5ECD7);
+}
+.rfp-glossary-fab i { font-size: 1.05rem; }
+
+.rfp-glossary-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(26, 26, 46, 0.45);
+    z-index: 1050;
+}
+
+.rfp-glossary-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    height: 100vh;
+    width: 420px;
+    max-width: 100vw;
+    background: #fff;
+    z-index: 1051;
+    box-shadow: -8px 0 24px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+}
+.rfp-glossary-drawer__header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--rfp-ink-100, #E4E7EC);
+}
+.rfp-glossary-drawer__header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    flex: 1;
+    color: var(--rfp-ink, #1A1A2E);
+}
+.rfp-glossary-drawer__count {
+    font-size: 0.85rem;
+    color: var(--rfp-ink-500, #4A5568);
+}
+.rfp-glossary-drawer__close {
+    background: transparent;
+    border: 0;
+    font-size: 1.6rem;
+    line-height: 1;
+    cursor: pointer;
+    color: var(--rfp-ink-500, #4A5568);
+}
+.rfp-glossary-drawer__controls {
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--rfp-ink-100, #E4E7EC);
+}
+.rfp-glossary-drawer__controls input[type=search] {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--rfp-ink-100, #d1d5db);
+    border-radius: 6px;
+    font-size: 0.95rem;
+}
+.rfp-glossary-drawer__filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+}
+.rfp-glossary-drawer__filters button {
+    padding: 4px 10px;
+    border: 1px solid var(--rfp-ink-100, #d1d5db);
+    border-radius: 999px;
+    background: #fff;
+    font-size: 0.8rem;
+    cursor: pointer;
+    color: var(--rfp-ink-500, #4A5568);
+}
+.rfp-glossary-drawer__filters button.active {
+    background: var(--rfp-ink, #1A1A2E);
+    color: #fff;
+    border-color: var(--rfp-ink, #1A1A2E);
+}
+.rfp-glossary-drawer__list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 20px;
+}
+.rfp-glossary-term {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--rfp-ink-100, #f1f5f9);
+}
+.rfp-glossary-term:last-child {
+    border-bottom: 0;
+}
+.rfp-glossary-term__name {
+    font-weight: 600;
+    margin-right: 8px;
+    color: var(--rfp-ink, #1A1A2E);
+}
+.rfp-glossary-term__category {
+    display: inline-block;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--rfp-ink-500, #4A5568);
+    background: var(--rfp-gold-100, #F5ECD7);
+    padding: 2px 6px;
+    border-radius: 4px;
+    vertical-align: middle;
+}
+.rfp-glossary-term__definition {
+    margin: 6px 0 0;
+    color: var(--rfp-ink, #1f2937);
+    line-height: 1.5;
+}
+.rfp-glossary-term__examples {
+    margin: 4px 0 0;
+    color: var(--rfp-ink-500, #6b7280);
+    font-style: italic;
+    font-size: 0.88rem;
+}
+.rfp-glossary-empty {
+    color: var(--rfp-ink-500, #6b7280);
+    padding: 24px 0;
+    text-align: center;
+}
+.rfp-glossary-drawer__footer {
+    padding: 12px 20px;
+    border-top: 1px solid var(--rfp-ink-100, #E4E7EC);
+}
+.rfp-glossary-drawer__footer button { width: 100%; }

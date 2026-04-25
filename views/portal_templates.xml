@@ -1,4 +1,44 @@
 <odoo>
+    <!-- GLOSSARY DRAWER (reusable QWeb partial) -->
+    <template id="rfp_glossary_drawer" name="RFP Glossary Drawer">
+        <button type="button" class="rfp-glossary-fab"
+                t-att-data-glossary-url="'/rfp/glossary/' + str(project_id)"
+                t-att-data-glossary-refresh-url="'/rfp/glossary/' + str(project_id) + '/refresh'">
+            <i class="fa fa-book"/>
+            <span>Glossary</span>
+        </button>
+        <div class="rfp-glossary-backdrop" data-glossary-target="backdrop" hidden="hidden"/>
+        <aside class="rfp-glossary-drawer" data-glossary-target="drawer" hidden="hidden" aria-label="Glossary">
+            <header class="rfp-glossary-drawer__header">
+                <h3>Glossary</h3>
+                <span class="rfp-glossary-drawer__count" data-glossary-target="count">0 terms</span>
+                <button type="button" class="rfp-glossary-drawer__close" data-glossary-target="close" aria-label="Close">×</button>
+            </header>
+            <div class="rfp-glossary-drawer__controls">
+                <input type="search" placeholder="Search terms..." data-glossary-target="search"/>
+                <div class="rfp-glossary-drawer__filters" data-glossary-target="filters">
+                    <button type="button" class="active" data-category="all">All</button>
+                    <button type="button" data-category="acronym">Acronyms</button>
+                    <button type="button" data-category="jargon">Jargon</button>
+                    <button type="button" data-category="tag_value">Tags</button>
+                    <button type="button" data-category="workflow_stage">Workflow</button>
+                    <button type="button" data-category="compliance">Compliance</button>
+                    <button type="button" data-category="metric">Metric</button>
+                </div>
+            </div>
+            <div class="rfp-glossary-drawer__list" data-glossary-target="list">
+                <div class="rfp-glossary-empty" data-glossary-target="empty" hidden="hidden">
+                    No glossary terms yet — generation runs automatically once the AI finishes building your document outline. Click Refresh to retry.
+                </div>
+            </div>
+            <footer class="rfp-glossary-drawer__footer">
+                <button type="button" class="btn btn-secondary" data-glossary-target="refresh">
+                    <i class="fa fa-refresh"/> Refresh Glossary
+                </button>
+            </footer>
+        </aside>
+    </template>
+
     <!-- GLOBAL RFP THEME STYLES -->
     <template id="rfp_theme_styles" name="RFP Theme Styles">
         <!-- Google Fonts -->
@@ -2177,6 +2217,9 @@ Skip Question
             </t>
         </form>
     </div>
+<t t-call="project_rfp_ai.rfp_glossary_drawer">
+    <t t-set="project_id" t-value="rfp_project.id"/>
+</t>
 </div>
 </t>
 </template>
@@ -2262,6 +2305,9 @@ Skip Question
             </div>
         </div>
     </div>
+<t t-call="project_rfp_ai.rfp_glossary_drawer">
+    <t t-set="project_id" t-value="rfp_project.id"/>
+</t>
 </div>
 </t>
 </template>
@@ -3156,6 +3202,9 @@ Existing proposals will be preserved.</p>
 <t t-call="project_rfp_ai.proposal_upload_modal">
 <t t-set="required_docs" t-value="rfp_project.required_document_ids.sorted('sequence')"/>
 <t t-set="modal_project" t-value="rfp_project"/>
+</t>
+<t t-call="project_rfp_ai.rfp_glossary_drawer">
+    <t t-set="project_id" t-value="rfp_project.id"/>
 </t>
 </div>
 </t>

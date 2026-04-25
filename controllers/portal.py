@@ -375,6 +375,34 @@ class RfpCustomerPortal(CustomerPortal):
         status_data['stage'] = Project.current_stage # Add Stage Info
         return status_data
 
+    # --- GLOSSARY ---
+    @http.route(['/rfp/glossary/<int:project_id>'], type='json', auth='user', website=True)
+    def portal_rfp_glossary_list(self, project_id, **kw):
+        Project = request.env['rfp.project'].sudo().browse(project_id)
+        if not Project.exists() or Project.user_id != request.env.user:
+            return {'error': 'Access Denied'}
+        category_selection = dict(
+            request.env['rfp.glossary.term']._fields['category'].selection
+        )
+        return [{
+            'id': t.id,
+            'name': t.name,
+            'definition': t.definition,
+            'category': t.category,
+            'category_label': category_selection.get(t.category, t.category),
+            'examples': t.examples or '',
+            'sequence': t.sequence,
+            'is_manual': t.is_manual,
+        } for t in Project.glossary_term_ids]
+
+    @http.route(['/rfp/glossary/<int:project_id>/refresh'], type='json', auth='user', website=True)
+    def portal_rfp_glossary_refresh(self, project_id, **kw):
+        Project = request.env['rfp.project'].sudo().browse(project_id)
+        if not Project.exists() or Project.user_id != request.env.user:
+            return {'error': 'Access Denied'}
+        Project.action_refresh_glossary()
+        return {'status': 'queued'}
+
     # --- PHASE 3: UNIFIED EDITOR (SPA) ---
     @http.route(['/rfp/edit/<int:project_id>'], type='http', auth="user", website=True)
     def portal_rfp_edit(self, project_id, **kw):

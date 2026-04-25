@@ -795,3 +795,52 @@ def get_scope_assessment_schema():
         },
         required=["complexity_rating", "reasoning", "warn_round", "max_round"]
     )
+
+
+def get_glossary_generation_schema():
+    """Schema for AI-generated glossary terms.
+
+    Returns ``None`` when google.genai is unavailable so callers can degrade
+    gracefully (existing pattern in this file).
+
+    Note: All item properties are listed in ``required`` so OpenAI strict-mode
+    structured-output is satisfied. When a term has no example, the AI returns
+    an empty string for ``examples`` and the apply method treats it as falsy.
+    """
+    if not types:
+        return None
+    return types.Schema(
+        type=types.Type.OBJECT,
+        required=["terms"],
+        properties={
+            "terms": types.Schema(
+                type=types.Type.ARRAY,
+                items=types.Schema(
+                    type=types.Type.OBJECT,
+                    required=["name", "definition", "category", "examples"],
+                    properties={
+                        "name": types.Schema(
+                            type=types.Type.STRING,
+                            description="The term or label as it appears in the UI.",
+                        ),
+                        "definition": types.Schema(
+                            type=types.Type.STRING,
+                            description="1-2 sentence layperson definition tailored to the audience.",
+                        ),
+                        "category": types.Schema(
+                            type=types.Type.STRING,
+                            enum=[
+                                "acronym", "jargon", "tag_value",
+                                "workflow_stage", "compliance",
+                                "metric", "other",
+                            ],
+                        ),
+                        "examples": types.Schema(
+                            type=types.Type.STRING,
+                            description="Short examples (e.g. 'Slack, Salesforce'). Return empty string if no example applies.",
+                        ),
+                    },
+                ),
+            ),
+        },
+    )

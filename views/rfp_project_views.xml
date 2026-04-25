@@ -126,6 +126,20 @@
                         <page string="AI Context" name="ai_context">
                             <field name="ai_context_blob" readonly="0"/>
                         </page>
+                        <page string="Glossary" name="glossary">
+                            <button name="action_refresh_glossary" type="object" string="Refresh Glossary"
+                                    class="btn-secondary mb-2" icon="fa-refresh"/>
+                            <field name="glossary_term_ids">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="name"/>
+                                    <field name="category"/>
+                                    <field name="definition"/>
+                                    <field name="examples" optional="hide"/>
+                                    <field name="is_manual"/>
+                                </list>
+                            </field>
+                        </page>
                     </notebook>
                 </sheet>
                 <chatter/>

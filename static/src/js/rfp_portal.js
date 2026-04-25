@@ -99,6 +99,14 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         'click .btn-upload-proposal': '_onUploadProposalClick',
         'click #btn_confirm_proposal_upload': '_onConfirmProposalUpload',
         'click #btn_retry_proposal_upload': '_onRetryProposalUpload',
+
+        // Glossary Drawer
+        'click .rfp-glossary-fab': '_onGlossaryOpen',
+        'click [data-glossary-target="close"]': '_onGlossaryClose',
+        'click [data-glossary-target="backdrop"]': '_onGlossaryClose',
+        'input [data-glossary-target="search"]': '_onGlossarySearch',
+        'click [data-glossary-target="filters"] button': '_onGlossaryFilter',
+        'click [data-glossary-target="refresh"]': '_onGlossaryRefresh',
     },
 
     // --- CORE RPC WRAPPER ---
@@ -2854,6 +2862,132 @@ publicWidget.registry.RfpPortalInteractions = publicWidget.Widget.extend({
         var $modal = $('#modal_upload_proposal');
         $modal.find('#proposal_error_state').addClass('d-none');
         $modal.find('#proposal_form_state').removeClass('d-none');
-    }
+    },
+
+    // --- GLOSSARY DRAWER ---
+
+    _onGlossaryOpen: function (ev) {
+        var fab = ev.currentTarget;
+        this._glossaryUrl = fab.dataset.glossaryUrl;
+        this._glossaryRefreshUrl = fab.dataset.glossaryRefreshUrl;
+        this._glossaryCategory = 'all';
+        this._glossaryQuery = '';
+        this._showGlossaryDrawer(true);
+        this._fetchGlossary();
+    },
+
+    _onGlossaryClose: function () {
+        this._showGlossaryDrawer(false);
+    },
+
+    _onGlossarySearch: function (ev) {
+        this._glossaryQuery = (ev.target.value || '').toLowerCase();
+        this._renderGlossary();
+    },
+
+    _onGlossaryFilter: function (ev) {
+        var btn = ev.currentTarget;
+        this._glossaryCategory = btn.dataset.category;
+        var siblings = btn.parentNode.querySelectorAll('button');
+        siblings.forEach(function (b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        this._renderGlossary();
+    },
+
+    _onGlossaryRefresh: async function (ev) {
+        var btn = ev.currentTarget;
+        var self = this;
+        btn.disabled = true;
+        var originalHtml = btn.innerHTML;
+        btn.textContent = 'Refreshing...';
+        try {
+            await self._glossaryRpc(self._glossaryRefreshUrl);
+            // Generation runs as a queued job; poll once after a short delay.
+            setTimeout(function () { self._fetchGlossary(); }, 4000);
+        } finally {
+            setTimeout(function () {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }, 4500);
+        }
+    },
+
+    _showGlossaryDrawer: function (show) {
+        var drawer = this.el.querySelector('[data-glossary-target="drawer"]');
+        var backdrop = this.el.querySelector('[data-glossary-target="backdrop"]');
+        if (!drawer || !backdrop) return;
+        drawer.hidden = !show;
+        backdrop.hidden = !show;
+    },
+
+    _fetchGlossary: async function () {
+        if (!this._glossaryUrl) return;
+        try {
+            var data = await this._glossaryRpc(this._glossaryUrl);
+            this._glossaryTerms = Array.isArray(data) ? data : [];
+        } catch (e) {
+            this._glossaryTerms = [];
+        }
+        this._renderGlossary();
+    },
+
+    _renderGlossary: function () {
+        var list = this.el.querySelector('[data-glossary-target="list"]');
+        var count = this.el.querySelector('[data-glossary-target="count"]');
+        var empty = this.el.querySelector('[data-glossary-target="empty"]');
+        if (!list) return;
+        var all = this._glossaryTerms || [];
+        var query = this._glossaryQuery || '';
+        var category = this._glossaryCategory || 'all';
+        var filtered = all.filter(function (t) {
+            var catOk = category === 'all' || t.category === category;
+            var qOk = !query || ((t.name || '') + ' ' + (t.definition || '')).toLowerCase().indexOf(query) !== -1;
+            return catOk && qOk;
+        });
+        list.innerHTML = '';
+        if (!filtered.length) {
+            if (empty) {
+                empty.hidden = false;
+                list.appendChild(empty);
+            }
+        } else {
+            if (empty) empty.hidden = true;
+            filtered.forEach(function (t) {
+                var div = document.createElement('div');
+                div.className = 'rfp-glossary-term';
+                var nameSpan = document.createElement('span');
+                nameSpan.className = 'rfp-glossary-term__name';
+                nameSpan.textContent = t.name || '';
+                var catSpan = document.createElement('span');
+                catSpan.className = 'rfp-glossary-term__category';
+                catSpan.textContent = t.category_label || t.category || '';
+                var defP = document.createElement('p');
+                defP.className = 'rfp-glossary-term__definition';
+                defP.textContent = t.definition || '';
+                div.appendChild(nameSpan);
+                div.appendChild(catSpan);
+                div.appendChild(defP);
+                if (t.examples) {
+                    var exP = document.createElement('p');
+                    exP.className = 'rfp-glossary-term__examples';
+                    exP.textContent = t.examples;
+                    div.appendChild(exP);
+                }
+                list.appendChild(div);
+            });
+        }
+        if (count) count.textContent = all.length + ' term' + (all.length === 1 ? '' : 's');
+    },
+
+    _glossaryRpc: async function (url) {
+        var res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ jsonrpc: '2.0', method: 'call', params: {} }),
+        });
+        var json = await res.json();
+        if (json.error) throw new Error(json.error.message || 'RPC error');
+        return json.result;
+    },
 
 });

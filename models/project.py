@@ -53,6 +53,18 @@ class RfpProject(models.Model):
     practice_input_ids = fields.One2many('rfp.practice.input', 'project_id', string="Practice Inputs")
     document_section_ids = fields.One2many('rfp.document.section', 'project_id', string="Generated Sections")
 
+    # Glossary
+    glossary_term_ids = fields.One2many(
+        comodel_name='rfp.glossary.term',
+        inverse_name='project_id',
+        string='Glossary',
+        copy=True,
+    )
+    glossary_term_count = fields.Integer(
+        string='Glossary Count',
+        compute='_compute_glossary_term_count',
+    )
+
     # Evaluation Criteria
     eval_input_ids = fields.One2many('rfp.eval.input', 'project_id', string="Evaluation Inputs")
     evaluation_criterion_ids = fields.One2many('rfp.evaluation.criterion', 'project_id', string="Evaluation Criteria")
@@ -1502,6 +1514,10 @@ class RfpProject(models.Model):
                     sequence += 10
 
             project.current_stage = STAGE_SECTIONS_GENERATED
+            # Auto-generate the project glossary now that all gathering rounds
+            # (info, practices, specs, gap) are complete and the section
+            # outline exists. Runs as a queued job so it never blocks the user.
+            project.with_delay(channel='root.rfp_generation')._generate_glossary()
             return True
 
     def action_generate_content(self):
@@ -1938,6 +1954,171 @@ class RfpProject(models.Model):
     def _compute_kb_count(self):
         for rec in self:
             rec.kb_count = len(rec.kb_ids)
+
+    @api.depends('glossary_term_ids')
+    def _compute_glossary_term_count(self):
+        for record in self:
+            record.glossary_term_count = len(record.glossary_term_ids)
+
+    # ----- Glossary AI Generation -----
+
+    def _build_glossary_context(self):
+        """Assemble context payload the AI uses to extract glossary terms.
+
+        Also injects the static UI tag inventory — labels rendered in the
+        client portal (workflow stages, scoring bands, severity levels,
+        Must-Have/Nice-to-Have, criterion categories) which are NOT visible
+        in the project's custom fields or criteria text. The AI must produce
+        a glossary entry for every value listed, in addition to anything it
+        discovers in the project content.
+        """
+        self.ensure_one()
+        custom_fields = []
+        for fi in self.form_input_ids:
+            if fi.is_irrelevant:
+                continue
+            custom_fields.append({
+                'label': fi.label or fi.field_key,
+                'value': (fi.user_value or '')[:500],
+            })
+        criteria = [
+            {
+                'name': c.name,
+                'description': (c.description or '')[:400],
+                'category': c.category,
+                'weight': c.weight,
+                'must_have': c.is_must_have,
+                'scoring_guidance': (c.scoring_guidance or '')[:400],
+            }
+            for c in self.evaluation_criterion_ids
+        ]
+
+        # Static UI tag inventory — labels rendered in the client portal that
+        # are NOT present in custom fields or criteria text. Every value below
+        # MUST receive a glossary entry.
+        ui_tags = {
+            'workflow_stages': {
+                'values': [
+                    'Draft', 'Initialized', 'Information Gathered',
+                    'Best Practices Refined', 'Specifications Gathered',
+                    'Best Practices Info Gap Gathered', 'Sections Generated',
+                    'Generating Content', 'Content Generated',
+                    'Generating Images', 'Images Generated',
+                    'Document Locked', 'Completed',
+                ],
+                'where_shown': 'Project card stage badge + dashboard table column.',
+            },
+            'scoring_guidance_bands': {
+                'values': ['High', 'Medium', 'Low'],
+                'score_bands': {'High': '80-100', 'Medium': '50-79', 'Low': '0-49'},
+                'where_shown': 'Scoring guidance text on each evaluation criterion — describes what a high/medium/low score for that criterion looks like.',
+            },
+            'must_have_flags': {
+                'values': ['Must-Have', 'Nice-to-Have'],
+                'where_shown': 'Badge on each evaluation criterion. Must-Have means automatic rejection if a vendor fails it.',
+            },
+            'weakness_severity_levels': {
+                'values': ['Critical', 'Major', 'Minor'],
+                'where_shown': 'Used by the AI when reporting gaps in vendor proposals against this RFP.',
+            },
+            'criterion_categories': {
+                'values': ['Technical', 'Commercial', 'Experience', 'Compliance',
+                           'Timeline', 'Methodology', 'Support & SLA', 'Innovation', 'Other'],
+                'where_shown': 'Category badge next to each evaluation criterion.',
+            },
+            'core_metrics': {
+                'values': ['Weight', 'Weighted Total Score', 'Coverage Score'],
+                'where_shown': 'Score cards and criterion list on the proposals view.',
+            },
+        }
+
+        payload = {
+            'project_name': self.name,
+            'description': (self.description or '')[:1000],
+            'domain': self.domain_id.name if self.domain_id else 'General',
+            'current_stage': self.current_stage,
+            'custom_fields': custom_fields,
+            'evaluation_criteria': criteria,
+            'portal_ui_tag_inventory': ui_tags,
+        }
+        return json.dumps(payload, ensure_ascii=False, default=str)
+
+    def _apply_glossary_response(self, payload):
+        """Replace non-manual entries with AI-returned terms.
+
+        Manual entries (is_manual=True) survive. AI sometimes returns
+        duplicate or near-duplicate names (e.g. multiple "CI/CD" rows);
+        we de-duplicate by case-insensitive name before insertion to
+        respect the SQL unique constraint. We also exclude any name
+        that already exists as a manual entry, since the manual one wins.
+        """
+        self.ensure_one()
+        manual_names_lower = {
+            (t.name or '').strip().lower()
+            for t in self.glossary_term_ids if t.is_manual
+        }
+        self.glossary_term_ids.filtered(lambda t: not t.is_manual).unlink()
+        Term = self.env['rfp.glossary.term']
+        rows = []
+        seen = set()
+        for idx, term in enumerate(payload.get('terms', []) or []):
+            name = (term.get('name') or '').strip()
+            definition = (term.get('definition') or '').strip()
+            if not name or not definition:
+                continue
+            key = name.lower()
+            if key in seen or key in manual_names_lower:
+                continue
+            seen.add(key)
+            rows.append({
+                'project_id': self.id,
+                'name': name,
+                'definition': definition,
+                'category': term.get('category') or 'other',
+                'examples': term.get('examples') or False,
+                'sequence': (idx + 1) * 10,
+                'is_manual': False,
+            })
+        if rows:
+            Term.create(rows)
+
+    def _generate_glossary(self):
+        """Build prompt context, call AI, apply response. Idempotent."""
+        from odoo.addons.project_rfp_ai.models import ai_schemas
+        self.ensure_one()
+        prompt_record = self.env.ref(
+            'project_rfp_ai.prompt_generate_glossary',
+            raise_if_not_found=False,
+        )
+        if not prompt_record:
+            _logger.warning("Glossary prompt record missing; skipping generation for project %s", self.id)
+            return False
+        user_context = self._build_glossary_context()
+        try:
+            response_text = self.env['rfp.ai.log'].execute_request(
+                system_prompt=prompt_record.template_text,
+                user_context=user_context,
+                env=self.env,
+                mode='json',
+                schema=ai_schemas.get_glossary_generation_schema(),
+                prompt_record=prompt_record,
+            )
+        except Exception as e:
+            _logger.exception("Glossary generation failed for project %s: %s", self.id, e)
+            return False
+        try:
+            payload = json.loads(response_text or '{}')
+        except (TypeError, ValueError):
+            _logger.warning("Glossary AI returned non-JSON for project %s", self.id)
+            payload = {}
+        self._apply_glossary_response(payload)
+        return True
+
+    def action_refresh_glossary(self):
+        """User-triggered re-run from backend or portal."""
+        self.ensure_one()
+        self.with_delay(channel='root.rfp_generation')._generate_glossary()
+        return True
 
     def action_view_knowledge_bases(self):
         """Open the selected knowledge bases for this project."""

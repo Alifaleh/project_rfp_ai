@@ -18,3 +18,5 @@ from . import rfp_eval_input
 from . import rfp_evaluation_criterion
 from . import rfp_required_document
 from . import rfp_proposal_document
+from . import glossary_mixin
+from . import rfp_glossary_term

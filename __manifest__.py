@@ -15,7 +15,7 @@
     'author': "Ali&Murtaja",
     'website': "https://www.odoo.com",
     'category': 'Services/Project',  
-    'version': '18.0.1.0.0',
+    'version': '18.0.1.1.0',
     'depends': ['base', 'web', 'project', 'portal', 'website', 'queue_job'],
     'data': [
         'security/ir.model.access.csv',
